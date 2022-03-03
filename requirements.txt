@@ -9,7 +9,7 @@ pypsa
 plotly
 pvlib
 sqlalchemy
-psycopg2
+psycopg2-binary
 names
 openpyxl
 seaborn
