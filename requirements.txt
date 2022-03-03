@@ -1,0 +1,15 @@
+cimpy
+numpy
+pandas
+shapely
+overpass
+overpy
+tqdm
+pypsa
+plotly
+pvlib
+sqlalchemy
+psycopg2
+names
+openpyxl
+seaborn
