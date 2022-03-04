@@ -12,6 +12,9 @@ RUN useradd -s /bin/bash admin
 # make wokring directory
 RUN mkdir /src
 RUN chown -R admin /src
+# fix pypsa error --> PermissionError: [Errno 13] Permission denied: '/home/admin'
+RUN mkdir -p /home/admin
+RUN chown -R admin /home/admin
 # copy script file to working directory
 COPY . /src
 # switch to user admin
