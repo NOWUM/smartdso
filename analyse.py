@@ -1,10 +1,7 @@
 import pandas as pd
 import sqlite3
-import numpy
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-database = sqlite3.connect('result.db')
+database = sqlite3.connect('/sim_result/result.db')
 
 
 if __name__ == "__main__":
@@ -49,6 +46,3 @@ if __name__ == "__main__":
     soc = df['soc']
     soc.index = df.index
     soc.to_csv('./results/soc.csv', sep=';', decimal=',')
-
-    #sns.lineplot(data=requests_)
-    #plt.show()
