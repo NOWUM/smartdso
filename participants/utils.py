@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from mobLib.mobility_demand import MobilityDemand
 from carLib.car import Car
 
-ev_ratio = os.getenv('EV_RATIO', 50)
+ev_ratio = os.getenv('EV_RATIO', 80)
 ev_ratio = int(ev_ratio)/100
 
-minimum_soc = os.getenv('MINIMUM_SOC', 80)
+minimum_soc = os.getenv('MINIMUM_SOC', 30)
 
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
 
