@@ -29,7 +29,7 @@ for participant in participants.values():
             total_capacity += resident.car.capacity
 
 
-database = sqlite3.connect('result.db')
+database = sqlite3.connect('./sim_result/result.db')
 database.execute('DROP TABLE IF EXISTS results')
 
 
