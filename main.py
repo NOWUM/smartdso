@@ -28,6 +28,8 @@ for participant in participants.values():
         if resident.own_car and resident.car.type == 'ev':
             total_capacity += resident.car.capacity
 
+with open('./sim_result/test.json') as file:
+    file.write('JSON ist cool')
 
 database = sqlite3.connect('./sim_result/result.db')
 database.execute('DROP TABLE IF EXISTS results')
@@ -102,3 +104,4 @@ if __name__ == "__main__":
         result.index = pd.date_range(start=day, periods=1440, freq='min')
         result.to_sql('results', database, if_exists='append')
 
+database.close()
