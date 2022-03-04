@@ -10,8 +10,14 @@ from participants.utils import Resident, in_minutes
 from demLib.electric_profile import StandardLoadProfile
 from collections import defaultdict
 
+
+def parse(string):
+    d = {'True': True, 'False': False}
+    return d.get(string, string)
+
+
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
-london_data = os.getenv('LONDON_DATA', False)
+london_data = parse(os.getenv('LONDON_DATA', 'False'))
 
 mean_price = 28.01
 var_price = 7.9

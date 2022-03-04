@@ -66,7 +66,7 @@ class StandardLoadProfile:
         self.resolution = resolution
         self.random_choice = random_choice
 
-        if self.random_choice:
+        if random_choice:
             draw = True
             while draw:
                 df = pd.read_sql('SELECT DISTINCT "LCLid" from consumption', engine)
