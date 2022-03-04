@@ -10,5 +10,5 @@ if __name__ == "__main__":
     df['DateTime'] = pd.to_datetime(df['DateTime'])
     data = df.set_index(['LCLid', 'DateTime'])
     data.columns = ['tariff', 'power']
-    data['power'] *= 2
+    data['power'] = [float(value) / 0.5 for value in data['power'].str.strip().replace('Null', 0).values]
     data.to_sql('consumption', engine, if_exists='replace', chunksize=10000)
