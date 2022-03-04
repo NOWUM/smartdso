@@ -5,8 +5,11 @@ from datetime import datetime, timedelta
 from mobLib.mobility_demand import MobilityDemand
 from carLib.car import Car
 
+ev_ratio = os.getenv('EV_RATIO', 50)
+ev_ratio = int(ev_ratio)/100
 
-ev_ratio = os.getenv('EV_RATIO', 0.5)
+minimum_soc = os.getenv('MINIMUM_SOC', 80)
+
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
 
 
@@ -97,7 +100,7 @@ class Resident:
             t1 = index
             t2 = car_in_use[0] if len(car_in_use > 0) else 1440
 
-            if self.car.soc < 80:
+            if self.car.soc < minimum_soc:
                 total_energy = self.car.capacity - (self.car.capacity * self.car.soc)/100
                 duration = total_energy/self.car.maximal_charging_power * 60
                 if duration < (t2-t1):
