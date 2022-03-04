@@ -14,7 +14,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 FlexProvider = FlexibilityProvider()
-print(FlexProvider)
+# print(FlexProvider)
 logging.getLogger('FlexibilityProvider').setLevel('WARNING')
 
 CapProvider = CapacityProvider()
@@ -93,8 +93,8 @@ if __name__ == "__main__":
 
         charged = get_data() - power
         # ---> save results
-        result = pd.DataFrame(dict(power=power.values,
-                                   charged=charged.to_numpy().flatten(),
+        result = pd.DataFrame(dict(power=power.values.flatten(),
+                                   charged=charged.values.flatten(),
                                    requests=requests_.values,
                                    commits=commits.values,
                                    soc=soc.values,
