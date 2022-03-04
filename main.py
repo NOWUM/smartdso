@@ -14,7 +14,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 FlexProvider = FlexibilityProvider()
-# print(FlexProvider)
+print(FlexProvider)
 logging.getLogger('FlexibilityProvider').setLevel('WARNING')
 
 CapProvider = CapacityProvider()
