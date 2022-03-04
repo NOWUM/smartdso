@@ -11,6 +11,7 @@ from demLib.electric_profile import StandardLoadProfile
 from collections import defaultdict
 
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
+london_data = os.getenv('LONDON_DATA', False)
 
 mean_price = 28.01
 var_price = 7.9
@@ -22,7 +23,7 @@ class HouseholdModel(BasicParticipant):
         super().__init__(T, **kwargs)
 
         self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='household', resolution='min',
-                                                     random_choice=True)
+                                                     random_choice=london_data)
         self.residents = []
 
         self.family_name = names.get_last_name()

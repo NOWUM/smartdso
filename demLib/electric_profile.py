@@ -64,11 +64,11 @@ class StandardLoadProfile:
         self.summer = summer
 
         self.resolution = resolution
+        self.random_choice = random_choice
 
-        if random_choice:
+        if self.random_choice:
             draw = True
             while draw:
-                self.random_choice = True
                 df = pd.read_sql('SELECT DISTINCT "LCLid" from consumption', engine)
                 id_ = np.random.choice(df.to_numpy().flatten())
                 query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{id_}\' and' \
