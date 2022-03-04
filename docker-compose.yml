@@ -8,6 +8,8 @@ services:
           EV_RATIO: 50
           MINIMUM_SOC: 30
           LONDON_DATA: False
+          START_DATE: 2022-02-01
+          END_DATE: 2022-02-02
         volumes:
           - ./sim_result/50_30:/home/admin/src/sim_result/
     
