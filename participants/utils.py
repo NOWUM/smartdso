@@ -8,7 +8,7 @@ from carLib.car import Car
 ev_ratio = int(os.getenv('EV_RATIO', 80))
 ev_ratio = int(ev_ratio)/100
 
-minimum_soc = os.getenv('MINIMUM_SOC', 30)
+minimum_soc = int(os.getenv('MINIMUM_SOC', 30))
 
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
 
