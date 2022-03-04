@@ -7,7 +7,7 @@ services:
         environment:
           EV_RATIO: 50
           MINIMUM_SOC: 30
-          LONDON_DATA: 'False'
+          LONDON_DATA: False
         volumes:
-          - ./sim_result/50_30:/home/admin/src/sim_result
+          - ./sim_result/50_30:/home/admin/src/sim_result/
     
