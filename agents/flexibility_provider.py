@@ -8,6 +8,7 @@ import sqlite3
 from collections import defaultdict
 
 from participants.residential import HouseholdModel
+from participants.business import BusinessModel
 from agents.utils import WeatherGenerator
 
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
@@ -60,6 +61,9 @@ class FlexibilityProvider:
                 for resident in participant.residents:
                     self._check_attributes(resident)
 
+                self.participants[uuid.uuid1()] = participant
+            else:
+                participant = BusinessModel(T=1440, demandP=consumer['jeb'], grid_node=consumer['bus0'])
                 self.participants[uuid.uuid1()] = participant
 
         self._logger.info(f'create {len(allocated_consumers)} participants')
