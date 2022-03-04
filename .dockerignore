@@ -1,1 +1,9 @@
 *.db
+/sim_result
+/results
+analyse.py
+container_builder.py
+docker-compose.yml
+.gitignore
+.gitlab-ci.yml
+README.md
