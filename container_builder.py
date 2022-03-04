@@ -5,8 +5,8 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [50, 80, 100]
-minimum_socs = [30, 50, 80]
+ev_quotas = [50]
+minimum_socs = [30]
 
 use_london_data = False
 
@@ -20,7 +20,7 @@ for scenario in product(ev_quotas, minimum_socs):
           MINIMUM_SOC: {scenario[1]}
           LONDON_DATA: {use_london_data}
         volumes:
-          - ./sim_result/{scenario[0]}_{scenario[1]}:./sim_results
+          - ./sim_result/{scenario[0]}_{scenario[1]}:/home/admin/src/sim_result
     ''')
 
 with open('docker-compose.yml', 'w') as f:
