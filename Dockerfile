@@ -12,7 +12,7 @@ RUN useradd -s /bin/bash admin
 # make wokring directory
 RUN mkdir /src
 RUN chown -R admin /src
-RUN mkdir /sim_result
+RUN mkdir /src/sim_result
 # fix pypsa error --> PermissionError: [Errno 13] Permission denied: '/home/admin'
 RUN mkdir -p /home/admin
 RUN chown -R admin /home/admin
