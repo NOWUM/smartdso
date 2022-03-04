@@ -1,0 +1,84 @@
+version: "3.9"
+services:
+
+      scenario_0.5_30:
+        container_name: s_0.5_30
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.5
+          MINIMUM_SOC: 30
+        volumes:
+          - ./sim_result/0.5_30:./sim_results
+    
+      scenario_0.5_50:
+        container_name: s_0.5_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.5
+          MINIMUM_SOC: 50
+        volumes:
+          - ./sim_result/0.5_50:./sim_results
+    
+      scenario_0.5_80:
+        container_name: s_0.5_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.5
+          MINIMUM_SOC: 80
+        volumes:
+          - ./sim_result/0.5_80:./sim_results
+    
+      scenario_0.8_30:
+        container_name: s_0.8_30
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.8
+          MINIMUM_SOC: 30
+        volumes:
+          - ./sim_result/0.8_30:./sim_results
+    
+      scenario_0.8_50:
+        container_name: s_0.8_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.8
+          MINIMUM_SOC: 50
+        volumes:
+          - ./sim_result/0.8_50:./sim_results
+    
+      scenario_0.8_80:
+        container_name: s_0.8_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 0.8
+          MINIMUM_SOC: 80
+        volumes:
+          - ./sim_result/0.8_80:./sim_results
+    
+      scenario_1.0_30:
+        container_name: s_1.0_30
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 1.0
+          MINIMUM_SOC: 30
+        volumes:
+          - ./sim_result/1.0_30:./sim_results
+    
+      scenario_1.0_50:
+        container_name: s_1.0_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 1.0
+          MINIMUM_SOC: 50
+        volumes:
+          - ./sim_result/1.0_50:./sim_results
+    
+      scenario_1.0_80:
+        container_name: s_1.0_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        environment:
+          EV_RATIO: 1.0
+          MINIMUM_SOC: 80
+        volumes:
+          - ./sim_result/1.0_80:./sim_results
+    
