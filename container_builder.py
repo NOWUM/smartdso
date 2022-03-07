@@ -27,7 +27,7 @@ for scenario in product(ev_quotas, minimum_socs):
               START_DATE: {start_date}
               END_DATE: {end_date}
             volumes:
-              - ./sim_result/{scenario[0]}_{scenario[1]}/{simulation}:/src/sim_result
+              - ./sim_result/ev_{scenario[0]}_lim_{scenario[1]}/sim_{simulation}:/src/sim_result
         ''')
 
 with open('docker-compose.yml', 'w') as f:
