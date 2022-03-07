@@ -21,6 +21,13 @@ CapProvider = CapacityProvider()
 logging.getLogger('CapacityProvider').setLevel('WARNING')
 
 participants = FlexProvider.participants
+ref_car = None
+while ref_car is None:
+    key = np.random.choice([key for key in participants.keys()])
+    participant = participants[key]
+    for resident in participant.residents:
+        if resident.own_car and resident.car.type == 'ev':
+            ref_car = resident.car
 
 total_capacity = 0
 for participant in participants.values():
@@ -48,10 +55,9 @@ if __name__ == "__main__":
     for day in pd.date_range(start=start_date, end=end_date, freq='d'):
         logger.info(f'start simulation for day {day.date()}')
         # ---> initialize time series to analyse the results
-        commits = pd.Series(data=np.zeros(1440), index=range(1440))
-        requests_ = pd.Series(data=np.zeros(1440), index=range(1440))
-        soc = pd.Series(data=np.zeros(1440), index=range(1440))
-        price_ = pd.Series(data=np.zeros(1440), index=range(1440))
+        daily_result = {key: pd.Series(data=np.zeros(1440), index=range(1440))
+                        for key in ['commits', 'requests', 'soc', 'price', 'ref_distance', 'ref_soc']}
+
         # ---> set mobility demand for the current day
         for participant in participants.values():
             participant.set_mobility(day)
@@ -65,7 +71,7 @@ if __name__ == "__main__":
         for d_time in tqdm(pd.date_range(start=day, periods=1440, freq='min')):
             # ---> for each time step get the charging requests
             requests = FlexProvider.get_requests(d_time)
-            requests_[counter] = len(requests)
+            daily_result['requests'][counter] = len(requests)
             committed = 0
             # ---> for each request get the price from the capacity provider
             for id_, request in requests.items():
@@ -75,9 +81,9 @@ if __name__ == "__main__":
                 if participants[id_].commit_charging(price):
                     # ---> lock demand if the charging process is committed
                     FlexProvider.set_demand(request, id_)
-                    price_[counter] = price/(request['power'].sum()/60)
+                    daily_result['price'][counter] = price/(request['power'].sum()/60)
                     committed += 1
-            commits[counter] = committed
+            daily_result['commits'][counter] = committed
             capacity = 0
             # ---> do mobility
             for participant in participants.values():
@@ -86,8 +92,11 @@ if __name__ == "__main__":
                 for resident in participant.residents:
                     if resident.own_car and resident.car.type == 'ev':
                         capacity += resident.car.capacity * resident.car.soc/100
+            daily_result['ref_soc'][counter] = ref_car.soc
+            daily_result['ref_distance'][counter] = ref_car.total_distance
+
             # ---> calculate summarized soc
-            soc[counter] = capacity/total_capacity
+            daily_result['soc'][counter] = capacity/total_capacity
             # ---> increment counter
             counter += 1
 
@@ -95,10 +104,13 @@ if __name__ == "__main__":
         # ---> save results
         result = pd.DataFrame(dict(power=power.values.flatten(),
                                    charged=charged.values.flatten(),
-                                   requests=requests_.values,
-                                   commits=commits.values,
-                                   soc=soc.values,
-                                   price=price_.values))
+                                   requests=daily_result['requests'].values,
+                                   commits=daily_result['commits'].values,
+                                   soc=daily_result['soc'].values,
+                                   price=daily_result['price'].values,
+                                   ref_soc=daily_result['ref_soc'].values,
+                                   ref_distance=daily_result['ref_distance'].values))
+
         result.index = pd.date_range(start=day, periods=1440, freq='min')
         result.to_sql('results', database, if_exists='append')
 
