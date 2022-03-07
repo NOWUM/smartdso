@@ -46,8 +46,10 @@ class Car:
 
         self.chargeable = np.zeros(1440)
         self.driving = np.zeros(1440)
+        self.total_distance = 0
 
     def drive(self, time: int):
+        self.total_distance += self.driving[time] / self.consumption * 100
         energy = (self.capacity * self.soc/100) - self.driving[time]
         self.soc = energy / self.capacity * 100
 
