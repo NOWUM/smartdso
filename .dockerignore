@@ -1,6 +1,5 @@
 *.db
-/sim_result
-/results
+/sim_result/*
 analyse.py
 container_builder.py
 docker-compose.yml
