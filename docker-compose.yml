@@ -9,8 +9,94 @@ services:
           EV_RATIO: 50
           MINIMUM_SOC: 30
           LONDON_DATA: False
-          START_DATE: 2022-02-01
-          END_DATE: 2022-02-02
         volumes:
-          - ./sim_result/50_30:/src/sim_result/
+          - ./sim_result/50_30:/src/sim_result
+    
+      scenario_50_50:
+        container_name: s_50_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 50
+          MINIMUM_SOC: 50
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/50_50:/src/sim_result
+    
+      scenario_50_80:
+        container_name: s_50_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 50
+          MINIMUM_SOC: 80
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/50_80:/src/sim_result
+    
+      scenario_80_30:
+        container_name: s_80_30
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 80
+          MINIMUM_SOC: 30
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/80_30:/src/sim_result
+    
+      scenario_80_50:
+        container_name: s_80_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 80
+          MINIMUM_SOC: 50
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/80_50:/src/sim_result
+    
+      scenario_80_80:
+        container_name: s_80_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 80
+          MINIMUM_SOC: 80
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/80_80:/src/sim_result
+    
+      scenario_100_30:
+        container_name: s_100_30
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 100
+          MINIMUM_SOC: 30
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/100_30:/src/sim_result
+    
+      scenario_100_50:
+        container_name: s_100_50
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 100
+          MINIMUM_SOC: 50
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/100_50:/src/sim_result
+    
+      scenario_100_80:
+        container_name: s_100_80
+        image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+        build: .
+        environment:
+          EV_RATIO: 100
+          MINIMUM_SOC: 80
+          LONDON_DATA: False
+        volumes:
+          - ./sim_result/100_80:/src/sim_result
     
