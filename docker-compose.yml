@@ -9,6 +9,8 @@ services:
           EV_RATIO: 50
           MINIMUM_SOC: 30
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/50_30:/src/sim_result
     
@@ -20,6 +22,8 @@ services:
           EV_RATIO: 50
           MINIMUM_SOC: 50
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/50_50:/src/sim_result
     
@@ -31,6 +35,8 @@ services:
           EV_RATIO: 50
           MINIMUM_SOC: 80
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/50_80:/src/sim_result
     
@@ -42,6 +48,8 @@ services:
           EV_RATIO: 80
           MINIMUM_SOC: 30
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/80_30:/src/sim_result
     
@@ -53,6 +61,8 @@ services:
           EV_RATIO: 80
           MINIMUM_SOC: 50
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/80_50:/src/sim_result
     
@@ -64,6 +74,8 @@ services:
           EV_RATIO: 80
           MINIMUM_SOC: 80
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/80_80:/src/sim_result
     
@@ -75,6 +87,8 @@ services:
           EV_RATIO: 100
           MINIMUM_SOC: 30
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/100_30:/src/sim_result
     
@@ -86,6 +100,8 @@ services:
           EV_RATIO: 100
           MINIMUM_SOC: 50
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/100_50:/src/sim_result
     
@@ -97,6 +113,8 @@ services:
           EV_RATIO: 100
           MINIMUM_SOC: 80
           LONDON_DATA: False
+          START_DATE: 2022-01-01
+          END_DATE: 2022-03-01
         volumes:
           - ./sim_result/100_80:/src/sim_result
     

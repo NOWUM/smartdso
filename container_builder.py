@@ -8,6 +8,9 @@ output.append('services:\n')
 ev_quotas = [50, 80, 100]
 minimum_socs = [30, 50, 80]
 
+start_date = '2022-01-01'
+end_date = '2022-03-01'
+
 use_london_data = False
 
 for scenario in product(ev_quotas, minimum_socs):
@@ -20,6 +23,8 @@ for scenario in product(ev_quotas, minimum_socs):
           EV_RATIO: {scenario[0]}
           MINIMUM_SOC: {scenario[1]}
           LONDON_DATA: {use_london_data}
+          START_DATE: {start_date}
+          END_DATE: {end_date}
         volumes:
           - ./sim_result/{scenario[0]}_{scenario[1]}:/src/sim_result
     ''')
