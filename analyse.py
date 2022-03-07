@@ -1,15 +1,36 @@
 import pandas as pd
 import sqlite3
+from glob import glob as gb
 
-database = sqlite3.connect('./sim_result/50_30/result.db')
+path = r'./sim_result'
 
+
+def get_demand(data: pd.DataFrame):
+    return list(data['power'].values.flatten())
+
+def get_charging(data: pd.DataFrame):
+    return list(data['charged'].values.flatten())
 
 if __name__ == "__main__":
+
+    for result_path in gb(f'{path}/*'):
+        if '.db' not in result_path:
+            database = sqlite3.connect(fr'{result_path}/result.db')
+            print(fr'connected to db in {result_path}')
+            total_data = pd.read_sql('SELECT * FROM results', database)
+            power = dict(demand=get_demand(total_data), charging=get_charging(total_data))
+            power = pd.DataFrame.from_dict(power)
+            power.index = total_data.index
+
+
+
     # ---> get result data set
-    query = 'SELECT * FROM results'
-    df = pd.read_sql(query, database)
-    df['index'] = pd.to_datetime(df['index'])
-    df = df.set_index('index')
+    #query = 'SELECT * FROM results'
+    #df = pd.read_sql(query, database)
+    #df['index'] = pd.to_datetime(df['index'])
+    #df = df.set_index('index')
+
+
 
     # # ---> get charged power for all EVs
     # power = df['charged']
