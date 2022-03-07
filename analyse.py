@@ -13,14 +13,15 @@ def get_charging(data: pd.DataFrame):
 
 if __name__ == "__main__":
 
-    for result_path in gb(f'{path}/*'):
+    for result_path in gb(fr'{path}/*'):
         if '.db' not in result_path:
-            database = sqlite3.connect(fr'{result_path}/result.db')
-            print(fr'connected to db in {result_path}')
-            total_data = pd.read_sql('SELECT * FROM results', database)
-            power = dict(demand=get_demand(total_data), charging=get_charging(total_data))
-            power = pd.DataFrame.from_dict(power)
-            power.index = total_data.index
+            for simulation in gb(fr'{result_path}/*'):
+                print(fr'connected to db in {simulation}')
+                database = sqlite3.connect(fr'{simulation}/result.db')
+                total_data = pd.read_sql('SELECT * FROM results', database)
+                # power = dict(demand=get_demand(total_data), charging=get_charging(total_data))
+                # power = pd.DataFrame.from_dict(power)
+                # power.index = total_data.index
 
 
 

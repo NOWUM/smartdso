@@ -28,8 +28,8 @@ for participant in participants.values():
         if resident.own_car and resident.car.type == 'ev':
             total_capacity += resident.car.capacity
 
-
-database = sqlite3.connect('./sim_result/result.db')
+database = os.getenv('DATABASE', 'result.db')
+database = sqlite3.connect(fr'./sim_result/{database}')
 database.execute('DROP TABLE IF EXISTS results')
 
 

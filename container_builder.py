@@ -5,8 +5,8 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [50, 80, 100]
-minimum_socs = [30, 50, 80]
+ev_quotas = [50]
+minimum_socs = [30]
 
 start_date = '2022/01/01'
 end_date = '2022/02/01'
@@ -26,8 +26,9 @@ for scenario in product(ev_quotas, minimum_socs):
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}
+              DATABASE: S{scenario[0]}{scenario[1]}_{simulation}.db
             volumes:
-              - ./sim_result/ev_{scenario[0]}_lim_{scenario[1]}/sim_{simulation}:/src/sim_result
+              - ./sim_result:/src/sim_result
         ''')
 
 with open('docker-compose.yml', 'w') as f:
