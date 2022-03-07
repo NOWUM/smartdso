@@ -8,8 +8,8 @@ output.append('services:\n')
 ev_quotas = [50, 80, 100]
 minimum_socs = [30, 50, 80]
 
-start_date = '2022-01-01'
-end_date = '2022-03-01'
+start_date = '2022/01/01'
+end_date = '2022/03/01'
 
 use_london_data = False
 
