@@ -11,7 +11,19 @@ def get_data(data: pd.DataFrame, type_: str):
 
 
 def save_data(data: list, columns: list, index: pd.Index, type_: str):
-    x = pd.DataFrame(np.asarray(data).T, columns=columns, index=index)
+    x = pd.DataFrame(np.asarray(data).T, columns=columns, index=[pd.to_datetime(i) for i in index])
+    if type_ == 'charged' or type_ == 'soc':
+        x = x.resample('15min').mean()
+    if type_ == 'requests':
+        x = x.resample('15min').sum()
+
+    average = x.mean(axis=1)
+    max_ = x.max(axis=1)
+    min_ = x.min(axis=1)
+    x.loc[:, 'Average'] = average.values
+    x.loc[:, 'Maximal'] = max_.values
+    x.loc[:, 'Minimal'] = min_.values
+
     x.to_csv(fr'{path}/{type_}.csv', sep=';', decimal=',')
 
 
