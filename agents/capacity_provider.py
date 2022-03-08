@@ -90,9 +90,9 @@ class CapacityProvider:
         maximal_utilization = max(df.max(axis=1).to_numpy())
         # print(maximal_utilization)
         if maximal_utilization < 100:
+            prices = (-np.log(1-maximal_utilization/100)**1.5+0.175)*100
             durations = np.asarray(list(np.diff(snapshots)) + [t2 - snapshots[-1] + 1])
-            price = np.mean(durations * df.max(axis=1).to_numpy())
-            # print(price)
+            price = np.mean(durations * prices)
             return round(price/100, 2)
         else:
             return np.inf
