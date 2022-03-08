@@ -29,7 +29,7 @@ class BasicParticipant:
         # input parameters and time series for the optimization
         self.weather, self.prices = {}, {}
         # optimization output time series
-        self.generation, self.demand= None, None
+        self.generation, self.demand = None, None
         self.power = None
         # initial with zeros
         self._initialize_data()
@@ -44,10 +44,11 @@ class BasicParticipant:
         :return:
         """
         self.generation = dict(total=np.zeros((self.T,), float))
-        self.demand = dict(power=np.zeros((self.T,), float), heat=np.zeros((self.T,), float))
+        self.demand = dict(power=np.zeros((self.T,), float), heat=np.zeros((self.T,), float),
+                           charged=np.zeros(self.T))
         self.power = np.zeros(self.T, float)
 
-    def set_parameter(self,weather: dict = None, prices: dict = None):
+    def set_parameter(self, weather: dict = None, prices: dict = None):
         """
         :param weather:
         :param prices:
