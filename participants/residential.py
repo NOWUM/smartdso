@@ -52,9 +52,13 @@ class HouseholdModel(BasicParticipant):
     def get_fixed_demand(self, d_time: datetime):
         # ---> get standard load profile
         self.demand['power'] = self.profile_generator.run_model(pd.to_datetime(d_time))
+        self.demand['charged'] = np.zeros(self.T)
         # ---> add charging power if available from day before
+        i = 0
         for power in self.charging:
-            self.demand['power'] += power
+            self.demand['power'][i] += power
+            self.demand['charged'][i] += power
+            i += 1
         self.power = self.demand['power']
         return self.power
 
