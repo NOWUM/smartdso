@@ -45,7 +45,7 @@ def get_data():
     query = 'Select t, sum(power) as power from daily_demand group by node_id, t, id_'
     p = pd.read_sql(query, sim)
     p = p.groupby('t').sum()
-
+    p = pd.Series(p.values.reshape(-1), index=range(1440))
     return p
 
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         logger.info(f'start simulation for day {day.date()}')
         # ---> initialize time series to analyse the results
         daily_result = {key: pd.Series(data=np.zeros(1440), index=range(1440))
-                        for key in ['commits', 'requests', 'soc', 'price', 'ref_distance', 'ref_soc']}
+                        for key in ['commits', 'requests', 'charged', 'soc', 'price', 'ref_distance', 'ref_soc']}
 
         # ---> set mobility demand for the current day
         for participant in participants.values():
@@ -65,6 +65,7 @@ if __name__ == "__main__":
         daily_demand = FlexProvider.get_fixed_demand(day)
         daily_demand = daily_demand.groupby(['node_id', 't']).sum()
         power = daily_demand.groupby('t').sum()
+        power = pd.Series(power.values.reshape(-1), index=range(1440))
         # ---> forward the data to the capacity provider
         CapProvider.plan_fixed_demand(daily_demand=daily_demand.reset_index())
         counter = 0
@@ -87,6 +88,7 @@ if __name__ == "__main__":
             capacity = 0
             # ---> do mobility
             for participant in participants.values():
+                daily_result['charged'][counter] += participant.demand['charged'][counter]
                 participant.move(d_time)
                 # ---> get current soc for each ev
                 for resident in participant.residents:
@@ -100,7 +102,8 @@ if __name__ == "__main__":
             # ---> increment counter
             counter += 1
 
-        charged = get_data() - power
+        charged = daily_result['charged'] + (get_data() - power)
+        power = power - daily_result['charged']
         # ---> save results
         result = pd.DataFrame(dict(power=power.values.flatten(),
                                    charged=charged.values.flatten(),
