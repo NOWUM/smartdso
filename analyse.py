@@ -14,8 +14,11 @@ def save_data(data: list, columns: list, index: pd.Index, type_: str):
     x = pd.DataFrame(np.asarray(data).T, columns=columns, index=[pd.to_datetime(i) for i in index])
     if type_ == 'charged' or type_ == 'soc':
         x = x.resample('15min').mean()
-    if type_ == 'requests':
+    if type_ == 'requests' or type_ == 'commits':
         x = x.resample('15min').sum()
+    if type_ == 'price':
+        x = x.replace(to_replace=0, method='ffill')
+        x = x.resample('15min').mean()
 
     average = x.mean(axis=1)
     max_ = x.max(axis=1)
