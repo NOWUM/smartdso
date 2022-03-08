@@ -7,6 +7,7 @@ output.append('services:\n')
 
 ev_quotas = [50]
 minimum_socs = [30]
+number_simulation = 10
 
 start_date = '2022/01/01'
 end_date = '2022/02/01'
@@ -14,7 +15,7 @@ end_date = '2022/02/01'
 use_london_data = False
 
 for scenario in product(ev_quotas, minimum_socs):
-    for simulation in range(5):
+    for simulation in range(number_simulation):
         output.append(f'''
           scenario_{scenario[0]}_{scenario[1]}_{simulation}:
             container_name: s_{scenario[0]}_{scenario[1]}_{simulation}
