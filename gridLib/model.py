@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 import pypsa
 import logging
-# from shapely.wkt import loads
+from shapely.wkt import loads
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
 
 class MissingFile(Exception): pass
 class NoGridsIncluded(Exception): pass
@@ -36,6 +37,10 @@ class GridModel:
             'edges': pd.read_csv(fr'{self._data_path}/edges.csv', index_col=0),
             'consumers': pd.read_csv(fr'{self._data_path}/grid_allocations.csv', index_col=0)
         }
+        for value in grid_data.values():
+            if 'shape' in value.keys():
+                value.loc[:, 'shape'] = value['shape'].apply(loads)
+
         grid_data['connected'] = grid_data['nodes'].loc[grid_data['nodes'].index.isin(grid_data['consumers']['bus0'])]
         grid_data['voltage_ids'] = grid_data['connected']['voltage_id'].unique()
 
@@ -88,6 +93,7 @@ class GridModel:
             self._logger.error(repr(e))
             self._logger.error('error during power flow calculation')
 
-
-
+    def plot(self):
+        from gridLib.plotting import show_plot
+        show_plot(self.data['nodes'], self.data['edges'], self.data['transformers'], consumers=self.data['connected'])
 
