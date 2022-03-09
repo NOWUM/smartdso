@@ -44,14 +44,16 @@ class Car:
         self.maximal_charging_power = properties['maximal_charging_power']
         self.soc = np.random.randint(low=80, high=90)
 
-        self.chargeable = np.zeros(1440)
-        self.driving = np.zeros(1440)
         self.total_distance = 0
+        self.demand = None
 
-    def drive(self, time: int):
-        self.total_distance += self.driving[time] / self.consumption * 100
-        energy = (self.capacity * self.soc/100) - self.driving[time]
-        self.soc = energy / self.capacity * 100
+    def drive(self, d_time: datetime):
+        if self.demand is None:
+            self.soc -= 1
+        else:
+            self.total_distance += self.demand[d_time] / self.consumption * 100
+            energy = (self.capacity * self.soc/100) - self.demand[d_time]
+            self.soc = round(energy / self.capacity * 100,2)
 
     def charge(self):
         capacity = self.capacity * self.soc / 100 + self.maximal_charging_power/60
