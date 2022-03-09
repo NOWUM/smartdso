@@ -21,7 +21,7 @@ class MobilityDemand:
         self.working_days = []
         self.errand_days = []
         self.hobby_days = []
-
+        self.car_usage = False
         # mapping for days to get the right order
         self._day_map = dict(Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5, Sunday=6)
         self.mobility = {key: [] for key in self._day_map.keys()}
@@ -120,6 +120,8 @@ class MobilityDemand:
         mobility_event['travel_time'] = travel_time
         travel_by = self._get_means_of_transport(tables['usage'].columns, tables['usage'].loc[index, :])
         mobility_event['car_use'] = True if travel_by == 'Car' else False
+        if mobility_event['car_use']:
+            self.car_usage = True
 
         return mobility_event
 
