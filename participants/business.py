@@ -9,7 +9,7 @@ class BusinessModel(BasicParticipant):
 
     def __init__(self, T, *args, **kwargs):
         super().__init__(T, **kwargs)
-        self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='business', resolution='min',
+        self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='business', resolution='15min',
                                                      random_choice=False)
         self.residents = []
 
