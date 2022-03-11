@@ -34,7 +34,7 @@ class Resident:
 
         self.car = Car(type=np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1-ev_ratio])) if self.own_car else None
 
-        time_range = pd.date_range(start=start_date, end=end_date, freq='min')
+        time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
         self.car_usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
         self.car_demand = pd.Series(index=time_range, data=np.zeros(len(time_range)))
         if self.own_car and self.car.type == 'ev':
@@ -43,50 +43,42 @@ class Resident:
 
     def _set_car_usage(self):
         # ---> for each day calculate car usage
-        for day in pd.date_range(start=start_date, end=end_date, freq='d'):
-            mobility_demands = self.mobility_generator.mobility[day.date().strftime("%A")]
-            for demand in [demand for demand in mobility_demands if demand['car_use']]:
-                # ---> determine departure and arrival times
-                t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
-                departure = t1 - td(minutes=demand['travel_time'])
-                departure = day.replace(hour=departure.hour, minute=departure.minute)
-                t1 = departure + td(minutes=demand['travel_time'])
-                arrival = departure + td(minutes=demand['duration'] + 2 * demand['travel_time'])
-                t2 = arrival - td(minutes=demand['travel_time'])
-                # ---> car and resident are not @ home
-                for t in pd.date_range(start=departure, end=arrival, freq='min'):
-                    self.car_usage.loc[t] = 1
-                # ---> set consumption
+        date_range = pd.date_range(start=start_date, end=end_date, freq='d')
+        for key, demands in self.mobility_generator.mobility.items():
+            days = date_range[date_range.day_name() == key]
+            for demand in demands:
                 mean_consumption = (demand['distance'] * self.car.consumption / 100) / demand['travel_time']
-                for t in pd.date_range(start=departure, end=t1, freq='min'):
-                    self.car_demand.loc[t] = mean_consumption
-                for t in pd.date_range(start=arrival, end=t2, freq='min'):
-                    self.car_demand.loc[t] = mean_consumption
+                t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
+                t_departure = t1 - td(minutes=demand['travel_time'])
+                t2 = datetime.strptime(demand['start_time'], '%H:%M:%S') + td(demand['duration'])
+                t_arrival = t2 + td(minutes=demand['travel_time'])
+
+                for day in days:
+                    departure = day.combine(day, t_departure.time())
+                    arrival = day.combine(day, t_arrival.time())
+                    self.car_usage[departure:arrival] = 1
+
+                    journey = day.combine(day, t1.time())
+                    self.car_demand[departure:journey] = mean_consumption
+
+                    journey = day.combine(day, t2.time())
+                    self.car_demand[journey:arrival] = mean_consumption
 
     def plan_charging(self, d_time: datetime):
-        chargeable = self.car_usage.loc[(self.car_usage == 0) & (self.car_usage.index >= d_time)]
-        car_in_use = self.car_usage.loc[(self.car_usage == 1) & (self.car_usage.index >= d_time)]
-
-        if self.car.soc < minimum_soc:
+        if self.car.soc < minimum_soc and self.car_usage[d_time] == 0:
+            chargeable = self.car_usage.loc[(self.car_usage == 0) & (self.car_usage.index >= d_time)]
+            car_in_use = self.car_usage.loc[(self.car_usage == 1) & (self.car_usage.index >= d_time)]
             total_energy = self.car.capacity - (self.car.capacity * self.car.soc) / 100
             duration = int(total_energy / self.car.maximal_charging_power * 60)
-            maximal_duration = (car_in_use.index[0] - chargeable.index[0]).total_seconds() / 60
-            if duration > maximal_duration:
-                time_range = pd.date_range(start=chargeable.index[0], end=car_in_use.index[0], freq='min')
-            else:
-                time_range = pd.date_range(start=chargeable.index[0], end=chargeable.index[0] + td(minutes=duration),
-                                           freq='min')
-            return pd.Series(data=np.ones(len(time_range)) * self.car.maximal_charging_power, index=time_range)
+            maximal_duration = int((car_in_use.index[0] - chargeable.index[0]).total_seconds() / 60)
+            return self.car.maximal_charging_power, min(maximal_duration, duration)
         else:
-            return pd.Series(dtype=float)
+            return 0, 0
 
 
 if __name__ == "__main__":
     res = Resident(mobility_types=['work', 'hobby', 'errands'], type_='adult')
     res.car.soc = 80
     res.plan_charging(start_date)
-    print(res.mobility_generator.mobility)
     for t in pd.date_range(start=start_date, end=end_date, freq='min'):
-        print(t)
-        print(res.car_demand[t])
         res.car.drive(t)

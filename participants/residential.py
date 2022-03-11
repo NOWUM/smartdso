@@ -4,6 +4,7 @@ from datetime import datetime
 import names
 import os
 import logging
+from collections import defaultdict
 
 from participants.basic import BasicParticipant
 from participants.utils import Resident
@@ -12,7 +13,7 @@ from demLib.electric_profile import StandardLoadProfile
 # ---> resident data
 employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
 london_data = (os.getenv('LONDON_DATA', 'False') == 'True')
-
+minimum_soc = int(os.getenv('MINIMUM_SOC', 30))
 # ---> price data from survey
 mean_price = 28.01
 var_price = 7.9
@@ -45,66 +46,77 @@ class HouseholdModel(BasicParticipant):
         self.price_medium = 0.805 * self.price_low + 17.45
         self.price_limit = 1.1477 * self.price_medium + 1.51
         # ---> store all cars that are used
-        self.car_manager = {resident.name: {'car': resident.car, 'requests': pd.Series(dtype=float), 'commit': False}
-                            for resident in self.residents if resident.type == 'adult'}
-        self._electric = True if any([manager['car'].type == 'ev' for manager in self.car_manager.values()]) else False
+        self.car_manager = {resident.name: {'car': resident.car, 'request': 0, 'commit': False,
+                                            'ask': True if resident.car.soc < minimum_soc else False,
+                                            'user': resident}
+                            for resident in self.residents
+                            if resident.type == 'adult' and resident.car is not None and resident.car.type == 'ev'}
 
         self.ask_energy = 0
-
         self.charging = []
         self.delay = 0
 
         self._logger = logging.getLogger(f'Household{self.family_name.capitalize()}')
         self._logger.setLevel('WARNING')
 
-    def get_fixed_demand(self, d_time: datetime):
+    def get_fixed_power(self, d_time: datetime):
         # ---> get standard load profile
-        self.demand['power'] = self.profile_generator.run_model(pd.to_datetime(d_time))
-        self.power = self.demand['power']
-        return self.power
+        self.power = self.profile_generator.run_model(pd.to_datetime(d_time))
+        self.demand['power'] = self.power
+        return self.power                                                   # ---> return time series (1/4 h)
 
     def do(self, d_time: datetime):
-        for car_management in self.car_manager.values():
-            if car_management['commit'] and sum(car_management['requests'].index > d_time) > 0:
-                car_management['car'].charge()
-            elif car_management['commit']:
-                car_management['commit'] = False
-            car_management['car'].drive(d_time)
+        # ---> to action like charge and drive
+        for manager in self.car_manager.values():
+            if manager['commit'] and manager['request'] > 0:                # ---> if commit and duration > 0
+                manager['car'].charge()                                     # ---> perform charging
+                manager['request'] -= 1                                     # ---> decrement charging time
+            elif manager['commit']:                                         # ---> no charging time available
+                manager['commit'] = False                                   # ---> request done and reset
+            manager['car'].drive(d_time)                                    # ---> move the car
+            # ---> check if charging is required
+            if manager['user'].car_usage.loc[d_time] == 0 and manager['car'].soc < minimum_soc:
+                manager['ask'] = True                                       # ---> set ask to True
 
     def get_request(self, d_time: datetime):
+        requests = []
         # ---> plan charging if the car is unused or the waiting time is expired
-        if self._electric and len(self.charging) == 0 and self.delay == 0:
-            self._logger.info('check for charging demand')
-            total_request = pd.Series(dtype=float)
-            for resident in self.residents:
-                if resident.own_car and resident.car.type == 'ev':
-                    request = resident.plan_charging(d_time)
-                    self.car_manager[resident.name]['requests'] = request
-                    total_request = total_request.add(request, fill_value=0)
-            total_request['node_id'] = self.grid_node
-            self.ask_energy = total_request.sum() / 60
-            return total_request
-        elif self.delay > 0:
-            self.delay -= 1
-            return pd.Series()
+        if any([manager['ask'] for manager in self.car_manager.values()]) and self.delay == 0:
+            self._logger.info(' ---> check for charging demand')
+            for manager in self.car_manager.values():
+                if manager['ask']:                                          # ---> if the current car need a charge
+                    p, dt = manager['user'].plan_charging(d_time)           # ---> get planing
+                    if p > 0 and dt > 0:
+                        requests += [(p, dt)]                               # ---> add to request
+                        manager['request'] = dt                             # ---> set as possible charging time
+        # ---> if the waiting time is not expired decrement by one
+        elif self.delay >= 0:
+            if self.delay == 0:
+                for manager in self.car_manager.values():
+                    manager['ask'] = True                                   # ---> set asking to true
+            else:
+                self.delay -= 1
+        if len(requests) > 0:
+            return {str(self.grid_node): requests}                          # ---> return dictionary with requests
         else:
-            return pd.Series()
+            return {}
 
     def commit_charging(self, price):
-        average_price = price / self.ask_energy
-        if average_price < self.price_limit:
+        # TODO: Check price --> current price per kWh is used
+        # ---> if the price is below the limit, commit the charging
+        if price < self.price_limit:
             for car_management in self.car_manager.values():
-                car_management['commit'] = True
-            return True
+                car_management['commit'] = True                 # ---> set commit flag
+                car_management['ask'] = False                   # ---> reset asking flag for charging time
+            return True                                         # ---> return True to commit
         else:
-            self.delay = np.random.randint(low=15, high=30)
-            return False
+            self.delay = np.random.randint(low=60, high=120)    # ---> wait 60-120 minutes till next try
+            return False                                        # ---> return False to reject
 
 
 if __name__ == "__main__":
     house = HouseholdModel(T=96, demandP=3000, residents=3, grid_node='NOWUM')
-    power = house.get_fixed_demand(pd.to_datetime('2018-01-01'))
+    power = house.get_fixed_power(pd.to_datetime('2018-01-01'))
     # a = house.residents[0].get_car_usage(pd.to_datetime('2018-01-01'))
-    #for x in pd.date_range(start='2018-01-01', periods=2, freq='min'):
+    # for x in pd.date_range(start='2018-01-01', periods=2, freq='min'):
     #    p = house.get_request(x)
-

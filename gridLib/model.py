@@ -3,85 +3,99 @@ import pandas as pd
 import pypsa
 import logging
 from shapely.wkt import loads
+import time
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
-
-class MissingFile(Exception): pass
-class NoGridsIncluded(Exception): pass
+data_path = r'./gridLib/data/export'
+# ---> read nodes
+total_nodes = pd.read_csv(fr'{data_path}/nodes.csv', index_col=0)
+total_nodes['shape'] = total_nodes['shape'].apply(loads)
+# ---> read transformers
+total_transformers = pd.read_csv(fr'{data_path}/transformers.csv', index_col=0)
+total_transformers['shape'] = total_transformers['shape'].apply(loads)
+# ---> read edges
+total_edges = pd.read_csv(fr'{data_path}/edges.csv', index_col=0)
+total_edges['shape'] = total_edges['shape'].apply(loads)
+# ---> read known consumers
+total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
 
 
 class GridModel:
 
     def __init__(self):
 
-        self._logger = logging.getLogger('GridModel')
-        self._logger.setLevel('ERROR')
-        self._data_path = r'./gridLib/data/export'
-        self._T = 1440
+        self.sub_networks = []
 
-        self.data = {}
-        self.model = pypsa.Network()
+        self.model = pypsa.Network()                                    # ---> total grid model
+        self.sub_networks = {}                                          # ---> dict for sub network models
 
-        self._load_grid_data()
-        self._logger.info(f'start building network for data in folder: {self._data_path}')
-        self._generate_grid_model()
-
-    def _load_grid_data(self):
-
-        grid_data = {
-            'nodes': pd.read_csv(fr'{self._data_path}/nodes.csv', index_col=0),
-            'transformers': pd.read_csv(fr'{self._data_path}/transformers.csv', index_col=0),
-            'edges': pd.read_csv(fr'{self._data_path}/edges.csv', index_col=0),
-            'consumers': pd.read_csv(fr'{self._data_path}/grid_allocations.csv', index_col=0)
-        }
-        for value in grid_data.values():
-            if 'shape' in value.keys():
-                value.loc[:, 'shape'] = value['shape'].apply(loads)
-
+        # ---> build grid data
+        grid_data = {'nodes': total_nodes, 'transformers': total_transformers, 'edges': total_edges,
+                     'consumers': total_consumers}
         grid_data['connected'] = grid_data['nodes'].loc[grid_data['nodes'].index.isin(grid_data['consumers']['bus0'])]
         grid_data['voltage_ids'] = grid_data['connected']['voltage_id'].unique()
+        self.data = grid_data.copy()                                    # ---> store data in dictionary
 
-        self.power_series = {node: np.zeros(self._T) for node in grid_data['connected'].index}
-
-        self.data = grid_data
-
-    def _generate_grid_model(self):
-
-        # add busses to network --> each node is a bus
+        # ---> add busses to network --> each node is a bus
         nodes = self.data['nodes'].loc[self.data['nodes']['voltage_id'].isin(self.data['voltage_ids'])]
-        self.model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.lon, y=nodes.lat,)
+        self.model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.lon, y=nodes.lat)
 
-        # add edges to network to connect the busses
+        # ---> add edges to network to connect the busses
         edges = self.data['edges']
         edges = edges.loc[edges['bus0'].isin(nodes.index) | edges['bus1'].isin(nodes.index)]
         self.model.madd('Line', names=edges.index, bus0=edges.bus0, bus1=edges.bus1, x=edges.x, r=edges.r,
                         s_nom=edges.s_nom)
-        # add slack generators for each transformer with higher voltage
+
+        # ---> add slack generators for each transformer with higher voltage
         transformers = self.data['transformers']
         transformers = transformers.loc[transformers['bus0'].isin(nodes.index) | transformers['bus1'].isin(nodes.index)]
         slack_nodes = transformers['bus0'].unique()
         for node in slack_nodes:
             self.model.add('Generator', name=f'{node}_slack', bus=node, control='Slack')
 
+        # ---> add consumers to node
         for node, consumer in self.data['connected'].iterrows():
             self.model.add('Load', name=f'{node}_consumer', bus=node)
 
+        # ---> determine sub networks and check consistency
         self.model.determine_network_topology()
         self.model.consistency_check()
-        self.model.snapshots = pd.Series(range(self._T))
 
-    def run_power_flow(self, snapshots=None, fixed=True):
+        for index in self.model.sub_networks.index:
+            model = pypsa.Network()
+            nodes = self.model.buses.loc[self.model.buses['sub_network'] == index]
+            model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y)
+            lines = self.model.lines.loc[self.model.lines['sub_network'] == index]
+            model.madd('Line', names=lines.index, bus0=lines.bus0, bus1=lines.bus1, x=lines.x, r=lines.r,
+                       s_nom=lines.s_nom)
 
-        for node in self.power_series.keys():
-            self.model.loads_t.p_set[f'{node}_consumer'] = self.power_series[node]/1000
+            generators = nodes['generator'].dropna()
+            name = generators.values[0]
+            generator = self.model.generators.loc[name]
+            model.add('Generator', name=name, bus=generator.bus, control='Slack')
+            consumers = self.model.loads.loc[self.model.loads['bus'].isin(nodes.index)]
+            model.madd('Load', names=consumers.index, bus=consumers.bus)
+
+            model.determine_network_topology()
+            model.consistency_check()
+
+            self.sub_networks[index] = model
+
+        # ---> set logger
+        self._logger = logging.getLogger('GridModel')
+        self._logger.setLevel('ERROR')
+        
+    def plot(self):
+        from gridLib.plotting import show_plot
+        show_plot(self.data['nodes'], self.data['edges'], self.data['transformers'], consumers=self.data['connected'])
+
+    def run_power_flow(self, sub_id: int):
+
         try:
-            if fixed:
-                result_summary = self.model.pf(snapshots=[i for i in np.arange(0, 1440, 15)])
-            else:
-                result_summary = self.model.pf(snapshots)
+            result_summary = self.sub_networks[sub_id].pf()
             converged = result_summary.converged
             for col in converged.columns:
                 if any(converged[col]):
@@ -93,7 +107,5 @@ class GridModel:
             self._logger.error(repr(e))
             self._logger.error('error during power flow calculation')
 
-    def plot(self):
-        from gridLib.plotting import show_plot
-        show_plot(self.data['nodes'], self.data['edges'], self.data['transformers'], consumers=self.data['connected'])
+
 

@@ -22,6 +22,7 @@ def get_electric_vehicle(distance):
     return possible_vehicles.loc[index, ['model', 'capacity', 'consumption', 'distance',
                                          'maximal_charging_power']].to_dict()
 
+
 def get_fossil_vehicle():
     return dict(model='Nowum Car', capacity=40, consumption=7, distance=40/7 * 100,
                 maximal_charging_power=None)
@@ -42,7 +43,7 @@ class Car:
         self.distance = round(properties['distance'], 2)
         self.consumption = properties['consumption']
         self.maximal_charging_power = properties['maximal_charging_power']
-        self.soc = np.random.randint(low=80, high=90)
+        self.soc = np.random.randint(low=40, high=70)
 
         self.total_distance = 0
         self.demand = None

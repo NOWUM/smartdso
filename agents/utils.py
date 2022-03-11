@@ -4,6 +4,10 @@ import pandas as pd
 from interfaces.weather import WeatherInterface
 
 
+def pool_func(participant, d_time):
+    return participant.get_request(d_time)
+
+
 class WeatherGenerator:
 
     def __init__(self):
