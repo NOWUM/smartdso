@@ -55,7 +55,7 @@ class HouseholdModel(BasicParticipant):
         self.ask_energy = 0
         self.charging = []
         self.delay = 0
-
+        self.shift = False
         self._logger = logging.getLogger(f'Household{self.family_name.capitalize()}')
         self._logger.setLevel('WARNING')
 
@@ -105,13 +105,18 @@ class HouseholdModel(BasicParticipant):
         # TODO: Check price --> current price per kWh is used
         # ---> if the price is below the limit, commit the charging
         if price < self.price_limit:
+            shift = False
             for car_management in self.car_manager.values():
                 car_management['commit'] = True                 # ---> set commit flag
                 car_management['ask'] = False                   # ---> reset asking flag for charging time
-            return True                                         # ---> return True to commit
+            if self.shift:
+                self.shift = False
+                shift = True
+            return True, shift                                  # ---> return True to commit
         else:
             self.delay = np.random.randint(low=60, high=120)    # ---> wait 60-120 minutes till next try
-            return False                                        # ---> return False to reject
+            self.shift = True
+            return False, False                                 # ---> return False to reject
 
 
 if __name__ == "__main__":
