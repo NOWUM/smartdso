@@ -1,6 +1,5 @@
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
-import sqlite3
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -12,7 +11,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-02-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-02'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-01'))
 logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'base_scenario')
 logger.info(f' ---> scenario {scenario_name}')
@@ -41,17 +40,11 @@ for participant in participants.values():
         if resident.own_car and resident.car.type == 'ev':
             total_capacity += resident.car.capacity
 
-logger.info(' ---> initialize database')
-database = os.getenv('DATABASE', 'result.db')
-database = sqlite3.connect(fr'./sim_result/{database}')
-database.execute('DROP TABLE IF EXISTS results')
-
 logger.info(' ---> initialize result set')
-len_ = 1440 *((end_date-start_date).days + 1)
+len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_))
-          for key in ['commits', 'rejects', 'requests', 'charged', 'soc', 'price', 'ref_distance', 'ref_soc']}
-
+          for key in ['commits', 'rejects', 'requests', 'charged', 'shift', 'soc', 'price', 'ref_distance', 'ref_soc']}
 
 if __name__ == "__main__":
 
@@ -65,7 +58,7 @@ if __name__ == "__main__":
 
     # ---> start simulation for date range start_date till end_date
     logger.info(' ---> starting mobility simulation')
-    indexer = 0     # ---> minute counter for result set
+    indexer = 0  # ---> minute counter for result set
     for day in pd.date_range(start=start_date, end=end_date, freq='d'):
         logger.info(f' #### simulation for day {day.date()} ####')
         # ---> build dictionary to save simulation results
@@ -75,13 +68,17 @@ if __name__ == "__main__":
                 result['requests'][indexer] += 1
                 # ---> get price
                 price = CapProvider.get_price(request, d_time)
-                if participants[id_].commit_charging(price):
+                commit, shift = participants[id_].commit_charging(price)
+                if commit:
                     # logger.info(f' ---> committed charging - price: {round(price,2)} ct/kWh')
                     result['commits'][indexer] += 1
                     result['price'][indexer] = price
                     for node_id, parameters in request.items():
                         for power, duration in parameters:
-                            result['charged'][indexer:indexer + duration] += power
+                            if not shift:
+                                result['charged'][indexer:indexer + duration] += power
+                            else:
+                                result['shift'][indexer:indexer + duration] += power
                             CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
                 else:
                     result['rejects'][indexer] += 1
@@ -91,15 +88,26 @@ if __name__ == "__main__":
                 participant.do(d_time)
                 if len(participant.residents) > 0:
                     for value in participant.car_manager.values():
-                        capacity += value['car'].soc/100 * value['car'].capacity
-            result['soc'][indexer] = (capacity/total_capacity) * 100
+                        capacity += value['car'].soc / 100 * value['car'].capacity
+            result['soc'][indexer] = (capacity / total_capacity) * 100
             result['ref_soc'][indexer] = ref_car.soc
             result['ref_distance'][indexer] = ref_car.total_distance
             indexer += 1
             # logger.info(f'SoC: {ref_car.soc}')
 
-
+# ---> save results
+logger.info(f'saving results in ./sim_result/{scenario_name}.csv')
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
+result_set.index = time_range
 result_set.to_csv(fr'./sim_result/{scenario_name}.csv', sep=';', decimal=',')
-
+resampled_result = result_set.resample('5min').agg({'commits': 'sum',
+                                                    'rejects': 'sum',
+                                                    'requests': 'sum',
+                                                    'charged': 'mean',
+                                                    'shift': 'mean',
+                                                    'soc': 'mean',
+                                                    'price': 'mean',
+                                                    'ref_distance': 'mean',
+                                                    'ref_soc': 'mean'})
+resampled_result.to_csv(fr'./sim_result/{scenario_name}_resampled.csv', sep=';', decimal=',')
