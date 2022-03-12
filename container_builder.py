@@ -18,7 +18,7 @@ for scenario in product(ev_quotas, minimum_socs):
     for simulation in range(number_simulation):
         output.append(f'''
           scenario_{scenario[0]}_{scenario[1]}_{simulation}:
-            container_name: s_{scenario[0]}_{scenario[1]}_{simulation}
+            container_name: s{scenario[0]}{scenario[1]}_{simulation}
             image: {image_repo}smartdso:latest
             build: .
             environment:
@@ -27,7 +27,7 @@ for scenario in product(ev_quotas, minimum_socs):
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              DATABASE: S{scenario[0]}{scenario[1]}_{simulation}.db
+              SCENARIO_NAME: S{scenario[0]}{scenario[1]}_{simulation}
             volumes:
               - ./sim_result:/src/sim_result
         ''')
