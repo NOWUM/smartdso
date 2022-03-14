@@ -49,8 +49,6 @@ class Resident:
             for demand in demands:
                 mean_consumption = (demand['distance'] * self.car.consumption / 100) / demand['travel_time']
                 t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
-                print(demand)
-
                 t_departure = t1 - td(minutes=demand['travel_time'])
                 t2 = datetime.strptime(demand['start_time'], '%H:%M:%S') + td(minutes=demand['duration'])
                 t_arrival = t2 + td(minutes=demand['travel_time'])
