@@ -71,30 +71,13 @@ class FlexibilityProvider:
                 requests[id_] = request
         return requests
 
-    def set_demand(self, request: pd.DataFrame = None, id_=None):
-        request = request.reset_index()
-        request['id_'] = str(id_)
-
-        request = request.set_index(['id_', 'node_id', 't'])
-
-        t1 = request.index.get_level_values('t').min()
-        t2 = request.index.get_level_values('t').max()
-
-        df = pd.read_sql(f'Select * from daily_demand where id_=\'{str(id_)}\' '
-                         f'and t >= {t1} and t <= {t2}', self._database)
-
-        df = df.set_index(['id_', 'node_id', 't'])
-        df.loc[request.index] += request
-
-        for index, data in df.iterrows():
-            query = f'Update daily_demand Set power={data.values[0]} ' \
-                    f'where id_=\'{index[0]}\' and node_id=\'{index[1]}\' and t={index[2]}'
-            self._database.execute(query)
-        self._database.commit()
-
 
 if __name__ == "__main__":
     fp = FlexibilityProvider()
+    checker = Check()
+    checker.run(fp)
+    print(checker)
+
     x = fp.get_fixed_power(pd.to_datetime('2022-02-01'))
     #for t in tqdm(pd.date_range(start='2022-02-01', freq='min', periods=1440)):
     #    r = fp.get_requests(t)
