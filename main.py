@@ -10,7 +10,7 @@ from datetime import timedelta as td
 logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-02-01'))
+start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
 end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-01'))
 logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'base_scenario')
