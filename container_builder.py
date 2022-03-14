@@ -7,7 +7,7 @@ output.append('services:\n')
 
 ev_quotas = [50]
 minimum_socs = [30]
-number_simulation = 1
+number_simulation = 30
 
 start_date = '2022/01/01'
 end_date = '2022/02/01'
