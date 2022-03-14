@@ -11,8 +11,8 @@ ev_ratio = int(os.getenv('EV_RATIO', 80))
 ev_ratio = int(ev_ratio)/100
 minimum_soc = int(os.getenv('MINIMUM_SOC', 30))
 # ---> simulation range
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-02-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-10'))
+start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-01'))
 
 
 class Resident:
@@ -49,19 +49,23 @@ class Resident:
             for demand in demands:
                 mean_consumption = (demand['distance'] * self.car.consumption / 100) / demand['travel_time']
                 t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
-                t_departure = t1 - td(minutes=demand['travel_time'])
-                t2 = datetime.strptime(demand['start_time'], '%H:%M:%S') + td(demand['duration'])
-                t_arrival = t2 + td(minutes=demand['travel_time'])
+                print(demand)
 
+                t_departure = t1 - td(minutes=demand['travel_time'])
+                t2 = datetime.strptime(demand['start_time'], '%H:%M:%S') + td(minutes=demand['duration'])
+                t_arrival = t2 + td(minutes=demand['travel_time'])
                 for day in days:
                     departure = day.combine(day, t_departure.time())
-                    arrival = day.combine(day, t_arrival.time())
+                    if t2.day > t1.day:
+                        arrival = day.combine(day + td(days=1), t_arrival.time())
+                    else:
+                        arrival = day.combine(day, t_arrival.time())
                     self.car_usage[departure:arrival] = 1
 
                     journey = day.combine(day, t1.time())
                     self.car_demand[departure:journey] = mean_consumption
 
-                    journey = day.combine(day, t2.time())
+                    journey = arrival - td(minutes=demand['duration'])
                     self.car_demand[journey:arrival] = mean_consumption
 
     def plan_charging(self, d_time: datetime):
@@ -79,8 +83,8 @@ class Resident:
 
 
 if __name__ == "__main__":
+    from matplotlib import pyplot as plt
     res = Resident(mobility_types=['work', 'hobby', 'errands'], type_='adult')
-    res.car.soc = 80
-    res.plan_charging(start_date)
-    for t in pd.date_range(start=start_date, end=end_date, freq='min'):
-        res.car.drive(t)
+    usage = res.car_usage
+    res.car_usage.plot()
+    plt.show()
