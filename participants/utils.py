@@ -70,8 +70,10 @@ class Resident:
             car_in_use = self.car_usage.loc[(self.car_usage == 1) & (self.car_usage.index >= d_time)]
             total_energy = self.car.capacity - (self.car.capacity * self.car.soc) / 100
             duration = int(total_energy / self.car.maximal_charging_power * 60)
-            maximal_duration = int((car_in_use.index[0] - chargeable.index[0]).total_seconds() / 60)
-            return self.car.maximal_charging_power, min(maximal_duration, duration)
+            if len(chargeable) > 0 and len(car_in_use) > 0:
+                maximal_duration = int((car_in_use.index[0] - chargeable.index[0]).total_seconds() / 60)
+                return self.car.maximal_charging_power, min(maximal_duration, duration)
+            return 0, 0
         else:
             return 0, 0
 
