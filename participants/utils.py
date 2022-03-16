@@ -32,7 +32,8 @@ class Resident:
         else:
             self.own_car = False
 
-        self.car = Car(type=np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1-ev_ratio])) if self.own_car else None
+        self.car = Car(type=np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1-ev_ratio]),
+                       maximal_distance=self.mobility_generator.maximal_distance) if self.own_car else None
 
         time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
         self.car_usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
@@ -50,7 +51,7 @@ class Resident:
                 mean_consumption = (demand['distance'] * self.car.consumption / 100) / demand['travel_time']
                 t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
                 t_departure = t1 - td(minutes=demand['travel_time'])
-                t2 = datetime.strptime(demand['start_time'], '%H:%M:%S') + td(minutes=demand['duration'])
+                t2 = t1 + td(minutes=demand['duration'])
                 t_arrival = t2 + td(minutes=demand['travel_time'])
                 for day in days:
                     departure = day.combine(day, t_departure.time())
@@ -61,10 +62,9 @@ class Resident:
                     self.car_usage[departure:arrival] = 1
 
                     journey = day.combine(day, t1.time())
-                    self.car_demand[departure:journey] = mean_consumption
-
-                    journey = arrival - td(minutes=demand['duration'])
-                    self.car_demand[journey:arrival] = mean_consumption
+                    self.car_demand[departure:journey-td(minutes=1)] = mean_consumption
+                    journey = arrival - td(minutes=demand['travel_time'])
+                    self.car_demand[journey:arrival - td(minutes=1)] = mean_consumption
 
     def plan_charging(self, d_time: datetime):
         if self.car.soc < minimum_soc and self.car_usage[d_time] == 0:
