@@ -9,8 +9,8 @@ from gridLib.model import GridModel
 import sqlite3
 logging.getLogger('pypsa').setLevel('ERROR')
 
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-02-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-10'))
+start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
 time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
 
 
