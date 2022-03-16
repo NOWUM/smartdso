@@ -34,6 +34,16 @@ class MobilityDemand:
             elif demand_type == 'errand':
                 self._get_mobility_demand(tables=errand, mobility_type=demand_type)
 
+        max_distance = 0
+        for demands in self.mobility.values():
+            distance = 0
+            for demand in demands:
+                distance += demand['distance'] * 2
+            if distance > max_distance:
+                max_distance = distance
+
+        self.maximal_distance = max_distance
+
     def _get_days(self, days: list, probabilities: list, size: int):
         probabilities = normalize_probabilities(probabilities)
         return sorted(np.random.choice(a=days, p=probabilities, size=size, replace=False),
