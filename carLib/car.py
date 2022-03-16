@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta as td
 import pandas as pd
 import numpy as np
 
@@ -14,12 +14,10 @@ def get_electric_vehicle(distance):
     if len(possible_vehicles) > 0:
         probabilities = (1/possible_vehicles['weight'].sum() * possible_vehicles['weight']).values
         index = np.random.choice(possible_vehicles.index, p=probabilities)
+        vehicle = possible_vehicles.loc[index].to_dict()
     else:
-        possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] == electric_vehicles['distance'].max()]
-        index = 0
+        vehicle = electric_vehicles.iloc[electric_vehicles['distance'].idxmax()].to_dict()
 
-    vehicle = possible_vehicles.loc[index, ['model', 'capacity', 'consumption',
-                                            'distance', 'maximal_charging_power']].to_dict()
     return vehicle
 
 
@@ -43,23 +41,28 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # ---> maximal distance [km]
         self.consumption = properties['consumption']                            # ---> consumption [kWh/100km]
         self.maximal_charging_power = properties['maximal_charging_power']      # ---> fixed 22 [kW]
-        self.soc = np.random.randint(low=40, high=70)                           # ---> state of charge [0,..., 100]
+        self.soc = 100                                                          # ---> state of charge [0,..., 100]
         self.total_distance = 0                                                 # ---> distance counter
         self.demand = None                                                      # ---> driving demand time series
 
     def drive(self, d_time: datetime):
         if self.demand is None:                                                 # ---> if no demand is st
             self.soc -= 1                                                       # ---> decrease the soc 1 %
+            self.soc = max(0, self.soc)
+            return self.capacity * 0.01
         else:
             self.total_distance += self.demand[d_time] / self.consumption * 100 # ---> use time series
             energy = (self.capacity * self.soc/100) - self.demand[d_time]
-            self.soc = round(energy / self.capacity * 100,2)
+            self.soc = max(0, energy / self.capacity * 100)
+            return self.demand[d_time]
 
     def charge(self):
         # ---> charge battery for 1 minute
         capacity = self.capacity * self.soc / 100 + self.maximal_charging_power/60
         self.soc = capacity / self.capacity * 100
         self.soc = min(self.soc, 100)
+        return self.maximal_charging_power / 60
+
 
 if __name__ == "__main__":
     car_electric = Car()
