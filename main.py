@@ -6,12 +6,13 @@ from tqdm import tqdm
 import logging
 import os
 from datetime import timedelta as td
+from collections import defaultdict
 
 logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-02-01'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
 logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'base_scenario')
 logger.info(f' ---> scenario {scenario_name}')
@@ -45,6 +46,8 @@ len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_))
           for key in ['commits', 'rejects', 'requests', 'charged', 'shift', 'soc', 'price', 'ref_distance', 'ref_soc']}
+waiting_time = defaultdict(list)
+
 
 if __name__ == "__main__":
 
@@ -68,17 +71,18 @@ if __name__ == "__main__":
                 result['requests'][indexer] += 1
                 # ---> get price
                 price = CapProvider.get_price(request, d_time)
-                commit, shift = participants[id_].commit_charging(price)
+                commit, wait = participants[id_].commit_charging(price)
                 if commit:
                     # logger.info(f' ---> committed charging - price: {round(price,2)} ct/kWh')
                     result['commits'][indexer] += 1
                     result['price'][indexer] = price
                     for node_id, parameters in request.items():
                         for power, duration in parameters:
-                            if not shift:
+                            if wait == 0:
                                 result['charged'][indexer:indexer + duration] += power
                             else:
                                 result['shift'][indexer:indexer + duration] += power
+                                waiting_time[indexer-wait].append(wait)
                             CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
                 else:
                     result['rejects'][indexer] += 1
