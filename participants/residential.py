@@ -4,7 +4,6 @@ from datetime import datetime
 import names
 import os
 import logging
-from collections import defaultdict
 
 from participants.basic import BasicParticipant
 from participants.utils import Resident
@@ -51,11 +50,10 @@ class HouseholdModel(BasicParticipant):
                                             'user': resident}
                             for resident in self.residents
                             if resident.type == 'adult' and resident.car is not None and resident.car.type == 'ev'}
-
-        self.ask_energy = 0
-        self.charging = []
         self.delay = 0
+        self.waiting_time = 0
         self.shift = False
+        self.not_charged = False
         self._logger = logging.getLogger(f'Household{self.family_name.capitalize()}')
         self._logger.setLevel('WARNING')
 
@@ -68,60 +66,68 @@ class HouseholdModel(BasicParticipant):
     def do(self, d_time: datetime):
         # ---> to action like charge and drive
         for manager in self.car_manager.values():
+            # ---> charging
             if manager['commit'] and manager['request'] > 0:                # ---> if commit and duration > 0
                 manager['car'].charge()                                     # ---> perform charging
                 manager['request'] -= 1                                     # ---> decrement charging time
             elif manager['commit']:                                         # ---> no charging time available
-                manager['commit'] = False                                   # ---> request done and reset
-            manager['car'].drive(d_time)                                    # ---> move the car
-            # ---> check if charging is required
-            if manager['user'].car_usage.loc[d_time] == 0 and manager['car'].soc < minimum_soc:
+                manager['commit'] = False                                   # ---> charging done and reset
+                manager['request'] = 0
+            # ---> driving
+            consumption = manager['car'].drive(d_time)                      # ---> drive the car
+            if consumption > 0:                                             # ---> car moved -> new request
+                self.shift = False                                          # ---> reset shift
+                self.delay = 0                                              # ---> reset waiting time
+                if manager['ask']:                                          # ---> no time for charging
+                    self.not_charged = True                                 # ---> or to expensive
+            # ---> charging required
+            if manager['user'].car_usage.loc[d_time] == 0 \
+                    and manager['car'].soc < minimum_soc and not manager['commit']:
                 manager['ask'] = True                                       # ---> set ask to True
+                self.not_charged = False                                    # --> reset not charged for new request
 
     def get_request(self, d_time: datetime):
-        requests = []
-        # ---> plan charging if the car is unused or the waiting time is expired
-        if any([manager['ask'] for manager in self.car_manager.values()]) and self.delay == 0:
-            self._logger.info(' ---> check for charging demand')
-            for manager in self.car_manager.values():
-                if manager['ask']:                                          # ---> if the current car need a charge
-                    p, dt = manager['user'].plan_charging(d_time)           # ---> get planing
-                    if p > 0 and dt > 0:
-                        requests += [(p, dt)]                               # ---> add to request
-                        manager['request'] = dt                             # ---> set as possible charging time
-        # ---> if the waiting time is not expired decrement by one
-        elif self.delay >= 0:
-            if self.delay == 0:
-                for manager in self.car_manager.values():
-                    manager['ask'] = True                                   # ---> set asking to true
-            else:
-                self.delay -= 1
+        requests = []                                                       # ---> list for requests
+        if self.delay == 0:                                                 # ---> charging if waiting expired
+            for manager in [manager for manager in self.car_manager.values() if manager['ask']]:
+                p, dt = manager['user'].plan_charging(d_time)               # ---> get planing
+                if p > 0 and dt > 0:
+                    requests += [(p, dt)]                                   # ---> add to request
+                    manager['request'] = dt                                 # ---> set possible charging time
+        elif self.delay > 0:                                                # ---> decrement waiting time
+            self.delay -= 1
+            self.waiting_time += 1
         if len(requests) > 0:
             return {str(self.grid_node): requests}                          # ---> return dictionary with requests
         else:
             return {}
 
     def commit_charging(self, price):
-        # TODO: Check price --> current price per kWh is used
         # ---> if the price is below the limit, commit the charging
-        if price < self.price_limit:
-            shift = False
-            for car_management in self.car_manager.values():
-                car_management['commit'] = True                 # ---> set commit flag
-                car_management['ask'] = False                   # ---> reset asking flag for charging time
+        if price < self.price_limit or any([manager['car'].soc < 5 for manager in self.car_manager.values()]):
+            waiting_time = 0
+            for car_management in self.car_manager.values():                # ---> for each car
+                if car_management['ask']:                                   # ---> check charging request
+                    car_management['commit'] = True                         # ---> set commit flag
+                    car_management['ask'] = False                           # ---> reset asking flag for charging time
             if self.shift:
-                self.shift = False
-                shift = True
-            return True, shift                                  # ---> return True to commit
+                waiting_time = self.waiting_time                            # ---> return value for estimation
+                self.waiting_time = 0                                       # ---> reset waiting time
+                self.shift = False                                          # ---> reset shift flag
+            return True, waiting_time
         else:
-            self.delay = np.random.randint(low=60, high=120)    # ---> wait 60-120 minutes till next try
+            self.delay = np.random.randint(low=30, high=60)                 # ---> wait 30-60 minutes till next try
             self.shift = True
-            return False, False                                 # ---> return False to reject
+            for car_management in self.car_manager.values():
+                car_management['ask'] = False
+            return False, 0
 
 
 if __name__ == "__main__":
     house = HouseholdModel(T=96, demandP=3000, residents=3, grid_node='NOWUM')
-    power = house.get_fixed_power(pd.to_datetime('2018-01-01'))
+    power = house.get_fixed_power(pd.to_datetime('2022-01-01'))
     # a = house.residents[0].get_car_usage(pd.to_datetime('2018-01-01'))
-    # for x in pd.date_range(start='2018-01-01', periods=2, freq='min'):
-    #    p = house.get_request(x)
+    for x in pd.date_range(start='2022-01-01', periods=1440, freq='min'):
+        print(x)
+        p = house.do(x)
+
