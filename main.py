@@ -52,9 +52,11 @@ logger.info(' ---> initialize result set')
 len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_))
-          for key in ['commits', 'rejects', 'requests', 'charged', 'shift', 'soc', 'price', 'ref_distance', 'ref_soc']}
+          for key in ['commits', 'rejects', 'requests', 'waiting', 'charged', 'shift',
+                      'soc', 'price', 'ref_distance', 'ref_soc']}
 waiting_time = defaultdict(list)
 
+lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
 
@@ -87,10 +89,12 @@ if __name__ == "__main__":
                         for power, duration in parameters:
                             if wait == 0:
                                 result['charged'][indexer:indexer + duration] += power
+                                waiting_time[indexer].append(wait)
                             else:
                                 result['shift'][indexer:indexer + duration] += power
                                 waiting_time[indexer-wait].append(wait)
                             CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
+                            lmp[node_id][indexer] = price
                 else:
                     result['rejects'][indexer] += 1
                     # logger.info(f' ---> rejected charging - price: {round(price,2)} ct/kWh')
@@ -107,18 +111,25 @@ if __name__ == "__main__":
             # logger.info(f'SoC: {ref_car.soc}')
 
 # ---> save results
+for index, value in waiting_time.items():
+    result['waiting'][index] = np.mean(value)
+
 logger.info(f'saving results in ./sim_result/{scenario_name}.csv')
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
 result_set.index = time_range
 result_set.to_csv(fr'./sim_result/{scenario_name}.csv', sep=';', decimal=',')
-resampled_result = result_set.resample('5min').agg({'commits': 'sum',
-                                                    'rejects': 'sum',
-                                                    'requests': 'sum',
-                                                    'charged': 'mean',
-                                                    'shift': 'mean',
-                                                    'soc': 'mean',
-                                                    'price': 'mean',
-                                                    'ref_distance': 'mean',
-                                                    'ref_soc': 'mean'})
+resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum',
+                                                    'requests': 'sum', 'waiting': 'mean',
+                                                    'charged': 'mean', 'shift': 'mean',
+                                                    'soc': 'mean', 'price': 'mean',
+                                                    'ref_distance': 'mean', 'ref_soc': 'mean'})
 resampled_result.to_csv(fr'./sim_result/{scenario_name}_resampled.csv', sep=';', decimal=',')
+# ---> save lmp prices
+lmp = pd.DataFrame(lmp)
+lmp.index = result_set.index
+lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
+lmp.to_csv(fr'./sim_result/lmp_{scenario_name}.csv', sep=';', decimal=',')
+resampled_lmp = lmp.resample('5min').mean()
+resampled_lmp.to_csv(fr'./sim_result/lmp_{scenario_name}_resampled.csv', sep=';', decimal=',')
+
