@@ -1,5 +1,4 @@
-from agents.flexibility_provider import FlexibilityProvider
-from agents.capacity_provider import CapacityProvider
+import glob
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -7,6 +6,14 @@ import logging
 import os
 from datetime import timedelta as td
 from collections import defaultdict
+from plotly.offline import plot
+import plotly.express as px
+from pathlib import Path
+import shutil
+
+
+from agents.flexibility_provider import FlexibilityProvider
+from agents.capacity_provider import CapacityProvider
 
 logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
@@ -14,7 +21,7 @@ logger.setLevel('INFO')
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
 end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
 logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date}')
-scenario_name = os.getenv('SCENARIO_NAME', 'base_scenario')
+scenario_name = os.getenv('SCENARIO_NAME', 'base')
 logger.info(f' ---> scenario {scenario_name}')
 
 input_set = {'employee_ratio': os.getenv('EMPLOYEE_RATIO', 0.7),
@@ -80,7 +87,7 @@ if __name__ == "__main__":
                 result['requests'][indexer] += 1
                 # ---> get price
                 price = CapProvider.get_price(request, d_time)
-                commit, wait = participants[id_].commit_charging(price)
+                commit, wait = participants[id_].commit_charging(price, d_time)
                 if commit:
                     # logger.info(f' ---> committed charging - price: {round(price,2)} ct/kWh')
                     result['commits'][indexer] += 1
@@ -114,22 +121,47 @@ if __name__ == "__main__":
 for index, value in waiting_time.items():
     result['waiting'][index] = np.mean(value)
 
-logger.info(f'saving results in ./sim_result/{scenario_name}.csv')
+
+path_name = fr'./sim_result/S_{scenario_name}'
+logger.info(f'saving results in {path_name}')
+result_name = fr'./sim_result/R_{scenario_name}'
+
+if not Path(fr'{path_name}').is_dir():
+    os.mkdir(fr'{path_name}')
+if not Path(fr'{result_name}').is_dir():
+    os.mkdir(fr'{result_name}')
+
+for f in glob.glob(fr'./sim_result/templates/*.xlsx'):
+    shutil.copy(f, result_name)
+
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
 result_set.index = time_range
-result_set.to_csv(fr'./sim_result/{scenario_name}.csv', sep=';', decimal=',')
+result_set.to_csv(fr'{path_name}/result_1min.csv', sep=';', decimal=',')
 resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum',
                                                     'requests': 'sum', 'waiting': 'mean',
                                                     'charged': 'mean', 'shift': 'mean',
                                                     'soc': 'mean', 'price': 'mean',
                                                     'ref_distance': 'mean', 'ref_soc': 'mean'})
-resampled_result.to_csv(fr'./sim_result/{scenario_name}_resampled.csv', sep=';', decimal=',')
+resampled_result.to_csv(fr'{path_name}/result_5min.csv', sep=';', decimal=',')
+
 # ---> save lmp prices
 lmp = pd.DataFrame(lmp)
 lmp.index = result_set.index
 lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
-lmp.to_csv(fr'./sim_result/lmp_{scenario_name}.csv', sep=';', decimal=',')
+lmp.to_csv(fr'{path_name}/lmp_1min.csv', sep=';', decimal=',')
 resampled_lmp = lmp.resample('5min').mean()
-resampled_lmp.to_csv(fr'./sim_result/lmp_{scenario_name}_resampled.csv', sep=';', decimal=',')
+resampled_lmp.to_csv(fr'{path_name}/lmp_5min.csv', sep=';', decimal=',')
 
+
+plotting = False
+if plotting:
+    plot_lmp = lmp.resample('15min').mean()
+    plot_data = []
+    for index in plot_lmp.index:
+        for key, value in plot_lmp.loc[index].to_dict().items():
+            plot_data.append([index, key, value])
+    plot_data = pd.DataFrame(plot_data, columns=['timestamp', 'node', 'price'])
+    plot_data['timestamp'] = [pd.to_datetime(str(value)).strftime('%Y-%m-%d %X') for value in plot_data['timestamp'].values]
+    figure = px.scatter(plot_data, x="node", y="price", animation_frame="timestamp", size="price", color="node")
+    plot(figure, 'temp-plot.html')
