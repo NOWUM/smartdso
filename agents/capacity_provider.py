@@ -71,10 +71,10 @@ class CapacityProvider:
 
 if __name__ == "__main__":
     cp = CapacityProvider()
-    a = cp.grid.data['connected'].index[8]
-    request = {a: [(630, 6), (500, 8)]}
-    d_time = pd.to_datetime('2022-02-01')
-    cp.get_price(request, d_time)
+    #a = cp.grid.data['connected'].index[8]
+    #request = {a: [(630, 6), (500, 8)]}
+    #d_time = pd.to_datetime('2022-02-01')
+    #cp.get_price(request, d_time)
     cp.grid.plot()
     # cp.get_fixed_power()
 
