@@ -5,9 +5,9 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [50, 80]
-minimum_socs = [30, 50]
-number_simulation = 20
+ev_quotas = [50]
+minimum_socs = [30]
+number_simulation = 30
 
 start_date = '2022/01/01'
 end_date = '2022/03/01'
