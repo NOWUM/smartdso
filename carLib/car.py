@@ -3,10 +3,11 @@ import pandas as pd
 import numpy as np
 
 # ---> load electric vehicle data
-electric_vehicles = pd.read_csv(r'./carLib/data/top_10_evs.csv')
-electric_vehicles['distance'] = electric_vehicles['capacity']/electric_vehicles['consumption'] * 100
-electric_vehicles['maximal_charging_power'] = 22
-
+# electric_vehicles = pd.read_csv(r'./carLib/data/top_10_evs.csv')
+# electric_vehicles['distance'] = electric_vehicles['capacity']/electric_vehicles['consumption'] * 100
+# electric_vehicles['maximal_charging_power'] = 22
+electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
+electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
 
 # ---> function to get the EV for the corresponding distance
 def get_electric_vehicle(distance):
