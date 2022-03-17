@@ -77,7 +77,6 @@ def show_plot(nodes: pd.DataFrame,
             fig.add_trace(get_edges(voltage_level))
             fig.add_trace(get_transformers(voltage_level))
 
-
         api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
 
         fig.update_layout(mapbox=dict(accesstoken=api_key, bearing=0, pitch=0, zoom=13,
