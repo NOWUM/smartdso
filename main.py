@@ -17,11 +17,18 @@ logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date
 scenario_name = os.getenv('SCENARIO_NAME', 'base_scenario')
 logger.info(f' ---> scenario {scenario_name}')
 
+input_set = {'employee_ratio': os.getenv('EMPLOYEE_RATIO', 0.7),
+             'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
+             'minimum_soc': int(os.getenv('MINIMUM_SOC', 30)),
+             'start_date': start_date,
+             'end_date': end_date,
+             'ev_ratio': int(os.getenv('EV_RATIO', 80))/100}
+
 logger.info(' ---> starting Flexibility Provider')
-FlexProvider = FlexibilityProvider()
+FlexProvider = FlexibilityProvider(**input_set)
 logging.getLogger('FlexibilityProvider').setLevel('WARNING')
 logger.info(' ---> starting Capacity Provider')
-CapProvider = CapacityProvider()
+CapProvider = CapacityProvider(**input_set)
 logging.getLogger('CapacityProvider').setLevel('WARNING')
 
 logger.info(' ---> choosing reference car')

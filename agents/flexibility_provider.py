@@ -1,32 +1,32 @@
 import uuid
 import pandas as pd
-import numpy as np
-from datetime import timedelta, datetime
+from datetime import datetime
 import logging
-import sqlite3
-
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from agents.utils import WeatherGenerator
 from agents.analyser import Check
 
+# ---> read known consumers and nodes
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
 nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
+
+nuts_code = 'DEA26'
 
 
 class FlexibilityProvider:
 
-    def __init__(self, nuts_code: str = 'DEA26'):
+    def __init__(self, *args, **kwargs):
         self.participants = {}
         # ---> create participants
         for index, consumer in allocated_consumers.iterrows():
             if consumer['bus0'] in nodes.index and consumer['profile'] == 'H0':
                 participant = HouseholdModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                             residents=int(max(round(consumer['jeb'] / 1500, 0), 1)))
+                                             residents=int(max(round(consumer['jeb'] / 1500, 0), 1)), **kwargs)
                 self.participants[uuid.uuid1()] = participant
             else:
-                participant = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'])
+                participant = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
                 self.participants[uuid.uuid1()] = participant
         # ---> set logger
         self._logger = logging.getLogger('FlexibilityProvider')

@@ -1,27 +1,23 @@
 import logging
-import os
 import pandas as pd
 import numpy as np
 from copy import deepcopy
 from datetime import timedelta as td, datetime
 
 from gridLib.model import GridModel
-import sqlite3
 logging.getLogger('pypsa').setLevel('ERROR')
-
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
-time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
 
 
 class CapacityProvider:
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         # ---> build grid model and set simulation horizon
         self.grid = GridModel()
         self.mapper = self.grid.model.buses['sub_network']
         self.mapper = self.mapper[self.mapper.index.isin(self.grid.data['connected'].index)]
         # ---> dictionary to store power values for each node
+        time_range = pd.date_range(start=pd.to_datetime(kwargs['start_date']),
+                                   end=pd.to_datetime(kwargs['end_date'] + td(days=1)), freq='min')[:-1]
         self.fixed_power = {i: pd.Series(index=time_range, data=np.zeros(len(time_range)), name='power')
                             for i in self.grid.data['connected'].index}
 
@@ -66,7 +62,6 @@ class CapacityProvider:
         self.grid.run_power_flow(sub_id=sub_id)
         # ---> get maximal power and calculate price
         df = self._get_result(sub_id)
-        # TODO: Check max values --> current only one value is used
         maximal_utilization = max(df.max(axis=1).to_numpy())
         if maximal_utilization < 100:
             return ((-np.log(1-np.power(maximal_utilization/100, 1.5)) + 0.175) * 0.15) * 100

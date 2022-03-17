@@ -2,17 +2,12 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import names
-import os
 import logging
 
 from participants.basic import BasicParticipant
 from participants.utils import Resident
 from demLib.electric_profile import StandardLoadProfile
 
-# ---> resident data
-employee_ratio = os.getenv('EMPLOYEE_RATIO', 0.7)
-london_data = (os.getenv('LONDON_DATA', 'False') == 'True')
-minimum_soc = int(os.getenv('MINIMUM_SOC', 30))
 # ---> price data from survey
 mean_price = 28.01
 var_price = 7.9
@@ -20,25 +15,27 @@ var_price = 7.9
 
 class HouseholdModel(BasicParticipant):
 
-    def __init__(self, T, *args, **kwargs):
-        super().__init__(T, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
         # create family name
         self.family_name = names.get_last_name()
         # initialize profile generator
         self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='household', resolution='15min',
-                                                     random_choice=london_data)
+                                                     random_choice=kwargs['london_data'])
+        self.minimum_soc = kwargs['minimum_soc']
+
         # ---> create residents
         self.residents = []
         for num in range(kwargs['residents']):
             if num < 2:
-                if np.random.choice(a=[True, False], p=[employee_ratio, 1 - employee_ratio]):
-                    resident = Resident(['work', 'hobby', 'errand'], 'adult', self.family_name)
+                if np.random.choice(a=[True, False], p=[kwargs['employee_ratio'], 1 - kwargs['employee_ratio']]):
+                    resident = Resident(['work', 'hobby', 'errand'], 'adult', self.family_name, **kwargs)
                     self.residents += [resident]
                 else:
-                    resident = Resident(['hobby', 'errand'], 'adult', self.family_name)
+                    resident = Resident(['hobby', 'errand'], 'adult', self.family_name, **kwargs)
                     self.residents += [resident]
             else:
-                self.residents += [Resident([], 'child', self.family_name)]
+                self.residents += [Resident([], 'child', self.family_name, **kwargs)]
 
         # ---> price limits from survey
         self.price_low = round(np.random.normal(loc=mean_price, scale=var_price), 2)
@@ -46,7 +43,7 @@ class HouseholdModel(BasicParticipant):
         self.price_limit = 1.1477 * self.price_medium + 1.51
         # ---> store all cars that are used
         self.car_manager = {resident.name: {'car': resident.car, 'request': 0, 'commit': False,
-                                            'ask': True if resident.car.soc < minimum_soc else False,
+                                            'ask': True if resident.car.soc < self.minimum_soc else False,
                                             'user': resident}
                             for resident in self.residents
                             if resident.type == 'adult' and resident.car is not None and resident.car.type == 'ev'}
@@ -82,7 +79,7 @@ class HouseholdModel(BasicParticipant):
                     self.not_charged = True                                 # ---> or to expensive
             # ---> charging required
             if manager['user'].car_usage.loc[d_time] == 0 \
-                    and manager['car'].soc < minimum_soc and not manager['commit']:
+                    and manager['car'].soc < self.minimum_soc and not manager['commit']:
                 manager['ask'] = True                                       # ---> set ask to True
                 self.not_charged = False                                    # --> reset not charged for new request
 
