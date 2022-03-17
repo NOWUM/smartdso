@@ -44,7 +44,7 @@ class HouseholdModel(BasicParticipant):
         # ---> store all cars that are used
         self.car_manager = {resident.name: {'car': resident.car, 'request': 0, 'commit': False,
                                             'ask': True if resident.car.soc < self.minimum_soc else False,
-                                            'user': resident}
+                                            'user': resident, 'limit': 5}
                             for resident in self.residents
                             if resident.type == 'adult' and resident.car is not None and resident.car.type == 'ev'}
         self.delay = 0
@@ -99,9 +99,22 @@ class HouseholdModel(BasicParticipant):
         else:
             return {}
 
-    def commit_charging(self, price):
+    def commit_charging(self, price, d_time):
+        for manager in self.car_manager.values():
+            car_use = manager['user'].car_usage
+
+            try:
+                t1 = car_use.loc[(car_use.index > d_time) & (car_use == 1)].index[0]    # ---> get next usage
+                t2 = car_use.loc[(car_use.index > t1) & (car_use == 0)].index[0]
+                next_demand = (manager['car'].demand.loc[t1:t2].sum() / manager['car'].capacity) * 100
+                next_demand = max(5, round(next_demand, 2))
+                manager['limit'] = next_demand
+            except Exception as e:
+                self._logger.info(e)
+                manager['limit'] = 5
+
         # ---> if the price is below the limit, commit the charging
-        if price < self.price_limit or any([manager['car'].soc < 5 for manager in self.car_manager.values()]):
+        if price < self.price_limit or any([manager['car'].soc < manager['limit'] for manager in self.car_manager.values()]):
             waiting_time = 0
             for car_management in self.car_manager.values():                # ---> for each car
                 if car_management['ask']:                                   # ---> check charging request
