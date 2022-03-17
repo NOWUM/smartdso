@@ -5,12 +5,12 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [80]
-minimum_socs = [30]
-number_simulation = 30
+ev_quotas = [50, 80]
+minimum_socs = [30, 50]
+number_simulation = 20
 
 start_date = '2022/01/01'
-end_date = '2022/02/01'
+end_date = '2022/03/01'
 
 use_london_data = False
 
