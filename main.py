@@ -24,12 +24,14 @@ logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date
 scenario_name = os.getenv('SCENARIO_NAME', 'base')
 logger.info(f' ---> scenario {scenario_name}')
 
+path = os.getenv('RESULT_PATH', 'base')
+
 input_set = {'employee_ratio': os.getenv('EMPLOYEE_RATIO', 0.7),
              'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
-             'minimum_soc': int(os.getenv('MINIMUM_SOC', 30)),
+             'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
              'start_date': start_date,
              'end_date': end_date,
-             'ev_ratio': int(os.getenv('EV_RATIO', 80))/100}
+             'ev_ratio': int(os.getenv('EV_RATIO', 50))/100}
 
 logger.info(' ---> starting Flexibility Provider')
 FlexProvider = FlexibilityProvider(**input_set)
@@ -122,9 +124,9 @@ for index, value in waiting_time.items():
     result['waiting'][index] = np.mean(value)
 
 
-path_name = fr'./sim_result/S_{scenario_name}'
-logger.info(f'saving results in {path_name}')
-result_name = fr'./sim_result/R_{scenario_name}'
+path_name = fr'./sim_result/S_{path}'
+logger.info(f'saving results in {path}')
+result_name = fr'./sim_result/R_{path}'
 
 if not Path(fr'{path_name}').is_dir():
     os.mkdir(fr'{path_name}')
@@ -134,29 +136,32 @@ if not Path(fr'{result_name}').is_dir():
 for f in glob.glob(fr'./sim_result/templates/*.xlsx'):
     shutil.copy(f, result_name)
 
+sim = scenario_name.split('_')[-1]
+
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
 result_set.index = time_range
-result_set.to_csv(fr'{path_name}/result_1min.csv', sep=';', decimal=',')
+result_set.to_csv(fr'{path_name}/result_1min_{sim}.csv', sep=';', decimal=',')
+
 resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum',
                                                     'requests': 'sum', 'waiting': 'mean',
                                                     'charged': 'mean', 'shift': 'mean',
                                                     'soc': 'mean', 'price': 'mean',
                                                     'ref_distance': 'mean', 'ref_soc': 'mean'})
-resampled_result.to_csv(fr'{path_name}/result_5min.csv', sep=';', decimal=',')
+resampled_result.to_csv(fr'{path_name}/result_5min_{sim}.csv', sep=';', decimal=',')
 
 # ---> save lmp prices
 lmp = pd.DataFrame(lmp)
 lmp.index = result_set.index
 lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
-lmp.to_csv(fr'{path_name}/lmp_1min.csv', sep=';', decimal=',')
+lmp.to_csv(fr'{path_name}/lmp_1min_{sim}.csv', sep=';', decimal=',')
 resampled_lmp = lmp.resample('5min').mean()
-resampled_lmp.to_csv(fr'{path_name}/lmp_5min.csv', sep=';', decimal=',')
+resampled_lmp.to_csv(fr'{path_name}/lmp_5min_{sim}.csv', sep=';', decimal=',')
 
 
 plotting = False
 if plotting:
-    plot_lmp = lmp.resample('15min').mean()
+    plot_lmp = lmp.resample('60min').mean()
     plot_data = []
     for index in plot_lmp.index:
         for key, value in plot_lmp.loc[index].to_dict().items():

@@ -27,7 +27,8 @@ for scenario in product(ev_quotas, minimum_socs):
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              SCENARIO_NAME: S{scenario[0]}{scenario[1]}_{simulation}
+              SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}_{simulation}
+              RESULT_PATH: EV{scenario[0]}LIMIT{scenario[1]}
             volumes:
               - ./sim_result:/src/sim_result
         ''')
