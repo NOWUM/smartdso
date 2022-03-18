@@ -132,6 +132,7 @@ if not Path(fr'{path_name}').is_dir():
     os.mkdir(fr'{path_name}')
 if not Path(fr'{result_name}').is_dir():
     os.mkdir(fr'{result_name}')
+    os.mkdir(fr'{result_name}/csv')
 
 for f in glob.glob(fr'./sim_result/templates/*.xlsx'):
     shutil.copy(f, result_name)

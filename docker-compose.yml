@@ -11,7 +11,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_0
+              SCENARIO_NAME: EV50LIMIT30_0
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -25,7 +26,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_1
+              SCENARIO_NAME: EV50LIMIT30_1
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -39,7 +41,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_2
+              SCENARIO_NAME: EV50LIMIT30_2
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -53,7 +56,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_3
+              SCENARIO_NAME: EV50LIMIT30_3
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -67,7 +71,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_4
+              SCENARIO_NAME: EV50LIMIT30_4
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -81,7 +86,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_5
+              SCENARIO_NAME: EV50LIMIT30_5
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -95,7 +101,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_6
+              SCENARIO_NAME: EV50LIMIT30_6
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -109,7 +116,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_7
+              SCENARIO_NAME: EV50LIMIT30_7
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -123,7 +131,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_8
+              SCENARIO_NAME: EV50LIMIT30_8
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -137,7 +146,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_9
+              SCENARIO_NAME: EV50LIMIT30_9
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -151,7 +161,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_10
+              SCENARIO_NAME: EV50LIMIT30_10
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -165,7 +176,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_11
+              SCENARIO_NAME: EV50LIMIT30_11
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -179,7 +191,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_12
+              SCENARIO_NAME: EV50LIMIT30_12
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -193,7 +206,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_13
+              SCENARIO_NAME: EV50LIMIT30_13
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -207,7 +221,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_14
+              SCENARIO_NAME: EV50LIMIT30_14
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -221,7 +236,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_15
+              SCENARIO_NAME: EV50LIMIT30_15
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -235,7 +251,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_16
+              SCENARIO_NAME: EV50LIMIT30_16
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -249,7 +266,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_17
+              SCENARIO_NAME: EV50LIMIT30_17
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -263,7 +281,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_18
+              SCENARIO_NAME: EV50LIMIT30_18
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -277,7 +296,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_19
+              SCENARIO_NAME: EV50LIMIT30_19
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -291,7 +311,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_20
+              SCENARIO_NAME: EV50LIMIT30_20
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -305,7 +326,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_21
+              SCENARIO_NAME: EV50LIMIT30_21
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -319,7 +341,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_22
+              SCENARIO_NAME: EV50LIMIT30_22
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -333,7 +356,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_23
+              SCENARIO_NAME: EV50LIMIT30_23
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -347,7 +371,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_24
+              SCENARIO_NAME: EV50LIMIT30_24
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -361,7 +386,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_25
+              SCENARIO_NAME: EV50LIMIT30_25
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -375,7 +401,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_26
+              SCENARIO_NAME: EV50LIMIT30_26
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -389,7 +416,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_27
+              SCENARIO_NAME: EV50LIMIT30_27
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -403,7 +431,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_28
+              SCENARIO_NAME: EV50LIMIT30_28
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -417,7 +446,8 @@ services:
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/03/01
-              SCENARIO_NAME: S5030_29
+              SCENARIO_NAME: EV50LIMIT30_29
+              RESULT_PATH: EV50LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         

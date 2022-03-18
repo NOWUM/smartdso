@@ -4,7 +4,7 @@ from glob import glob as gb
 from pathlib import Path
 import os
 
-scenario = '8030'
+scenario = 'EV50LIMIT30'
 sim_path = fr'./sim_result/S_{scenario}'
 result_path = fr'./sim_result/R_{scenario}'
 
@@ -18,8 +18,8 @@ def get_data():
     data = []
     files = gb(pathname=fr'{sim_path}/*.csv')
     for file in files:
-        if 'resampled' not in file and 'lmp' not in file:
-        # if 'result_1min' in file:
+        # if 'resampled' not in file and 'lmp' not in file:
+        if 'result_1min_' in file:
             d = pd.read_csv(file, sep=';', decimal=',', index_col=0)
             d.index = pd.to_datetime(d.index)
             data += [d]
