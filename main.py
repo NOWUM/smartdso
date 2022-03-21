@@ -68,14 +68,17 @@ waiting_time = defaultdict(list)
 lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
-
-    # ---> run SLPs for each day in simulation horizon
-    logger.info(f' ---> running slp - generation for {start_date} till {end_date}')
-    fixed_power = []
-    for day in tqdm(pd.date_range(start=start_date, end=end_date, freq='d')):
-        fixed_power += [FlexProvider.get_fixed_power(day)]
-    # ---> forward the slp data to the Capacity Provider
-    CapProvider.set_fixed_power(data=pd.concat(fixed_power))
+    try:
+        # ---> run SLPs for each day in simulation horizon
+        logger.info(f' ---> running slp - generation for {start_date} till {end_date}')
+        fixed_power = []
+        for day in tqdm(pd.date_range(start=start_date, end=end_date, freq='d')):
+            fixed_power += [FlexProvider.get_fixed_power(day)]
+        # ---> forward the slp data to the Capacity Provider
+        CapProvider.set_fixed_power(data=pd.concat(fixed_power))
+    except Exception as e:
+        print(repr(e))
+        logger.error(f' ---> error in slp generation: {repr(e)}')
 
     # ---> start simulation for date range start_date till end_date
     logger.info(' ---> starting mobility simulation')
@@ -84,40 +87,44 @@ if __name__ == "__main__":
         logger.info(f' #### simulation for day {day.date()} ####')
         # ---> build dictionary to save simulation results
         for d_time in tqdm(pd.date_range(start=day, periods=1440, freq='min')):
-            requests = FlexProvider.get_requests(d_time)
-            for id_, request in requests.items():
-                result['requests'][indexer] += 1
-                # ---> get price
-                price = CapProvider.get_price(request, d_time)
-                commit, wait = participants[id_].commit_charging(price, d_time)
-                if commit:
-                    # logger.info(f' ---> committed charging - price: {round(price,2)} ct/kWh')
-                    result['commits'][indexer] += 1
-                    result['price'][indexer] = price
-                    for node_id, parameters in request.items():
-                        for power, duration in parameters:
-                            if wait == 0:
-                                result['charged'][indexer:indexer + duration] += power
-                                waiting_time[indexer].append(wait)
-                            else:
-                                result['shift'][indexer:indexer + duration] += power
-                                waiting_time[indexer-wait].append(wait)
-                            CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
-                            lmp[node_id][indexer] = price
-                else:
-                    result['rejects'][indexer] += 1
-                    # logger.info(f' ---> rejected charging - price: {round(price,2)} ct/kWh')
-            capacity = 0
-            for participant in participants.values():
-                participant.do(d_time)
-                if len(participant.residents) > 0:
-                    for value in participant.car_manager.values():
-                        capacity += value['car'].soc / 100 * value['car'].capacity
-            result['soc'][indexer] = (capacity / total_capacity) * 100
-            result['ref_soc'][indexer] = ref_car.soc
-            result['ref_distance'][indexer] = ref_car.total_distance
+            try:
+                requests = FlexProvider.get_requests(d_time)
+                for id_, request in requests.items():
+                    result['requests'][indexer] += 1
+                    # ---> get price
+                    price = CapProvider.get_price(request, d_time)
+                    commit, wait = participants[id_].commit_charging(price, d_time)
+                    if commit:
+                        # logger.info(f' ---> committed charging - price: {round(price,2)} ct/kWh')
+                        result['commits'][indexer] += 1
+                        result['price'][indexer] = price
+                        for node_id, parameters in request.items():
+                            for power, duration in parameters:
+                                if wait == 0:
+                                    result['charged'][indexer:indexer + duration] += power
+                                    waiting_time[indexer].append(wait)
+                                else:
+                                    result['shift'][indexer:indexer + duration] += power
+                                    waiting_time[indexer-wait].append(wait)
+                                CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
+                                lmp[node_id][indexer] = price
+                    else:
+                        result['rejects'][indexer] += 1
+                        # logger.info(f' ---> rejected charging - price: {round(price,2)} ct/kWh')
+                capacity = 0
+                for participant in participants.values():
+                    participant.do(d_time)
+                    if len(participant.residents) > 0:
+                        for value in participant.car_manager.values():
+                            capacity += value['car'].soc / 100 * value['car'].capacity
+                result['soc'][indexer] = (capacity / total_capacity) * 100
+                result['ref_soc'][indexer] = ref_car.soc
+                result['ref_distance'][indexer] = ref_car.total_distance
+            except Exception as e:
+                print(repr(e))
+                logger.error(f' ---> error in simulation: {repr(e)}')
             indexer += 1
-            # logger.info(f'SoC: {ref_car.soc}')
+                # logger.info(f'SoC: {ref_car.soc}')
 
 # ---> save results
 for index, value in waiting_time.items():
