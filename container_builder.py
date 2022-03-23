@@ -5,7 +5,7 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [80]
+ev_quotas = [100]
 minimum_socs = [30]
 number_simulation = 30
 
