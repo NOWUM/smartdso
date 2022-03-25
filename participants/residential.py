@@ -102,7 +102,6 @@ class HouseholdModel(BasicParticipant):
     def commit_charging(self, price, d_time):
         for manager in self.car_manager.values():
             car_use = manager['user'].car_usage
-
             try:
                 t1 = car_use.loc[(car_use.index > d_time) & (car_use == 1)].index[0]    # ---> get next usage
                 t2 = car_use.loc[(car_use.index > t1) & (car_use == 0)].index[0]
@@ -134,10 +133,11 @@ class HouseholdModel(BasicParticipant):
 
 
 if __name__ == "__main__":
-    house = HouseholdModel(T=96, demandP=3000, residents=3, grid_node='NOWUM')
+    house = HouseholdModel(T=96, demandP=3000, residents=3, grid_node='NOWUM', london_data=False, minimum_soc=30,
+                           employee_ratio=0.7, ev_ratio=1, start_date=pd.to_datetime('2022-01-01'),
+                           end_date=pd.to_datetime('2022-02-01'))
     power = house.get_fixed_power(pd.to_datetime('2022-01-01'))
     # a = house.residents[0].get_car_usage(pd.to_datetime('2018-01-01'))
     for x in pd.date_range(start='2022-01-01', periods=1440, freq='min'):
-        print(x)
-        p = house.do(x)
+        house.do(x)
 
