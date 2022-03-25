@@ -42,7 +42,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # ---> maximal distance [km]
         self.consumption = properties['consumption']                            # ---> consumption [kWh/100km]
         self.maximal_charging_power = properties['maximal_charging_power']      # ---> fixed 22 [kW]
-        self.soc = np.random.randint(low=20, high=80)                           # ---> state of charge [0,..., 100]
+        self.soc = np.random.randint(low=90, high=100)                          # ---> state of charge [0,..., 100]
         self.total_distance = 0                                                 # ---> distance counter
         self.demand = None                                                      # ---> driving demand time series
 
