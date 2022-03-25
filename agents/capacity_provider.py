@@ -17,7 +17,7 @@ class CapacityProvider:
         self.mapper = self.mapper[self.mapper.index.isin(self.grid.data['connected'].index)]
         # ---> dictionary to store power values for each node
         time_range = pd.date_range(start=pd.to_datetime(kwargs['start_date']),
-                                   end=pd.to_datetime(kwargs['end_date'] + td(days=1)), freq='min')[:-1]
+                                   end=pd.to_datetime(kwargs['end_date']) + td(days=1), freq='min')[:-1]
         self.fixed_power = {i: pd.Series(index=time_range, data=np.zeros(len(time_range)), name='power')
                             for i in self.grid.data['connected'].index}
 
@@ -70,7 +70,7 @@ class CapacityProvider:
 
 
 if __name__ == "__main__":
-    cp = CapacityProvider()
+    cp = CapacityProvider(**dict(start_date='2022-02-01', end_date='2022-02-02'))
     #a = cp.grid.data['connected'].index[8]
     #request = {a: [(630, 6), (500, 8)]}
     #d_time = pd.to_datetime('2022-02-01')
