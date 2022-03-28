@@ -38,7 +38,8 @@ logging.getLogger('CapacityProvider').setLevel('WARNING')
 logger.info(' ---> initialize result set')
 len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
-result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['commits', 'rejects', 'charged', 'price']}
+result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['commits', 'rejects', 'charged', 'price',
+                                                                             'waiting']}
 lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
@@ -65,7 +66,7 @@ if __name__ == "__main__":
                 requests = FlexProvider.get_requests(d_time)
                 for id_, request in requests.items():
                     price = CapProvider.get_price(request, d_time)
-                    if FlexProvider.commit(id_, price):
+                    if FlexProvider.commit(id_, price, d_time):
                         result['commits'][indexer] += 1
                         result['price'][indexer] = price
                         for node_id, parameters in request.items():
@@ -104,8 +105,11 @@ result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill') 
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
 result_set['ref_distance'] = FlexProvider.reference_distance
-
 result_set.index = time_range
+
+for key, value in FlexProvider.waiting_time.items():
+    result_set.loc[key,'waiting'] = np.mean(value)
+
 result_set.to_csv(fr'{path_name}/result_1min_{sim}.csv', sep=';', decimal=',')
 
 resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum', 'charged': 'mean',

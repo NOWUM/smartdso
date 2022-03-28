@@ -1,7 +1,8 @@
 import uuid
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta as td
+from collections import defaultdict
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
@@ -26,6 +27,7 @@ class FlexibilityProvider:
         self.soc = []                   # ---> portfolio soc
         self.reference_soc = []         # ---> reference soc to track simulation behaviour
         self.reference_distance = []    # ---> reference distance to track simulation behaviour
+        self.waiting_time = defaultdict(list)
 
         # ---> create household clients
         for _, consumer in h0_consumers.iterrows():
@@ -89,11 +91,14 @@ class FlexibilityProvider:
         self.reference_soc += [self.reference_car.soc]
         self.reference_distance += [self.reference_car.odometer]
 
-    def commit(self, id_, price: float):
+    def commit(self, id_, price: float, d_time: datetime):
+        waiting_time = self.clients[id_].waiting_time
         if self.clients[id_].commit(price):
+            self.waiting_time[d_time - td(minutes=waiting_time)].append(waiting_time)
             return True
         else:
             return False
+
 
 if __name__ == "__main__":
     import os

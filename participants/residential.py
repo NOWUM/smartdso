@@ -19,6 +19,7 @@ class HouseholdModel(BasicParticipant):
         self.persons = [Resident(**kwargs) for i in range(kwargs['residents']) if i <= 1]
 
         self.delay = 0
+        self.waiting_time = 0
 
     def get_fixed_power(self, d_time: datetime):
         return self.profile_generator.run_model(d_time)                 # ---> return time series (1/4 h) [kW]
@@ -32,7 +33,7 @@ class HouseholdModel(BasicParticipant):
             return {str(self.grid_node): requests}                      # ---> return to fp-agent
         elif self.delay > 0:
             self.delay -= 1
-
+            self.waiting_time += 1
         return {str(self.grid_node): [(0, 0)]}
 
     def commit(self, price):
@@ -40,6 +41,7 @@ class HouseholdModel(BasicParticipant):
             for person in self.persons:
                 if person.car.charging_duration > 0:
                     person.car.charging = True
+                self.waiting_time = 0
             return True
         else:
             self.delay = np.random.randint(low=30, high=60)             # ---> wait 30-60 minutes till next try
@@ -49,6 +51,7 @@ class HouseholdModel(BasicParticipant):
         for person in [p for p in self.persons if p.car.type == 'ev']:
             person.car.charge()                                         # ---> perform charging
             person.car.drive(d_time)                                    # ---> drive the car
+
 
 
 if __name__ == "__main__":
