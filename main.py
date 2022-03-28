@@ -100,7 +100,7 @@ for f in glob.glob(fr'./sim_result/templates/*.xlsx'):
 sim = scenario_name.split('_')[-1]
 
 result_set = pd.DataFrame(result)
-result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
+result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill') + 24
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
 result_set['ref_distance'] = FlexProvider.reference_distance

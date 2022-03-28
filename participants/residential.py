@@ -36,9 +36,10 @@ class HouseholdModel(BasicParticipant):
         return {str(self.grid_node): [(0, 0)]}
 
     def commit(self, price):
-        if any([p.price_limit > price for p in self.persons]):
+        if any([p.price_limit > price for p in self.persons]) or any([p.car.soc < 5 for p in self.persons]):
             for person in self.persons:
-                person.car.charging = True
+                if person.car.charging_duration > 0:
+                    person.car.charging = True
             return True
         else:
             self.delay = np.random.randint(low=30, high=60)             # ---> wait 30-60 minutes till next try
