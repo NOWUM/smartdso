@@ -17,15 +17,15 @@ def normalize_probabilities(probabilities: list):
 class MobilityDemand:
 
     def __init__(self, demand_types: list = None):
-        self.demand_types = demand_types
-        self.working_days = []
-        self.errand_days = []
-        self.hobby_days = []
-        self.car_usage = False
-        # mapping for days to get the right order
+        self.demand_types = demand_types                # ---> work, errand or hobby
+        self.working_days = []                          # ---> list of working days
+        self.errand_days = []                           # ---> list of errand days
+        self.hobby_days = []                            # ---> list of leisure days
+        self.car_usage = False                          # ---> car required for mobility
+        # ---> mapping for days to get the right order
         self._day_map = dict(Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5, Sunday=6)
-        self.mobility = {key: [] for key in self._day_map.keys()}
 
+        self.mobility = {key: [] for key in self._day_map.keys()}
         for demand_type in self.demand_types:
             if demand_type == 'work':
                 self._get_mobility_demand(tables=work, mobility_type=demand_type)

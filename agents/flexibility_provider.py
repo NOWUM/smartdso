@@ -1,7 +1,7 @@
 import uuid
 import pandas as pd
+import numpy as np
 from datetime import datetime
-import logging
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
@@ -10,6 +10,8 @@ from agents.analyser import Check
 
 # ---> read known consumers and nodes
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
+h0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'H0']
+g0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'G0']
 nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
 
 nuts_code = 'DEA26'
@@ -17,71 +19,94 @@ nuts_code = 'DEA26'
 
 class FlexibilityProvider:
 
-    def __init__(self, *args, **kwargs):
-        self.participants = {}
-        # ---> create participants
-        for index, consumer in allocated_consumers.iterrows():
-            if consumer['bus0'] in nodes.index and consumer['profile'] == 'H0':
-                participant = HouseholdModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                             residents=int(max(round(consumer['jeb'] / 1500, 0), 1)), **kwargs)
-                self.participants[uuid.uuid1()] = participant
-            else:
-                participant = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-                self.participants[uuid.uuid1()] = participant
-        # ---> set logger
-        self._logger = logging.getLogger('FlexibilityProvider')
-        self._logger.setLevel('INFO')
-        self._logger.info(f'created {len(allocated_consumers)} participants')
+    def __init__(self, **kwargs):
+
+        self.clients = {}               # ---> total clients
+        self.capacity = 0               # ---> portfolio capacity
+        self.soc = []                   # ---> portfolio soc
+        self.reference_soc = []         # ---> reference soc to track simulation behaviour
+        self.reference_distance = []    # ---> reference distance to track simulation behaviour
+
+        # ---> create household clients
+        for _, consumer in h0_consumers.iterrows():
+            sim_parameters = dict(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+                                  residents=int(max(consumer['jeb'] / 1500, 1)))
+            sim_parameters.update(kwargs)
+            client = HouseholdModel(**sim_parameters)
+            for person in [p for p in client.persons if p.car.type == 'ev']:
+                self.capacity += person.car.capacity
+            self.clients[uuid.uuid1()] = client
+
+        self.reference_car = None
+        while self. reference_car is None:
+            key = np.random.choice([key for key in self.clients.keys()])
+            for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
+                self.reference_car = person.car
+
+        # ---> create business clients
+        for _, consumer in g0_consumers.iterrows():
+            client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
+            self.clients[uuid.uuid1()] = client
+
         # ---> set weather parameters
         self._nuts3 = nuts_code
         self._weather_generator = WeatherGenerator()
 
     def _generate_weather(self, d_time: datetime):
         weather = self._weather_generator.get_weather(d_time.replace(year=1996), self._nuts3)
-        self._logger.info(f'get weather forecast for the next day {d_time.date()} and forwarding it to the consumers')
-        for participant in self.participants.values():
+        for participant in self.clients.values():
             participant.set_parameter(weather=weather.copy(), prices={})
 
     def get_fixed_power(self, d_time: datetime):
-        self._logger.info('collect demand from participants')
-        self._generate_weather(d_time)
         total_powers = []
-        for id_, participant in self.participants.items():
-            # ---> build dataframe and set index
+        for id_, participant in self.clients.items():
             df = pd.DataFrame({'power': participant.get_fixed_power(d_time)})
             df.index = pd.date_range(start=d_time, freq='15min', periods=len(df))
             df = df.iloc[:-1]
-            # ---> set consumer and grid id
             df['id_'] = str(id_)
             df['node_id'] = participant.grid_node
             df = df.rename_axis('t')
-            # ---> add to total power
             total_powers.append(df)
-        # ---> build total dataframe and write to db
-        df = pd.concat(total_powers)
-        return df
+
+        return pd.concat(total_powers)
 
     def get_requests(self, d_time: datetime):
-        # ---> collection of all requests
-        requests = {}
-        for id_, participant in self.participants.items():
-            request = participant.get_request(d_time)
-            if len(request.values()) > 0:
-                # print(request)
-                requests[id_] = request
-        return requests
+        requests = {id_: participant.get_request(d_time) for id_, participant in self.clients.items()}
+        response = {}
+        for id_, request in requests.items():
+            for key, values in request.items():
+                if any([duration > 0 for _, duration in values]):
+                    response[id_] = request
+        return response
 
+    def simulate(self, d_time: datetime):
+        capacity = 0
+        for participant in self.clients.values():
+            participant.simulate(d_time)
+            for person in [p for p in participant.persons if p.car.type == 'ev']:
+                capacity += person.car.soc / 100 * person.car.capacity
+        self.soc += [(capacity / self.capacity) * 100]
+        self.reference_soc += [self.reference_car.soc]
+        self.reference_distance += [self.reference_car.odometer]
+
+    def commit(self, id_, price: float):
+        if self.clients[id_].commit(price):
+            return True
+        else:
+            return False
 
 if __name__ == "__main__":
-    fp = FlexibilityProvider()
-    checker = Check()
-    checker.run(fp)
-    print(checker)
+    import os
 
-    x = fp.get_fixed_power(pd.to_datetime('2022-02-01'))
-    #for t in tqdm(pd.date_range(start='2022-02-01', freq='min', periods=1440)):
-    #    r = fp.get_requests(t)
-    #    print(r)
-    #    for participant in fp.participants.values():
-    #        participant.do(t)
+    start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
+    end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
+
+    input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
+                 'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
+                 'start_date': start_date,
+                 'end_date': end_date,
+                 'ev_ratio': int(os.getenv('EV_RATIO', 50)) / 100}
+
+    fp = FlexibilityProvider(**input_set)
+    r = fp.get_requests(start_date)
 

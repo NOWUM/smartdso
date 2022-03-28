@@ -7,8 +7,8 @@ import pandas as pd
 from shapely.geometry import Point, LineString
 import pickle
 
-from gridlib.plotting import show_plot as show_figure
-from gridlib.geo_information import GeoInformation
+from gridLib.plotting import show_plot as show_figure
+from gridLib.geo_information import GeoInformation
 
 
 

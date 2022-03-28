@@ -1,80 +1,48 @@
 import numpy as np
 import pandas as pd
-import names
 from datetime import datetime, timedelta as td
 from mobLib.mobility_demand import MobilityDemand
 from carLib.car import Car
 
+# ---> price data from survey
+mean_price = 28.01
+var_price = 7.9
+
+
+def get_mobility_types():
+    employee = np.random.choice(a=[True, False], p=[0.7, 0.3])
+    if employee:
+        return ['work', 'hobby', 'errand']
+    else:
+        return ['hobby', 'errand']
+
 
 class Resident:
 
-    def __init__(self, mobility_types: list, type_: str = 'adult', last_name: str = 'nowum', *args, **kwargs):
-        # ---> create first name to identify the resident
-        self.name = f'{names.get_first_name(gender=np.random.choice(["male", "female"], p=[0.5, 0.5]))} {last_name}'
-        # ---> draw employee status
-        self.employee = True if 'work' in mobility_types else False
-        # ---> set type (adult, others)
-        self.type = type_
-        # ---> create mobility generator
-        self.mobility_generator = MobilityDemand(mobility_types)
-        # ---> is a car used
-        if self.mobility_generator.car_usage:
-            self.own_car = True
+    def __init__(self, **kwargs):
+
+        self.mobility = MobilityDemand(get_mobility_types())                            # ---> create mobility pattern
+
+        if self.mobility.car_usage:
+            max_distance = self.mobility.maximal_distance
+            if max_distance > 600:
+                car_type = 'fv'
+            else:
+                car_type = np.random.choice(a=['ev', 'fv'], p=[kwargs['ev_ratio'], 1 - kwargs['ev_ratio']])
+
+            self.car = Car(car_type=car_type, maximal_distance=max_distance, charging_limit=kwargs['minimum_soc'])
+            self.car.set_demand(self.mobility, kwargs['start_date'], kwargs['end_date'])
+
         else:
-            self.own_car = False
+            self.car = Car(car_type='no car')
 
-        self.minimum_soc = kwargs['minimum_soc']
-        self.car = Car(type=np.random.choice(a=['ev', 'fv'], p=[kwargs['ev_ratio'], 1-kwargs['ev_ratio']]),
-                       maximal_distance=self.mobility_generator.maximal_distance) if self.own_car else None
-
-        time_range = pd.date_range(start=kwargs['start_date'], end=kwargs['end_date'] + td(days=1), freq='min')[:-1]
-        self.car_usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        self.car_demand = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        if self.own_car and self.car.type == 'ev':
-            self._set_car_usage(start_date=kwargs['start_date'], end_date=kwargs['end_date'])
-            self.car.demand = self.car_demand
-
-    def _set_car_usage(self, start_date, end_date):
-        # ---> for each day calculate car usage
-        date_range = pd.date_range(start=start_date, end=end_date, freq='d')
-        for key, demands in self.mobility_generator.mobility.items():
-            days = date_range[date_range.day_name() == key]
-            for demand in demands:
-                mean_consumption = (demand['distance'] * self.car.consumption / 100) / demand['travel_time']
-                t1 = datetime.strptime(demand['start_time'], '%H:%M:%S')
-                t_departure = t1 - td(minutes=demand['travel_time'])
-                t2 = t1 + td(minutes=demand['duration'])
-                t_arrival = t2 + td(minutes=demand['travel_time'])
-                for day in days:
-                    departure = day.combine(day, t_departure.time())
-                    if t2.day > t1.day:
-                        arrival = day.combine(day + td(days=1), t_arrival.time())
-                    else:
-                        arrival = day.combine(day, t_arrival.time())
-                    self.car_usage[departure:arrival] = 1
-
-                    journey = day.combine(day, t1.time())
-                    self.car_demand[departure:journey-td(minutes=1)] = mean_consumption
-                    journey = arrival - td(minutes=demand['travel_time'])
-                    self.car_demand[journey:arrival - td(minutes=1)] = mean_consumption
-
-    def plan_charging(self, d_time: datetime):
-        if self.car.soc < self.minimum_soc and self.car_usage[d_time] == 0:
-            chargeable = self.car_usage.loc[(self.car_usage == 0) & (self.car_usage.index >= d_time)]
-            car_in_use = self.car_usage.loc[(self.car_usage == 1) & (self.car_usage.index >= d_time)]
-            total_energy = self.car.capacity - (self.car.capacity * self.car.soc) / 100
-            duration = int(total_energy / self.car.maximal_charging_power * 60)
-            if len(chargeable) > 0 and len(car_in_use) > 0:
-                maximal_duration = int((car_in_use.index[0] - chargeable.index[0]).total_seconds() / 60)
-                return self.car.maximal_charging_power, min(maximal_duration, duration)
-            return 0, 0
-        else:
-            return 0, 0
+        # ---> price limits from survey
+        self.price_low = round(np.random.normal(loc=mean_price, scale=var_price), 2)    # ---> charge
+        self.price_medium = 0.805 * self.price_low + 17.45                              # ---> require
+        self.price_limit = 1.1477 * self.price_medium + 1.51                            # ---> reject
 
 
 if __name__ == "__main__":
-    from matplotlib import pyplot as plt
-    res = Resident(mobility_types=['work', 'hobby', 'errands'], type_='adult')
-    usage = res.car_usage
-    res.car_usage.plot()
-    plt.show()
+    sim_paras = dict(start_date=pd.to_datetime('2022-01-01'), end_date=pd.to_datetime('2022-02-01'),
+                     ev_ratio=1, minimum_soc=30)
+    person = Resident(**sim_paras)

@@ -1,9 +1,7 @@
-import numpy as np
 import pandas as pd
 import pypsa
 import logging
 from shapely.wkt import loads
-import time
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)

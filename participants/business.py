@@ -11,7 +11,7 @@ class BusinessModel(BasicParticipant):
         super().__init__(T, **kwargs)
         self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='business', resolution='15min',
                                                      random_choice=False)
-        self.residents = []
+        self.persons = []
 
     def get_fixed_power(self, d_time: datetime):
         # ---> get standard load profile
@@ -19,11 +19,11 @@ class BusinessModel(BasicParticipant):
         self.power = self.demand['power']
         return self.power
 
-    def do(self, d_time: datetime):
+    def simulate(self, d_time: datetime):
         pass
 
     def get_request(self, d_time: datetime):
-        return {}
+        return {str(self.grid_node): [(0, 0)]}
 
     def commit_charging(self, price):
         return False
