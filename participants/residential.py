@@ -50,8 +50,9 @@ class HouseholdModel(BasicParticipant):
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == 'ev']:
             person.car.charge()                                         # ---> perform charging
-            person.car.drive(d_time)                                    # ---> drive the car
-
+            demand = person.car.drive(d_time)                           # ---> drive the car
+            if demand >= 0:
+                self.waiting_time = 0
 
 
 if __name__ == "__main__":
