@@ -95,9 +95,9 @@ class FlexibilityProvider:
         waiting_time = self.clients[id_].waiting_time
         if self.clients[id_].commit(price):
             self.waiting_time[d_time - td(minutes=waiting_time)].append(waiting_time)
-            return True
+            return True, waiting_time
         else:
-            return False
+            return False, 0
 
 
 if __name__ == "__main__":
