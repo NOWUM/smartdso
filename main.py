@@ -39,7 +39,7 @@ logger.info(' ---> initialize result set')
 len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['commits', 'rejects', 'charged', 'price',
-                                                                             'waiting']}
+                                                                             'shift', 'waiting']}
 lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
@@ -66,13 +66,16 @@ if __name__ == "__main__":
                 requests = FlexProvider.get_requests(d_time)
                 for id_, request in requests.items():
                     price = CapProvider.get_price(request, d_time)
-                    if FlexProvider.commit(id_, price, d_time):
+                    commit, w_time = FlexProvider.commit(id_, price, d_time)
+                    if commit:
                         result['commits'][indexer] += 1
-                        result['price'][indexer] = price
+                        result['price'][indexer] = price + 24
                         for node_id, parameters in request.items():
                             for power, duration in parameters:
                                 result['charged'][indexer:indexer + duration] += power
                                 CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
+                                if w_time > 0:
+                                    result['shift'][indexer:indexer + duration] += power
                             lmp[node_id][indexer] = price
                     else:
                         result['rejects'][indexer] += 1
@@ -114,7 +117,7 @@ result_set.to_csv(fr'{path_name}/result_1min_{sim}.csv', sep=';', decimal=',')
 
 resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum', 'charged': 'mean',
                                                     'soc': 'mean', 'price': 'mean', 'ref_distance': 'mean',
-                                                    'ref_soc': 'mean'})
+                                                    'ref_soc': 'mean', 'shift': 'mean'})
 resampled_result.to_csv(fr'{path_name}/result_5min_{sim}.csv', sep=';', decimal=',')
 
 # ---> save lmp prices
