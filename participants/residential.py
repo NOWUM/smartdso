@@ -33,7 +33,6 @@ class HouseholdModel(BasicParticipant):
             return {str(self.grid_node): requests}                      # ---> return to fp-agent
         elif self.delay > 0:
             self.delay -= 1
-            self.waiting_time += 1
         return {str(self.grid_node): [(0, 0)]}
 
     def commit(self, price):
@@ -45,13 +44,14 @@ class HouseholdModel(BasicParticipant):
             return True
         else:
             self.delay = np.random.randint(low=30, high=60)             # ---> wait 30-60 minutes till next try
+            self.waiting_time += self.delay
             return False
 
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == 'ev']:
             person.car.charge()                                         # ---> perform charging
             demand = person.car.drive(d_time)                           # ---> drive the car
-            if demand >= 0:
+            if demand > 0:
                 self.waiting_time = 0
 
 

@@ -81,7 +81,7 @@ def show_plot(nodes: pd.DataFrame,
 
         fig.update_layout(mapbox=dict(accesstoken=api_key, bearing=0, pitch=0, zoom=13,
                                       center=go.layout.mapbox.Center(lat=50.805063, lon=6.49778),
-                                      style='satellite', layers=layers), autosize=True)
+                                      style='white-bg', layers=layers), autosize=True)
         plot(fig, 'temp-plot.html')
 
     except Exception as e:
