@@ -33,7 +33,7 @@ def analyse(attribute: str, dataframes: list):
     df['Minimum'] = np.min(df, axis=1)
     df['Maximum'] = np.max(df, axis=1)
     df.index = dataframes[0].index
-    if attribute not in ['commits', 'requests', 'rejects']:
+    if attribute not in ['commits', 'rejects']:
         df = df.resample('15min').mean()
     else:
         df = df.resample('15min').sum()
@@ -49,11 +49,12 @@ def run():
     for parameter in parameters:
         results[parameter] = analyse(parameter, dfs)
         results[parameter].to_csv(fr'{result_path}/csv/{parameter}.csv', sep=';', decimal=',')
-        if parameter in ['charged', 'soc', 'waiting', 'price', 'requests']:
-            with pd.ExcelWriter(fr'{result_path}/{parameter}.xlsx', if_sheet_exists='replace', mode='a') as writer:
-                results[parameter].to_excel(writer, sheet_name=parameter)
-
+        #if parameter in ['charged', 'soc', 'waiting', 'price', 'requests']:
+        #    with pd.ExcelWriter(fr'{result_path}/{parameter}.xlsx', if_sheet_exists='replace', mode='a') as writer:
+        #        results[parameter].to_excel(writer, sheet_name=parameter)
+        results[parameter].to_csv(fr'{result_path}/{parameter}.csv', sep=';', decimal=',')
+    return results
 
 if __name__ == "__main__":
-    run()
+    result = run()
 
