@@ -1,453 +1,453 @@
 version: "3.9"
 services:
 
-          scenario_100_30_0:
-            container_name: s10030_0
+          scenario_80_30_0:
+            container_name: s8030_0
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_0
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_0
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_1:
-            container_name: s10030_1
+          scenario_80_30_1:
+            container_name: s8030_1
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_1
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_1
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_2:
-            container_name: s10030_2
+          scenario_80_30_2:
+            container_name: s8030_2
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_2
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_2
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_3:
-            container_name: s10030_3
+          scenario_80_30_3:
+            container_name: s8030_3
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_3
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_3
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_4:
-            container_name: s10030_4
+          scenario_80_30_4:
+            container_name: s8030_4
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_4
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_4
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_5:
-            container_name: s10030_5
+          scenario_80_30_5:
+            container_name: s8030_5
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_5
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_5
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_6:
-            container_name: s10030_6
+          scenario_80_30_6:
+            container_name: s8030_6
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_6
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_6
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_7:
-            container_name: s10030_7
+          scenario_80_30_7:
+            container_name: s8030_7
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_7
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_7
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_8:
-            container_name: s10030_8
+          scenario_80_30_8:
+            container_name: s8030_8
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_8
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_8
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_9:
-            container_name: s10030_9
+          scenario_80_30_9:
+            container_name: s8030_9
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_9
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_9
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_10:
-            container_name: s10030_10
+          scenario_80_30_10:
+            container_name: s8030_10
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_10
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_10
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_11:
-            container_name: s10030_11
+          scenario_80_30_11:
+            container_name: s8030_11
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_11
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_11
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_12:
-            container_name: s10030_12
+          scenario_80_30_12:
+            container_name: s8030_12
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_12
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_12
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_13:
-            container_name: s10030_13
+          scenario_80_30_13:
+            container_name: s8030_13
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_13
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_13
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_14:
-            container_name: s10030_14
+          scenario_80_30_14:
+            container_name: s8030_14
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_14
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_14
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_15:
-            container_name: s10030_15
+          scenario_80_30_15:
+            container_name: s8030_15
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_15
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_15
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_16:
-            container_name: s10030_16
+          scenario_80_30_16:
+            container_name: s8030_16
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_16
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_16
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_17:
-            container_name: s10030_17
+          scenario_80_30_17:
+            container_name: s8030_17
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_17
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_17
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_18:
-            container_name: s10030_18
+          scenario_80_30_18:
+            container_name: s8030_18
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_18
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_18
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_19:
-            container_name: s10030_19
+          scenario_80_30_19:
+            container_name: s8030_19
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_19
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_19
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_20:
-            container_name: s10030_20
+          scenario_80_30_20:
+            container_name: s8030_20
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_20
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_20
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_21:
-            container_name: s10030_21
+          scenario_80_30_21:
+            container_name: s8030_21
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_21
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_21
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_22:
-            container_name: s10030_22
+          scenario_80_30_22:
+            container_name: s8030_22
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_22
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_22
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_23:
-            container_name: s10030_23
+          scenario_80_30_23:
+            container_name: s8030_23
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_23
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_23
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_24:
-            container_name: s10030_24
+          scenario_80_30_24:
+            container_name: s8030_24
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_24
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_24
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_25:
-            container_name: s10030_25
+          scenario_80_30_25:
+            container_name: s8030_25
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_25
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_25
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_26:
-            container_name: s10030_26
+          scenario_80_30_26:
+            container_name: s8030_26
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_26
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_26
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_27:
-            container_name: s10030_27
+          scenario_80_30_27:
+            container_name: s8030_27
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_27
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_27
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_28:
-            container_name: s10030_28
+          scenario_80_30_28:
+            container_name: s8030_28
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_28
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_28
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
-          scenario_100_30_29:
-            container_name: s10030_29
+          scenario_80_30_29:
+            container_name: s8030_29
             image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
             build: .
             environment:
-              EV_RATIO: 100
+              EV_RATIO: 80
               MINIMUM_SOC: 30
               LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_29
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV80LIMIT30_29
+              RESULT_PATH: EV80LIMIT30
             volumes:
               - ./sim_result:/src/sim_result
         
