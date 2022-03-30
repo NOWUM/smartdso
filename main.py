@@ -39,7 +39,7 @@ logger.info(' ---> initialize result set')
 len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['commits', 'rejects', 'charged', 'price',
-                                                                             'shift', 'waiting']}
+                                                                             'shift', 'waiting', 'concurrency']}
 lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
@@ -89,17 +89,10 @@ if __name__ == "__main__":
 
 
 path_name = fr'./sim_result/S_{path}'
-logger.info(f'saving results in {path}')
-result_name = fr'./sim_result/R_{path}'
+logger.info(f'saving results in {path_name}')
 
 if not Path(fr'{path_name}').is_dir():
     os.mkdir(fr'{path_name}')
-if not Path(fr'{result_name}').is_dir():
-    os.mkdir(fr'{result_name}')
-    os.mkdir(fr'{result_name}/csv')
-
-for f in glob.glob(fr'./sim_result/templates/*.xlsx'):
-    shutil.copy(f, result_name)
 
 sim = scenario_name.split('_')[-1]
 
@@ -108,22 +101,18 @@ result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill') 
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
 result_set['ref_distance'] = FlexProvider.reference_distance
+result_set['concurrency '] = result_set['charged']/FlexProvider.power
+
 result_set.index = time_range
 
 for key, value in FlexProvider.waiting_time.items():
-    result_set.loc[key,'waiting'] = np.mean(value)
+    result_set.loc[key, 'waiting'] = np.mean(value)
 
 result_set.to_csv(fr'{path_name}/result_1min_{sim}.csv', sep=';', decimal=',')
 
-resampled_result = result_set.resample('5min').agg({'commits': 'sum', 'rejects': 'sum', 'charged': 'mean',
-                                                    'soc': 'mean', 'price': 'mean', 'ref_distance': 'mean',
-                                                    'ref_soc': 'mean', 'shift': 'mean'})
-resampled_result.to_csv(fr'{path_name}/result_5min_{sim}.csv', sep=';', decimal=',')
-
-# ---> save lmp prices
 lmp = pd.DataFrame(lmp)
 lmp.index = result_set.index
 lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
+
 lmp.to_csv(fr'{path_name}/lmp_1min_{sim}.csv', sep=';', decimal=',')
-resampled_lmp = lmp.resample('5min').mean()
-resampled_lmp.to_csv(fr'{path_name}/lmp_5min_{sim}.csv', sep=';', decimal=',')
+
