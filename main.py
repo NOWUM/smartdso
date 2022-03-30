@@ -101,7 +101,7 @@ result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill') 
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
 result_set['ref_distance'] = FlexProvider.reference_distance
-result_set['concurrency '] = result_set['charged']/FlexProvider.power
+result_set['concurrency'] = result_set['charged']/FlexProvider.power
 
 result_set.index = time_range
 
