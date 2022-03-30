@@ -24,6 +24,7 @@ class FlexibilityProvider:
 
         self.clients = {}               # ---> total clients
         self.capacity = 0               # ---> portfolio capacity
+        self.power = 0                  # ---> portfolio power
         self.soc = []                   # ---> portfolio soc
         self.reference_soc = []         # ---> reference soc to track simulation behaviour
         self.reference_distance = []    # ---> reference distance to track simulation behaviour
@@ -37,6 +38,7 @@ class FlexibilityProvider:
             client = HouseholdModel(**sim_parameters)
             for person in [p for p in client.persons if p.car.type == 'ev']:
                 self.capacity += person.car.capacity
+                self.power += person.car.maximal_charging_power
             self.clients[uuid.uuid1()] = client
 
         self.reference_car = None
@@ -113,5 +115,5 @@ if __name__ == "__main__":
                  'ev_ratio': int(os.getenv('EV_RATIO', 50)) / 100}
 
     fp = FlexibilityProvider(**input_set)
-    r = fp.get_requests(start_date)
+    # r = fp.get_requests(start_date)
 
