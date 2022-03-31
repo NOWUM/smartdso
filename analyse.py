@@ -4,7 +4,7 @@ from glob import glob as gb
 from pathlib import Path
 import os
 
-scenario = 'EV100LIMIT30'
+scenario = 'EV80LIMIT30'
 sim_path = fr'./sim_result/S_{scenario}'
 result_path = fr'./sim_result/R_{scenario}'
 
@@ -48,11 +48,10 @@ def run():
     results = {}
     for parameter in parameters:
         results[parameter] = analyse(parameter, dfs)
-        results[parameter].to_csv(fr'{result_path}/csv/{parameter}.csv', sep=';', decimal=',')
+        results[parameter].to_csv(fr'{result_path}/{parameter}.csv', sep=';', decimal=',')
         #if parameter in ['charged', 'soc', 'waiting', 'price', 'requests']:
         #    with pd.ExcelWriter(fr'{result_path}/{parameter}.xlsx', if_sheet_exists='replace', mode='a') as writer:
         #        results[parameter].to_excel(writer, sheet_name=parameter)
-        results[parameter].to_csv(fr'{result_path}/{parameter}.csv', sep=';', decimal=',')
     return results
 
 if __name__ == "__main__":
