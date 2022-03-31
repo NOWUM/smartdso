@@ -62,7 +62,12 @@ class CapacityProvider:
         self.grid.run_power_flow(sub_id=sub_id)
         # ---> get maximal power and calculate price
         df = self._get_result(sub_id)
-        maximal_utilization = max(df.max(axis=1).to_numpy())
+        transformers = self.grid.data['transformers']
+        s_max_tf = transformers.loc[transformers['bus0'].isin(self.grid.sub_networks[sub_id].buses.index), 's_nom']
+        s_tf = self.grid.sub_networks[sub_id].generators_t['p'].values.max()
+        u_tf = 100 * s_tf/s_max_tf
+        u_tf = u_tf.values[0]
+        maximal_utilization = max(max(df.max(axis=1).to_numpy()), u_tf)
         if maximal_utilization < 100:
             return ((-np.log(1-np.power(maximal_utilization/100, 1.5)) + 0.175) * 0.15) * 100
         else:
@@ -75,6 +80,6 @@ if __name__ == "__main__":
     #request = {a: [(630, 6), (500, 8)]}
     #d_time = pd.to_datetime('2022-02-01')
     #cp.get_price(request, d_time)
-    cp.grid.plot()
+    # cp.grid.plot()
     # cp.get_fixed_power()
 
