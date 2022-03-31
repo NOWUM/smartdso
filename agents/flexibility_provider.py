@@ -112,8 +112,19 @@ if __name__ == "__main__":
                  'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
                  'start_date': start_date,
                  'end_date': end_date,
-                 'ev_ratio': int(os.getenv('EV_RATIO', 50)) / 100}
+                 'ev_ratio': int(os.getenv('EV_RATIO', 100)) / 100}
 
-    fp = FlexibilityProvider(**input_set)
+    counters = []
+    for k in range(30):
+        fp = FlexibilityProvider(**input_set)
+        counter = 0
+        for _, client in fp.clients.items():
+            for person in client.persons:
+                if person.car.type == 'ev':
+                    counter += 1
+        counters.append(counter)
+
+    print(np.mean(counters))
+
     # r = fp.get_requests(start_date)
 
