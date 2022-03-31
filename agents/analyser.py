@@ -63,8 +63,8 @@ class Check:
 
     def run(self, agent):
         if self.type_ == 'FlexibilityProvider':
-            for participant in agent.participants.values():
-                for resident in participant.residents:
+            for participant in agent.clients.values():
+                for resident in participant.persons:
                     self._check_attributes(resident)
 
             for key in ['work', 'errand', 'hobby']:
