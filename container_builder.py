@@ -24,6 +24,7 @@ for scenario in product(ev_quotas, minimum_socs):
             environment:
               EV_RATIO: {scenario[0]}
               MINIMUM_SOC: {scenario[1]}
+              BASE_PRICE: 29
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}

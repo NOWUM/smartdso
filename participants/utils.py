@@ -7,7 +7,6 @@ from carLib.car import Car
 # ---> price data from survey
 mean_price = 28.01
 var_price = 7.9
-
 power_price = 24
 
 
@@ -41,8 +40,8 @@ class Resident:
         # ---> price limits from survey
         self.price_low = round(np.random.normal(loc=mean_price, scale=var_price), 2)    # ---> charge
         self.price_medium = 0.805 * self.price_low + 17.45                              # ---> require
-        self.price_limit = 1.1477 * self.price_medium + 1.51 - power_price              # ---> reject
-        self.price_limit = max(self.price_limit, 3)
+        self.price_limit = 1.1477 * self.price_medium + 1.51 - kwargs['base_price']     # ---> reject
+        self.price_limit = max(self.price_limit, 2)
 
 
 if __name__ == "__main__":

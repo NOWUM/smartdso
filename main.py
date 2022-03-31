@@ -26,7 +26,8 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
              'start_date': start_date,
              'end_date': end_date,
-             'ev_ratio': int(os.getenv('EV_RATIO', 50))/100}
+             'ev_ratio': int(os.getenv('EV_RATIO', 50))/100,
+             'base_price': int(os.getenv('BASE_PRICE', 29))}
 
 logger.info(' ---> starting Flexibility Provider')
 FlexProvider = FlexibilityProvider(**input_set)
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                     commit, w_time = FlexProvider.commit(id_, price, d_time)
                     if commit:
                         result['commits'][indexer] += 1
-                        result['price'][indexer] = price + 24
+                        result['price'][indexer] = price + input_set['base_price']
                         for node_id, parameters in request.items():
                             for power, duration in parameters:
                                 result['charged'][indexer:indexer + duration] += power

@@ -4,7 +4,7 @@ from glob import glob as gb
 from pathlib import Path
 import os
 
-scenario = 'EV100LIMIT30L'
+scenario = 'EV100LIMIT30x'
 sim_path = fr'./sim_result/S_{scenario}'
 result_path = fr'./sim_result/R_{scenario}'
 
