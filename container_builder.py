@@ -12,7 +12,7 @@ number_simulation = 30
 start_date = '2022/01/01'
 end_date = '2022/01/15'
 
-use_london_data = True
+use_london_data = False
 
 for scenario in product(ev_quotas, minimum_socs):
     for simulation in range(number_simulation):
@@ -27,8 +27,8 @@ for scenario in product(ev_quotas, minimum_socs):
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}L_{simulation}
-              RESULT_PATH: EV{scenario[0]}LIMIT{scenario[1]}L
+              SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}_{simulation}
+              RESULT_PATH: EV{scenario[0]}LIMIT{scenario[1]}
             volumes:
               - ./sim_result:/src/sim_result
         ''')
