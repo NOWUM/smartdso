@@ -2,6 +2,7 @@ from mobLib.utils import read_MIT_data
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
+
 pd.options.mode.chained_assignment = None
 
 MIT_path = r'./mobLib/data/'
@@ -17,11 +18,11 @@ def normalize_probabilities(probabilities: list):
 class MobilityDemand:
 
     def __init__(self, demand_types: list = None):
-        self.demand_types = demand_types                # ---> work, errand or hobby
-        self.working_days = []                          # ---> list of working days
-        self.errand_days = []                           # ---> list of errand days
-        self.hobby_days = []                            # ---> list of leisure days
-        self.car_usage = False                          # ---> car required for mobility
+        self.demand_types = demand_types  # ---> work, errand or hobby
+        self.working_days = []  # ---> list of working days
+        self.errand_days = []  # ---> list of errand days
+        self.hobby_days = []  # ---> list of leisure days
+        self.car_usage = False  # ---> car required for mobility
         # ---> mapping for days to get the right order
         self._day_map = dict(Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5, Sunday=6)
 
@@ -67,11 +68,11 @@ class MobilityDemand:
         if '>' in distance_interval:
             d = distance_interval.split('>')[-1]
             d = float(d.replace(' ', ''))
-            distance = np.random.poisson(lam=0.01*d) + d
+            distance = np.random.poisson(lam=0.01 * d) + d
         elif '<' in distance_interval:
             d = distance_interval.split('<')[-1]
             d = float(d.replace(' ', ''))
-            distance = np.random.poisson(lam=0.5*d) + 0.1
+            distance = np.random.poisson(lam=0.5 * d) + 0.1
         else:
             distance = distance_interval.split('-')
             distance = np.random.uniform(low=float(distance[0]), high=float(distance[-1]))
@@ -85,11 +86,11 @@ class MobilityDemand:
         if '>' in time_interval:
             time_interval = time_interval.split('>')[-1]
             time_interval = int(time_interval.replace(' ', ''))
-            duration = np.random.poisson(lam=0.1*time_interval) + time_interval
+            duration = np.random.poisson(lam=0.1 * time_interval) + time_interval
         elif '<' in time_interval:
             time_interval = time_interval.split('<')[-1]
             time_interval = int(time_interval.replace(' ', ''))
-            duration = np.random.poisson(lam=0.5*time_interval) + 2.5
+            duration = np.random.poisson(lam=0.5 * time_interval) + 2.5
         else:
             time_interval = time_interval.split('-')
             duration = np.random.uniform(low=float(time_interval[0]), high=float(time_interval[-1]))
@@ -122,7 +123,8 @@ class MobilityDemand:
         if in_week:
             mobility_event['start_time'] = self._get_start_time(tables['times'].index, tables['times'].loc[:, 'Week'])
         else:
-            mobility_event['start_time'] = self._get_start_time(tables['times'].index, tables['times'].loc[:, 'Weekend'])
+            mobility_event['start_time'] = self._get_start_time(tables['times'].index,
+                                                                tables['times'].loc[:, 'Weekend'])
 
         distance, index = self._get_distance(tables['distances'].index, tables['distances'].loc[:, 'Probabilities'])
         mobility_event['distance'] = distance
@@ -137,12 +139,15 @@ class MobilityDemand:
 
     def _check_overlap(self, day: str, mobility_event: dict):
         for event in self.mobility[day]:
-            demand_time = datetime.strptime(event['start_time'], '%H:%M:%S')
-            t_departure = demand_time - timedelta(minutes=event['travel_time'])
-            t_arrival = demand_time + timedelta(minutes=(event['travel_time'] + event['duration']))
+            start_time = datetime.strptime(event['start_time'], '%H:%M:%S')
+            t_departure = start_time - timedelta(minutes=event['travel_time'])
+            t_arrival = start_time + timedelta(minutes=(event['travel_time'] + event['duration']))
             time_range = pd.date_range(start=t_departure, end=t_arrival, freq='min')
-
             if datetime.strptime(mobility_event['start_time'], '%H:%M:%S') in time_range:
+                return True
+            end_time = datetime.strptime(mobility_event['start_time'], '%H:%M:%S') \
+                       + timedelta(minutes=mobility_event['duration'] + mobility_event['travel_time'])
+            if end_time in time_range:
                 return True
         return False
 
