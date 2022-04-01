@@ -12,7 +12,7 @@ number_simulation = 30
 start_date = '2022/01/01'
 end_date = '2022/01/15'
 
-use_london_data = True
+use_london_data = False
 
 for scenario in product(ev_quotas, minimum_socs):
     for simulation in range(number_simulation):

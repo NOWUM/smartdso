@@ -9,7 +9,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_0
@@ -25,7 +25,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_1
@@ -41,7 +41,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_2
@@ -57,7 +57,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_3
@@ -73,7 +73,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_4
@@ -89,7 +89,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_5
@@ -105,7 +105,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_6
@@ -121,7 +121,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_7
@@ -137,7 +137,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_8
@@ -153,7 +153,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_9
@@ -169,7 +169,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_10
@@ -185,7 +185,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_11
@@ -201,7 +201,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_12
@@ -217,7 +217,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_13
@@ -233,7 +233,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_14
@@ -249,7 +249,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_15
@@ -265,7 +265,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_16
@@ -281,7 +281,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_17
@@ -297,7 +297,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_18
@@ -313,7 +313,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_19
@@ -329,7 +329,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_20
@@ -345,7 +345,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_21
@@ -361,7 +361,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_22
@@ -377,7 +377,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_23
@@ -393,7 +393,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_24
@@ -409,7 +409,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_25
@@ -425,7 +425,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_26
@@ -441,7 +441,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_27
@@ -457,7 +457,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_28
@@ -473,7 +473,7 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: True
+              LONDON_DATA: False
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
               SCENARIO_NAME: EV100LIMIT30_29
