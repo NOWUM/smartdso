@@ -5,7 +5,7 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [50]
+ev_quotas = [100]
 minimum_socs = [30]
 number_simulation = 30
 
@@ -28,8 +28,8 @@ for scenario in product(ev_quotas, minimum_socs):
               LONDON_DATA: {use_london_data}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}L_{simulation}
-              RESULT_PATH: EV{scenario[0]}LIMIT{scenario[1]}L
+              SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}_{simulation}
+              RESULT_PATH: EV{scenario[0]}LIMIT{scenario[1]}
             volumes:
               - ./sim_result:/src/sim_result
         ''')
