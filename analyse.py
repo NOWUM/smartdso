@@ -4,7 +4,7 @@ from glob import glob as gb
 from pathlib import Path
 import os
 
-scenario = 'EV50LIMIT30'
+scenario = 'EV100LIMIT30L'
 sim_path = fr'./sim_result/S_{scenario}'
 result_path = fr'./sim_result/R_{scenario}'
 
@@ -55,5 +55,49 @@ def run():
     return results
 
 if __name__ == "__main__":
-    result = run()
+    # result = run()
+    df = pd.read_csv(r'./sim_result/base_24/S_EV100LIMIT30/result_1min_7.csv', sep=';', decimal=',', index_col=0)
+    df.index = pd.to_datetime(df.index)
+    df['distance'] = [0] + [round(e, 3) for e in np.diff(df['ref_distance'].to_numpy())]
+    df['errand'] = 0
+    df['hobby'] = 0
+    df['work'] = 0
+    distances = df['distance'].unique()
+
+    for distance in distances:
+        if distance > 0:
+            # print(distance)
+            tmp = df.loc[df['distance'] == distance].index
+            for k in range(1, len(tmp)):
+                minutes = (tmp[k] - tmp[k - 1]).seconds/60
+                if minutes == 91:
+                    df.loc[df['distance'] == distance, 'hobby'] = 1
+                    x = df.loc[df['hobby'] == 1]
+                    dates = np.unique(x.index.date)
+                    for date in dates:
+                        tmp = x.loc[x.index.date == date]
+                        df.loc[tmp.index.min():tmp.index.max(), 'hobby'] = 100
+                    break
+                if minutes == 36:
+                    df.loc[df['distance'] == distance, 'errand'] = 1
+                    x = df.loc[df['errand'] == 1]
+                    dates = np.unique(x.index.date)
+                    for date in dates:
+                        tmp = x.loc[x.index.date == date]
+                        df.loc[tmp.index.min():tmp.index.max(), 'errand'] = 100
+                    break
+                elif minutes == 526 or minutes == 241:
+                    df.loc[df['distance'] == distance, 'work'] = 1
+                    x = df.loc[df['work'] == 1]
+                    dates = np.unique(x.index.date)
+                    for date in dates:
+                        tmp = x.loc[x.index.date == date]
+                        df.loc[tmp.index.min():tmp.index.max(), 'work'] = 100
+                    break
+    #df = df.loc[:, ['ref_soc', 'ref_distance', 'distance', 'errand', 'hobby', 'work']]
+    df = df.loc[(df.index >= pd.to_datetime('2022-01-03')) & (df.index < pd.to_datetime('2022-01-10'))]
+
+    #df.to_csv('ref_car.csv', sep=';', decimal=',')
+            # df['distance']
+    pass
 
