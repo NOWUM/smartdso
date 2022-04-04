@@ -36,7 +36,8 @@ class HouseholdModel(BasicParticipant):
         return {str(self.grid_node): [(0, 0)]}
 
     def commit(self, price):
-        if any([p.price_limit > price for p in self.persons]) or any([p.car.soc < 5 for p in self.persons]):
+        if any([p.price_limit > price for p in self.persons]) or any([p.car.soc < p.car.charge_anyway
+                                                                      for p in self.persons]):
             for person in self.persons:
                 if person.car.charging_duration > 0:
                     person.car.charging = True

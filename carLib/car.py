@@ -47,8 +47,9 @@ class Car:
 
         self.charging = False
         self.charging_duration = 0
-
+        self.default_limit = charging_limit
         self.limit = charging_limit
+        self.charge_anyway = 5
 
         self.demand = None                                                      # ---> driving demand time series
         self.usage = None                                                       # ---> car home and chargeable
@@ -108,6 +109,17 @@ class Car:
         if self.soc < self.limit and not self.charging and self.usage[d_time] == 0:
             chargeable = self.usage.loc[(self.usage == 0) & (self.usage.index >= d_time)]
             car_in_use = self.usage.loc[(self.usage == 1) & (self.usage.index >= d_time)]
+            if len(car_in_use) > 0:
+                start_time = car_in_use.index[0]
+                next_chargeable = self.usage.loc[(self.usage == 0) & (self.usage.index >= start_time)]
+                if len(next_chargeable) > 0:
+                    end_time = next_chargeable.index[0]
+                    total_demand = (self.demand.loc[start_time:end_time].sum() / self.capacity) * 100
+                    self.charge_anyway = max(5, round(total_demand), 2)
+                    self.limit = max(self.default_limit, self.charge_anyway)
+            else:
+                self.charge_anyway = 5
+                self.limit = self.default_limit
             if len(chargeable) > 0 and len(car_in_use) > 0:
                 total_energy = self.capacity - (self.capacity * self.soc) / 100
                 duration = int(total_energy / self.maximal_charging_power * 60)
