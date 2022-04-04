@@ -25,7 +25,7 @@ class MobilityDemand:
         self.car_usage = False  # ---> car required for mobility
         # ---> mapping for days to get the right order
         self._day_map = dict(Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5, Sunday=6)
-
+        self.employee_relation = None
         self.mobility = {key: [] for key in self._day_map.keys()}
         for demand_type in self.demand_types:
             if demand_type == 'work':
@@ -111,9 +111,12 @@ class MobilityDemand:
 
         mobility_event = dict(type=mobility_type)
 
-        if mobility_type == 'work':
+        if mobility_type == 'work' and self.employee_relation is None:
             job_type = self._get_job_type(tables['type'].index, tables['type'].loc[:, 'Probabilities'])
             duration = 525 if job_type == 'Full_Time' else 240
+            self.employee_relation = duration
+        elif mobility_type == 'work':
+            duration = self.employee_relation
         elif mobility_type == 'errand':
             duration = 35
         else:
