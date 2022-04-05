@@ -100,6 +100,12 @@ class StandardLoadProfile:
             if self.resolution == 'hourly':
                 demand = demand.resample('h').mean()
                 return demand.to_numpy().flatten()
+            if self.resolution == '15min':
+                to_add = []
+                for value in demand['power'].values:
+                    to_add.append(value)
+                    to_add.append(value)
+                return np.asarray(to_add).flatten()
 
         demand = np.zeros(96)
 
