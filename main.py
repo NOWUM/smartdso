@@ -40,7 +40,8 @@ logger.info(' ---> initialize result set')
 len_ = 1440 * ((end_date - start_date).days + 1)
 time_range = pd.date_range(start=start_date, periods=len_, freq='min')
 result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['commits', 'rejects', 'charged', 'price',
-                                                                             'shift', 'waiting', 'concurrency']}
+                                                                             'shift', 'waiting', 'concurrency',
+                                                                             'utilization']}
 lmp = {node: pd.Series(data=np.zeros(len_), index=range(len_)) for node in CapProvider.grid.data['connected'].index}
 
 if __name__ == "__main__":
@@ -54,23 +55,24 @@ if __name__ == "__main__":
         CapProvider.set_fixed_power(data=pd.concat(fixed_power))
     except Exception as e:
         print(repr(e))
-        logger.error(f' ---> error in slp generation: {repr(e)}')
+        logger.error(f' --> error in slp generation: {repr(e)}')
 
-    # ---> start simulation for date range start_date till end_date
+    # --> start simulation for date range start_date till end_date
     logger.info(' ---> starting mobility simulation')
     indexer = 0                                                                 # ---> minute counter for result set
     for day in pd.date_range(start=start_date, end=end_date, freq='d'):
-        logger.info(f' ---> simulation for day {day.date()}')
+        logger.info(f' --> simulation for day {day.date()}')
         # ---> build dictionary to save simulation results
         for d_time in tqdm(pd.date_range(start=day, periods=1440, freq='min')):
             try:
                 requests = FlexProvider.get_requests(d_time)
                 for id_, request in requests.items():
-                    price = CapProvider.get_price(request, d_time)
+                    price, utilization = CapProvider.get_price(request, d_time)
                     commit, w_time = FlexProvider.commit(id_, price, d_time)
                     if commit:
                         result['commits'][indexer] += 1
                         result['price'][indexer] = price + input_set['base_price']
+                        result['utilization'][indexer] = utilization
                         for node_id, parameters in request.items():
                             for power, duration in parameters:
                                 result['charged'][indexer:indexer + duration] += power
@@ -85,7 +87,7 @@ if __name__ == "__main__":
 
             except Exception as e:
                 print(repr(e))
-                logger.error(f' ---> error in simulation: {repr(e)}')
+                logger.error(f' --> error in simulation: {repr(e)}')
             indexer += 1
 
 
@@ -97,23 +99,32 @@ if not Path(fr'{path_name}').is_dir():
 
 sim = scenario_name.split('_')[-1]
 
+slp_demand = pd.concat(fixed_power)
+slp_demand = slp_demand.groupby(slp_demand.index).sum()
+
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
+
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
 result_set['ref_distance'] = FlexProvider.reference_distance
+result_set['empty'] = FlexProvider.empty_car_counter
 result_set['concurrency'] = result_set['charged']/FlexProvider.power
 
 result_set.index = time_range
+
+
+result_set['slp'] = 0
+result_set.loc[slp_demand.index, 'slp'] = slp_demand['power']
+result_set['slp'] = result_set['slp'].replace(to_replace=0, method='ffill')
 
 for key, value in FlexProvider.waiting_time.items():
     result_set.loc[key, 'waiting'] = np.mean(value)
 
 result_set.to_csv(fr'{path_name}/result_1min_{sim}.csv', sep=';', decimal=',')
 
-lmp = pd.DataFrame(lmp)
-lmp.index = result_set.index
-lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
-
-lmp.to_csv(fr'{path_name}/lmp_1min_{sim}.csv', sep=';', decimal=',')
+# lmp = pd.DataFrame(lmp)
+# lmp.index = result_set.index
+# lmp = lmp.loc[:, (lmp != 0).any(axis=0)]
+# lmp.to_csv(fr'{path_name}/lmp_1min_{sim}.csv', sep=';', decimal=',')
 
