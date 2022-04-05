@@ -15,18 +15,18 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-10'))
 logger.info(f' ---> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'base')
 logger.info(f' ---> scenario {scenario_name}')
 
 path = os.getenv('RESULT_PATH', 'base')
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
              'start_date': start_date,
              'end_date': end_date,
-             'ev_ratio': int(os.getenv('EV_RATIO', 50))/100,
+             'ev_ratio': int(os.getenv('EV_RATIO', 10))/100,
              'base_price': int(os.getenv('BASE_PRICE', 29))}
 
 logger.info(' ---> starting Flexibility Provider')
@@ -104,6 +104,7 @@ slp_demand = slp_demand.groupby(slp_demand.index).sum()
 
 result_set = pd.DataFrame(result)
 result_set['price'] = result_set['price'].replace(to_replace=0, method='ffill')
+result_set['utilization'] = result_set['utilization'].replace(to_replace=0, method='ffill')
 
 result_set['soc'] = FlexProvider.soc
 result_set['ref_soc'] = FlexProvider.reference_soc
