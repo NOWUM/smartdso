@@ -37,22 +37,23 @@ class Car:
         else:
             properties = get_fossil_vehicle()
 
-        self.model = properties['model']                                        # ---> model type
-        self.capacity = properties['capacity']                                  # ---> capacity [kWh]
-        self.distance = round(properties['distance'], 2)                        # ---> maximal distance [km]
-        self.consumption = properties['consumption']                            # ---> consumption [kWh/100km]
-        self.maximal_charging_power = properties['maximal_charging_power']      # ---> rated power [kW]
-        self.soc = np.random.randint(low=10, high=90)                           # ---> state of charge [0,..., 100]
-        self.odometer = 0                                                       # ---> distance counter
+        self.model = properties['model']                                        # --> model type
+        self.capacity = properties['capacity']                                  # --> capacity [kWh]
+        self.distance = round(properties['distance'], 2)                        # --> maximal distance [km]
+        self.consumption = properties['consumption']                            # --> consumption [kWh/100km]
+        self.maximal_charging_power = properties['maximal_charging_power']      # --> rated power [kW]
+        self.soc = np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
+        self.odometer = 0                                                       # --> distance counter
 
         self.charging = False
         self.charging_duration = 0
         self.default_limit = charging_limit
         self.limit = charging_limit
         self.charge_anyway = 5
+        self.empty = False
 
-        self.demand = None                                                      # ---> driving demand time series
-        self.usage = None                                                       # ---> car home and chargeable
+        self.demand = None                                                      # --> driving demand time series
+        self.usage = None                                                       # --> car @ home and chargeable
 
     def set_demand(self, mobility: MobilityDemand, start_date: datetime, end_date: datetime):
         time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
@@ -87,9 +88,17 @@ class Car:
             self.soc = max(0, self.soc)
             return self.capacity * 0.01
         else:
-            self.odometer += self.demand[d_time] / self.consumption * 100 # ---> use time series
+            self.odometer += self.demand[d_time] / self.consumption * 100
             energy = (self.capacity * self.soc/100) - self.demand[d_time]
-            self.soc = max(0, energy / self.capacity * 100)
+            soc = energy / self.capacity * 100
+
+            if soc < 0:
+                self.empty = True
+                self.soc = 0
+            else:
+                self.empty = False
+                self.soc = soc
+
             return self.demand[d_time]
 
     def charge(self):

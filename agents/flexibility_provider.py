@@ -29,6 +29,7 @@ class FlexibilityProvider:
         self.reference_soc = []         # ---> reference soc to track simulation behaviour
         self.reference_distance = []    # ---> reference distance to track simulation behaviour
         self.waiting_time = defaultdict(list)
+        self.empty_car_counter = []
 
         # ---> create household clients
         for _, consumer in h0_consumers.iterrows():
@@ -66,7 +67,6 @@ class FlexibilityProvider:
         for id_, participant in self.clients.items():
             df = pd.DataFrame({'power': participant.get_fixed_power(d_time)})
             df.index = pd.date_range(start=d_time, freq='15min', periods=len(df))
-            df = df.iloc[:-1]
             df['id_'] = str(id_)
             df['node_id'] = participant.grid_node
             df = df.rename_axis('t')
@@ -85,13 +85,16 @@ class FlexibilityProvider:
 
     def simulate(self, d_time: datetime):
         capacity = 0
+        empty = 0
         for participant in self.clients.values():
             participant.simulate(d_time)
             for person in [p for p in participant.persons if p.car.type == 'ev']:
                 capacity += person.car.soc / 100 * person.car.capacity
+                empty += int(person.car.empty)
         self.soc += [(capacity / self.capacity) * 100]
         self.reference_soc += [self.reference_car.soc]
         self.reference_distance += [self.reference_car.odometer]
+        self.empty_car_counter += [empty]
 
     def commit(self, id_, price: float, d_time: datetime):
         waiting_time = self.clients[id_].waiting_time
