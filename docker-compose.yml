@@ -9,11 +9,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_0
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_0
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -25,11 +25,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_1
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_1
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -41,11 +41,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_2
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_2
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -57,11 +57,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_3
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_3
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -73,11 +73,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_4
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_4
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -89,11 +89,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_5
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_5
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -105,11 +105,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_6
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_6
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -121,11 +121,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_7
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_7
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -137,11 +137,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_8
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_8
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -153,11 +153,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_9
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_9
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -169,11 +169,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_10
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_10
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -185,11 +185,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_11
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_11
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -201,11 +201,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_12
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_12
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -217,11 +217,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_13
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_13
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -233,11 +233,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_14
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_14
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -249,11 +249,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_15
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_15
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -265,11 +265,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_16
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_16
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -281,11 +281,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_17
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_17
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -297,11 +297,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_18
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_18
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -313,11 +313,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_19
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_19
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -329,11 +329,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_20
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_20
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -345,11 +345,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_21
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_21
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -361,11 +361,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_22
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_22
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -377,11 +377,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_23
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_23
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -393,11 +393,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_24
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_24
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -409,11 +409,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_25
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_25
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -425,11 +425,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_26
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_26
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -441,11 +441,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_27
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_27
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -457,11 +457,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_28
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_28
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
@@ -473,11 +473,11 @@ services:
               EV_RATIO: 100
               MINIMUM_SOC: 30
               BASE_PRICE: 29
-              LONDON_DATA: False
+              LONDON_DATA: True
               START_DATE: 2022/01/01
               END_DATE: 2022/01/15
-              SCENARIO_NAME: EV100LIMIT30_29
-              RESULT_PATH: EV100LIMIT30
+              SCENARIO_NAME: EV100LIMIT30L_29
+              RESULT_PATH: EV100LIMIT30L
             volumes:
               - ./sim_result:/src/sim_result
         
