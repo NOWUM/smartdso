@@ -69,9 +69,9 @@ class CapacityProvider:
         u_tf = u_tf.values[0]
         maximal_utilization = max(max(df.max(axis=1).to_numpy()), u_tf)
         if maximal_utilization < 100:
-            return ((-np.log(1-np.power(maximal_utilization/100, 1.5)) + 0.175) * 0.15) * 100
+            return ((-np.log(1-np.power(maximal_utilization/100, 1.5)) + 0.175) * 0.15) * 100, maximal_utilization
         else:
-            return np.inf
+            return np.inf, 100
 
 
 if __name__ == "__main__":
