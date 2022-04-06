@@ -1,6 +1,6 @@
 *.db
 /sim_result/*
-analyse.py
+dev/analyse.py
 container_builder.py
 docker-compose.yml
 .gitignore

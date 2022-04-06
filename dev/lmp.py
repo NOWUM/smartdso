@@ -6,7 +6,7 @@ import pandas as pd
 
 if __name__ == "__main__":
 
-    nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
+    nodes = pd.read_csv(r'../gridLib/data/export/nodes.csv', index_col=0)
     lmp = pd.read_csv(r'./sim_result/S_EV100LIMIT30/lmp_1min_0.csv', sep=';', decimal=',', index_col=0)
     lmp.index = pd.to_datetime(lmp.index)
     lmp15 = lmp.resample('15min').mean()
