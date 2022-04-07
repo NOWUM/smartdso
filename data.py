@@ -35,7 +35,7 @@ def meta_analyze():
         sftp.close()
         transport.close()
 
-    parameters = ['charged', 'price', 'shift', 'soc', 'empty', 'utilization', 'concurrency']
+    parameters = ['charged', 'price', 'shift', 'soc', 'empty', 'utilization', 'concurrency', 'waiting']
     if not os.path.exists('meta_results.xlsx'):
         pd.DataFrame().to_excel('meta_results.xlsx')
 
@@ -119,6 +119,7 @@ def car_analyze():
 
     print(np.mean(mean_distance))
 
+
 if __name__ == "__main__":
-    # meta_analyze()
+    meta_analyze()
     car_analyze()
