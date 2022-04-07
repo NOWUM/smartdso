@@ -22,16 +22,17 @@ class FlexibilityProvider:
 
     def __init__(self, **kwargs):
 
-        self.clients = {}               # ---> total clients
-        self.capacity = 0               # ---> portfolio capacity
-        self.power = 0                  # ---> portfolio power
-        self.soc = []                   # ---> portfolio soc
-        self.reference_soc = []         # ---> reference soc to track simulation behaviour
-        self.reference_distance = []    # ---> reference distance to track simulation behaviour
-        self.waiting_time = defaultdict(list)
-        self.empty_car_counter = []
+        self.clients = {}               # --> total clients
+        self.capacity = 0               # --> portfolio capacity
+        self.power = 0                  # --> portfolio power
+        self.soc = []                   # --> portfolio soc
+        # --> simulation monitoring
+        self.ref_soc = []               # --> reference soc of one car to track simulation behaviour
+        self.ref_distance = []          # --> reference distance of one car to track simulation behaviour
+        self.empty_counter = []         # --> counts the number of ev, which drive without energy
+        self.virtual_source = []        # --> energy demand, which is needed if the ev is emtpy
 
-        # ---> create household clients
+        # --> create household clients
         for _, consumer in h0_consumers.iterrows():
             sim_parameters = dict(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
                                   residents=int(max(consumer['jeb'] / 1500, 1)))
@@ -48,7 +49,7 @@ class FlexibilityProvider:
             for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
                 self.reference_car = person.car
 
-        # ---> create business clients
+        # --> create business clients
         for _, consumer in g0_consumers.iterrows():
             client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
             self.clients[uuid.uuid1()] = client
@@ -84,22 +85,24 @@ class FlexibilityProvider:
         return response
 
     def simulate(self, d_time: datetime):
-        capacity = 0
-        empty = 0
+        capacity, empty, pool = 0, 0, 0
         for participant in self.clients.values():
             participant.simulate(d_time)
             for person in [p for p in participant.persons if p.car.type == 'ev']:
                 capacity += person.car.soc / 100 * person.car.capacity
                 empty += int(person.car.empty)
+                pool += person.car.virtual_source
         self.soc += [(capacity / self.capacity) * 100]
-        self.reference_soc += [self.reference_car.soc]
-        self.reference_distance += [self.reference_car.odometer]
-        self.empty_car_counter += [empty]
+        # --> add to simulation monitoring
+        self.ref_soc += [self.reference_car.soc]
+        self.ref_distance += [self.reference_car.odometer]
+        self.empty_counter += [empty]
+        self.virtual_source += [pool]
 
     def commit(self, id_, price: float, d_time: datetime):
         waiting_time = self.clients[id_].waiting_time
         if self.clients[id_].commit(price):
-            self.waiting_time[d_time - td(minutes=waiting_time)].append(waiting_time)
+            # self.waiting_time[d_time - td(minutes=waiting_time)].append(waiting_time)
             return True, waiting_time
         else:
             return False, 0
@@ -117,17 +120,5 @@ if __name__ == "__main__":
                  'end_date': end_date,
                  'ev_ratio': int(os.getenv('EV_RATIO', 100)) / 100}
 
-    counters = []
-    for k in range(30):
-        fp = FlexibilityProvider(**input_set)
-        counter = 0
-        for _, client in fp.clients.items():
-            for person in client.persons:
-                if person.car.type == 'ev':
-                    counter += 1
-        counters.append(counter)
-
-    print(np.mean(counters))
-
-    # r = fp.get_requests(start_date)
+    fp = FlexibilityProvider(**input_set)
 
