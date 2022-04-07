@@ -481,3 +481,323 @@ services:
             volumes:
               - ./sim_result:/src/sim_result
         
+          scenario_50_30_30:
+            container_name: s5030_30
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_30
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_31:
+            container_name: s5030_31
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_31
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_32:
+            container_name: s5030_32
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_32
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_33:
+            container_name: s5030_33
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_33
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_34:
+            container_name: s5030_34
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_34
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_35:
+            container_name: s5030_35
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_35
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_36:
+            container_name: s5030_36
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_36
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_37:
+            container_name: s5030_37
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_37
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_38:
+            container_name: s5030_38
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_38
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_39:
+            container_name: s5030_39
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_39
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_40:
+            container_name: s5030_40
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_40
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_41:
+            container_name: s5030_41
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_41
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_42:
+            container_name: s5030_42
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_42
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_43:
+            container_name: s5030_43
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_43
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_44:
+            container_name: s5030_44
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_44
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_45:
+            container_name: s5030_45
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_45
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_46:
+            container_name: s5030_46
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_46
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_47:
+            container_name: s5030_47
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_47
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_48:
+            container_name: s5030_48
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_48
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
+          scenario_50_30_49:
+            container_name: s5030_49
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              EV_RATIO: 50
+              MINIMUM_SOC: 30
+              BASE_PRICE: 29
+              LONDON_DATA: False
+              START_DATE: 2022/01/01
+              END_DATE: 2022/01/15
+              SCENARIO_NAME: EV50LIMIT30_49
+              RESULT_PATH: EV50LIMIT30
+            volumes:
+              - ./sim_result:/src/sim_result
+        
