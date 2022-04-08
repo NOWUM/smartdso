@@ -43,7 +43,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # --> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # --> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # --> rated power [kW]
-        self.soc = np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
+        self.soc = 100 #np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
         self.odometer = 0                                                       # --> distance counter
         # --> charging parameters
         self.charging = False                                                   # --> true if car charges
@@ -93,7 +93,12 @@ class Car:
                     self.demand[destination:arrival] = demand
             if len(days) > 0:
                 index = days[0].weekday()
-                self.daily_limit[index] = round(max(self.limit, demand_ / self.capacity * 100), 2)
+                if self.limit == 100:
+                    self.daily_limit[index] = 98
+                elif self.limit == -1:
+                    self.daily_limit[index] = round(demand_ / self.capacity * 100, 2)
+                else:
+                    self.daily_limit[index] = self.limit
 
     def drive(self, d_time: datetime):
         if self.demand is None:                 # --> no demand set = demand 1% Soc
@@ -129,10 +134,24 @@ class Car:
             return 0
 
     def plan_charging(self, d_time: datetime):
-        if d_time.weekday() in self.daily_limit.keys():
-            limit = self.daily_limit[d_time.weekday()]
+
+        if self.limit == 100:
+            limit = 98
+        elif self.limit == -1:
+            today, l_today = d_time.weekday(), 98
+            tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), 98
+            if today in self.daily_limit.keys():
+                l_today = self.daily_limit[today]
+            if tomorrow in self.daily_limit.keys():
+                l_tomorrow = self.daily_limit[today]
+            if d_time.hour >= 20:
+                t = ((d_time.hour - 20) * 60 + d_time.minute) / 240
+                limit = (l_tomorrow-l_today) * t + l_today
+            else:
+                limit = l_today
         else:
             limit = self.limit
+
         if self.soc < limit and not self.charging and self.usage[d_time] == 0:
             chargeable = self.usage.loc[(self.usage == 0) & (self.usage.index >= d_time)]
             car_in_use = self.usage.loc[(self.usage == 1) & (self.usage.index >= d_time)]
