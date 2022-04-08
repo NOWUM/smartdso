@@ -5,8 +5,8 @@ output = []
 output.append('version: "3.9"\n')
 output.append('services:\n')
 
-ev_quotas = [50]
-minimum_socs = [30]
+ev_quotas = [100]
+minimum_soc = [-1]
 number_simulation = 50
 
 start_date = '2022/01/01'
@@ -14,7 +14,7 @@ end_date = '2022/01/15'
 
 use_london_data = False
 
-for scenario in product(ev_quotas, minimum_socs):
+for scenario in product(ev_quotas, minimum_soc):
     for simulation in range(number_simulation):
         output.append(f'''
           scenario_{scenario[0]}_{scenario[1]}_{simulation}:
