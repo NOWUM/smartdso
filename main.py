@@ -21,7 +21,7 @@ logger.info(f' --> scenario {scenario_name}')
 path = os.getenv('RESULT_PATH', 'base')
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
-             'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
+             'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
              'start_date': start_date,
              'end_date': end_date,
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
@@ -42,11 +42,12 @@ result = {key: pd.Series(data=np.zeros(len_), index=range(len_)) for key in ['ch
 if __name__ == "__main__":
     try:
         # --> run SLPs for each day in simulation horizon
-        logger.info(f' ---> running slp - generation for {start_date} till {end_date}')
+        logger.info(f' --> running slp - generation for {start_date.date()} till {end_date.date()}')
         fixed_power = []
         for day in tqdm(pd.date_range(start=start_date, end=end_date, freq='d')):
             fixed_power += [FlexProvider.get_fixed_power(day)]
         # --> forward the slp data to the Capacity Provider
+        logger.info(f' --> running power flow calculation for {start_date.date()} till {end_date.date()}')
         CapProvider.set_fixed_power(data=pd.concat(fixed_power))
     except Exception as e:
         print(repr(e))
