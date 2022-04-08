@@ -20,7 +20,7 @@ logger.info(f' --> scenario {scenario_name}')
 
 path = os.getenv('RESULT_PATH', 'base')
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
              'start_date': start_date,
              'end_date': end_date,

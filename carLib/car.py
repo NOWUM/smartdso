@@ -138,17 +138,15 @@ class Car:
         if self.limit == 100:
             limit = 98
         elif self.limit == -1:
-            today, l_today = d_time.weekday(), 0
-            tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), 0
+            today, l_today = d_time.weekday(), self.soc
+            tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), self.soc
             if today in self.daily_limit.keys():
                 l_today, l_tomorrow = self.daily_limit[today], self.daily_limit[today]
             if tomorrow in self.daily_limit.keys():
                 l_tomorrow = self.daily_limit[tomorrow]
-            if d_time.hour >= 18:
-                t = ((d_time.hour - 18) * 60 + d_time.minute) / 360
-                limit = (l_tomorrow-l_today) * t + l_today
-            else:
-                limit = l_today
+            t = (d_time.hour * 60 + d_time.minute) / 1440
+            limit = (l_tomorrow-l_today) * t + l_today
+
         else:
             limit = self.limit
 

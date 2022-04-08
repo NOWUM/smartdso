@@ -6,7 +6,7 @@ import paramiko
 
 pk = paramiko.Ed25519Key.from_private_key(open(r'C:\Users\rieke\.ssh\id_ed25519'))
 path = 'smartdso/sim_result/'
-scenarios = dict(S_EV100LIMIT30="10.13.10.54", S_EV80LIMIT30="10.13.10.55", S_EV50LIMIT30="10.13.10.56")
+scenarios = {"S_EV100LIMIT-1": "10.13.10.54"} #S_EV80LIMIT30="10.13.10.55", S_EV50LIMIT30="10.13.10.56")
 
 
 def meta_analyze():
@@ -35,7 +35,11 @@ def meta_analyze():
         sftp.close()
         transport.close()
 
-    parameters = ['charged', 'price', 'shift', 'soc', 'empty', 'utilization', 'concurrency', 'waiting']
+    parameters = ['charged', 'price', 'shift']
+    parameters += [f'utilization {i}' for i in range(5)]
+    parameters += [f'price {i}' for i in range(5)]
+    parameters += [f'congestion {i}' for i in range(5)]
+
     if not os.path.exists('meta_results.xlsx'):
         pd.DataFrame().to_excel('meta_results.xlsx')
 
@@ -122,4 +126,4 @@ def car_analyze():
 
 if __name__ == "__main__":
     meta_analyze()
-    car_analyze()
+    # car_analyze()
