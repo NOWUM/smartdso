@@ -43,7 +43,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # --> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # --> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # --> rated power [kW]
-        self.soc = 100 #np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
+        self.soc = np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
         self.odometer = 0                                                       # --> distance counter
         # --> charging parameters
         self.charging = False                                                   # --> true if car charges
@@ -138,14 +138,14 @@ class Car:
         if self.limit == 100:
             limit = 98
         elif self.limit == -1:
-            today, l_today = d_time.weekday(), 98
-            tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), 98
+            today, l_today = d_time.weekday(), 0
+            tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), 0
             if today in self.daily_limit.keys():
-                l_today = self.daily_limit[today]
+                l_today, l_tomorrow = self.daily_limit[today], self.daily_limit[today]
             if tomorrow in self.daily_limit.keys():
-                l_tomorrow = self.daily_limit[today]
-            if d_time.hour >= 20:
-                t = ((d_time.hour - 20) * 60 + d_time.minute) / 240
+                l_tomorrow = self.daily_limit[tomorrow]
+            if d_time.hour >= 18:
+                t = ((d_time.hour - 18) * 60 + d_time.minute) / 360
                 limit = (l_tomorrow-l_today) * t + l_today
             else:
                 limit = l_today
