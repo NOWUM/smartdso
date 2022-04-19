@@ -1,9 +1,7 @@
 from itertools import product
 image_repo = 'registry.git.fh-aachen.de/nowum-energy/projects/smartdso/'
 
-output = []
-output.append('version: "3.9"\n')
-output.append('services:\n')
+output = ['version: "3.9"\n', 'services:\n']
 
 ev_quotas = [100]
 minimum_soc = [-1]
