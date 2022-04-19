@@ -86,13 +86,18 @@ class GridModel:
         self._logger = logging.getLogger('GridModel')
         self._logger.setLevel('ERROR')
         
-    def plot(self, in_model=True):
+    def plot(self, model='all'):
         from gridLib.plotting import show_plot
 
-        if in_model:
+        if model == 'all':
             nodes = self.data['nodes'].loc[self.data['nodes'].index.isin(self.model.buses.index)]
             edges = self.data['edges'].loc[self.data['edges'].index.isin(self.model.lines.index)]
             transformers = self.data['transformers'].loc[self.data['transformers'].index.isin(self.model.transformers.index)]
+            show_plot(nodes, edges, transformers, consumers=self.data['connected'])
+        elif model in [i for i in range(5)]:
+            nodes = self.data['nodes'].loc[self.data['nodes'].index.isin(self.sub_networks[str(model)].buses.index)]
+            edges = self.data['edges'].loc[self.data['edges'].index.isin(self.sub_networks[str(model)].lines.index)]
+            transformers = self.data['transformers'].loc[self.data['transformers'].index.isin(self.sub_networks[str(model)].transformers.index)]
             show_plot(nodes, edges, transformers, consumers=self.data['connected'])
         else:
             show_plot(self.data['nodes'], self.data['edges'], self.data['transformers'],
