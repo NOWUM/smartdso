@@ -13,15 +13,14 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-5'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-05'))
 logger.info(f' --> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'base')
+path = os.getenv('RESULT_PATH', scenario_name.split('_')[0])
 logger.info(f' --> scenario {scenario_name}')
 
-path = os.getenv('RESULT_PATH', 'base')
-
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
-             'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
+             'minimum_soc': int(os.getenv('MINIMUM_SOC', 100)),
              'start_date': start_date,
              'end_date': end_date,
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
