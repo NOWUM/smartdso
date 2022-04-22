@@ -2,6 +2,7 @@ import pandas as pd
 import pypsa
 import logging
 from shapely.wkt import loads
+import geopandas as gpd
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -10,13 +11,13 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 data_path = r'./gridLib/data/export'
 # ---> read nodes
 total_nodes = pd.read_csv(fr'{data_path}/nodes.csv', index_col=0)
-total_nodes['shape'] = total_nodes['shape'].apply(loads)
+total_nodes['geometry'] = total_nodes['shape'].apply(loads)
 # ---> read transformers
 total_transformers = pd.read_csv(fr'{data_path}/transformers.csv', index_col=0)
-total_transformers['shape'] = total_transformers['shape'].apply(loads)
+total_transformers['geometry'] = total_transformers['shape'].apply(loads)
 # ---> read edges
 total_edges = pd.read_csv(fr'{data_path}/edges.csv', index_col=0)
-total_edges['shape'] = total_edges['shape'].apply(loads)
+total_edges['geometry'] = total_edges['shape'].apply(loads)
 # ---> read known consumers
 total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
 
@@ -24,41 +25,45 @@ total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
 class GridModel:
 
     def __init__(self):
+        logging.getLogger('pypsa').setLevel('ERROR')
+        # --> set logger
+        self._logger = logging.getLogger('GridModel')
+        self._logger.setLevel('ERROR')
 
         self.sub_networks = []
 
-        self.model = pypsa.Network()                                    # ---> total grid model
-        self.sub_networks = {}                                          # ---> dict for sub network models
+        self.model = pypsa.Network()   # --> total grid model
+        self.sub_networks = {}         # --> dict for sub network models
 
-        # ---> build grid data
+        # --> build grid data
         grid_data = {'nodes': total_nodes, 'transformers': total_transformers, 'edges': total_edges,
                      'consumers': total_consumers}
         grid_data['connected'] = grid_data['nodes'].loc[grid_data['nodes'].index.isin(grid_data['consumers']['bus0'])]
         grid_data['voltage_ids'] = grid_data['connected']['voltage_id'].unique()
-        self.data = grid_data.copy()                                    # ---> store data in dictionary
+        self.data = grid_data.copy()
 
-        # ---> add busses to network --> each node is a bus
+        # --> add busses to network --> each node is a bus
         nodes = self.data['nodes'].loc[self.data['nodes']['voltage_id'].isin(self.data['voltage_ids'])]
         self.model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.lon, y=nodes.lat)
 
-        # ---> add edges to network to connect the busses
+        # --> add edges to network to connect the busses
         edges = self.data['edges']
         edges = edges.loc[edges['bus0'].isin(nodes.index) | edges['bus1'].isin(nodes.index)]
         self.model.madd('Line', names=edges.index, bus0=edges.bus0, bus1=edges.bus1, x=edges.x, r=edges.r,
                         s_nom=edges.s_nom)
 
-        # ---> add slack generators for each transformer with higher voltage
+        # --> add slack generators for each transformer with higher voltage
         transformers = self.data['transformers']
         transformers = transformers.loc[transformers['bus0'].isin(nodes.index) | transformers['bus1'].isin(nodes.index)]
         slack_nodes = transformers['bus0'].unique()
         for node in slack_nodes:
             self.model.add('Generator', name=f'{node}_slack', bus=node, control='Slack')
 
-        # ---> add consumers to node
+        # --> add consumers to node
         for node, consumer in self.data['connected'].iterrows():
             self.model.add('Load', name=f'{node}_consumer', bus=node)
 
-        # ---> determine sub networks and check consistency
+        # --> determine sub networks and check consistency
         self.model.determine_network_topology()
         self.model.consistency_check()
 
@@ -82,26 +87,21 @@ class GridModel:
 
             self.sub_networks[index] = model
 
-        # ---> set logger
-        self._logger = logging.getLogger('GridModel')
-        self._logger.setLevel('ERROR')
-        
-    def plot(self, model='all'):
-        from gridLib.plotting import show_plot
-
-        if model == 'all':
-            nodes = self.data['nodes'].loc[self.data['nodes'].index.isin(self.model.buses.index)]
-            edges = self.data['edges'].loc[self.data['edges'].index.isin(self.model.lines.index)]
-            transformers = self.data['transformers'].loc[self.data['transformers'].index.isin(self.model.transformers.index)]
-            show_plot(nodes, edges, transformers, consumers=self.data['connected'])
-        elif model in [i for i in range(5)]:
-            nodes = self.data['nodes'].loc[self.data['nodes'].index.isin(self.sub_networks[str(model)].buses.index)]
-            edges = self.data['edges'].loc[self.data['edges'].index.isin(self.sub_networks[str(model)].lines.index)]
-            transformers = self.data['transformers'].loc[self.data['transformers'].index.isin(self.sub_networks[str(model)].transformers.index)]
-            show_plot(nodes, edges, transformers, consumers=self.data['connected'])
+    def get_components(self, type_: str = 'edges', grid='total'):
+        if grid == 'total':
+            model = self.model
         else:
-            show_plot(self.data['nodes'], self.data['edges'], self.data['transformers'],
-                      consumers=self.data['connected'])
+            model = self.sub_networks[str(grid)]
+
+        if type_ == 'nodes':
+            data = self.data[type_].loc[self.data[type_].index.isin(model.buses.index)]
+        elif type_ == 'edges':
+            data = self.data[type_].loc[self.data[type_].index.isin(model.lines.index)]
+        else:
+            data = self.data[type_].loc[self.data[type_].index.isin(model.transformers.index)]
+        data.index.name = 'name'
+        df = data.reset_index()
+        return gpd.GeoDataFrame(df.loc[:, ['name', 'geometry']], geometry='geometry')
 
     def run_power_flow(self, sub_id: int):
 
