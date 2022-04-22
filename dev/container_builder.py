@@ -32,5 +32,5 @@ for scenario in product(ev_quotas, minimum_soc):
               - ./sim_result:/src/sim_result
         ''')
 
-with open('docker-compose.yml', 'w') as f:
+with open('../docker-compose.yml', 'w') as f:
     f.writelines(output)
