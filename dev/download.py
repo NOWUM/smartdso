@@ -40,10 +40,10 @@ def meta_analyze():
     parameters += [f'price {i}' for i in range(5)]
     parameters += [f'congestion {i}' for i in range(5)]
 
-    if not os.path.exists('meta_results.xlsx'):
+    if not os.path.exists('../meta_results.xlsx'):
         pd.DataFrame().to_excel('meta_results.xlsx')
 
-    with pd.ExcelWriter(fr'meta_results.xlsx', if_sheet_exists='replace', mode='a') as writer:
+    with pd.ExcelWriter(fr'../meta_results.xlsx', if_sheet_exists='replace', mode='a') as writer:
         for key, dataframes in results.items():
             if key in parameters:
                 s_time, e_time = pd.to_datetime('2022-01-03'), pd.to_datetime('2022-01-10 23:59:59')
