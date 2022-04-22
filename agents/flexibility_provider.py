@@ -7,7 +7,6 @@ from collections import defaultdict
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from agents.utils import WeatherGenerator
-from agents.analyser import Check
 
 # ---> read known consumers and nodes
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
@@ -25,12 +24,19 @@ class FlexibilityProvider:
         self.clients = {}               # --> total clients
         self.capacity = 0               # --> portfolio capacity
         self.power = 0                  # --> portfolio power
-        self.soc = []                   # --> portfolio soc
+        # --> save time range
+        self.time_range = pd.date_range(start=kwargs['start_date'], end=kwargs['end_date'] + td(days=1),
+                                        freq='min')[:-1]
+        self.indexer = 0
+        len_ = len(self.time_range)
         # --> simulation monitoring
-        self.ref_soc = []               # --> reference soc of one car to track simulation behaviour
-        self.ref_distance = []          # --> reference distance of one car to track simulation behaviour
-        self.empty_counter = []         # --> counts the number of ev, which drive without energy
-        self.virtual_source = []        # --> energy demand, which is needed if the ev is emtpy
+        self.empty_counter = np.zeros(len_)         # --> counts the number of ev, which drive without energy
+        self.virtual_source = np.zeros(len_)        # --> energy demand, which is needed if the ev is emtpy
+        self.prices = np.zeros(len_)                # --> summarized prices of all nodes
+        self.charged = np.zeros(len_)               # --> summarized charging of all cars
+        self.shifted = np.zeros(len_)               # --> summarized shift charge of all cars
+        self.sub_grid = -1*np.ones(len_)            # --> detect sub grid
+        self.soc = np.zeros(len_)                   # --> summarized soc of all cars
 
         # --> create household clients
         for _, consumer in h0_consumers.iterrows():
@@ -92,20 +98,32 @@ class FlexibilityProvider:
                 capacity += person.car.soc / 100 * person.car.capacity
                 empty += int(person.car.empty)
                 pool += person.car.virtual_source
-        self.soc += [(capacity / self.capacity) * 100]
+        self.soc[self.indexer] = (capacity / self.capacity) * 100
         # --> add to simulation monitoring
-        self.ref_soc += [self.reference_car.soc]
-        self.ref_distance += [self.reference_car.odometer]
-        self.empty_counter += [empty]
-        self.virtual_source += [pool]
+        self.empty_counter[self.indexer] = empty
+        self.virtual_source[self.indexer] = pool
+        # --> increment time counter
+        self.indexer += 1
 
-    def commit(self, id_, price: float, d_time: datetime):
-        waiting_time = self.clients[id_].waiting_time
+    def commit(self, id_, request: dict, price: float, sub_id: str):
+        w = self.clients[id_].waiting_time
         if self.clients[id_].commit(price):
-            # self.waiting_time[d_time - td(minutes=waiting_time)].append(waiting_time)
-            return True, waiting_time
+            self.prices[self.indexer] = price
+            self.sub_grid[self.indexer] = int(sub_id)
+            for _, parameters in request.items():
+                for power, duration in parameters:
+                    self.charged[self.indexer:self.indexer + duration] += power
+                    if w > 0:
+                        self.shifted[self.indexer:self.indexer + duration] += power
+            return True
         else:
-            return False, 0
+            return False
+
+    def get_results(self):
+        self.reference_car.monitor['time'] = self.time_range
+        sim_data = pd.DataFrame(dict(charged=self.charged, shifted=self.shifted, sub_grid=self.sub_grid,
+                                     price=self.prices, soc=self.soc, time=self.time_range))
+        return pd.DataFrame(self.reference_car.monitor), sim_data
 
 
 if __name__ == "__main__":
