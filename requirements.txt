@@ -14,4 +14,5 @@ names
 openpyxl
 seaborn
 paramiko
-dash
+pydeck
+streamlit
