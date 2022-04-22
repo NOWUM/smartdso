@@ -43,7 +43,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # --> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # --> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # --> rated power [kW]
-        self.soc = np.random.randint(low=60, high=80)                           # --> state of charge [0,..., 100]
+        self.soc = np.random.randint(low=10, high=90)                           # --> state of charge [0,..., 100]
         self.odometer = 0                                                       # --> distance counter
         # --> charging parameters
         self.charging = False                                                   # --> true if car charges
@@ -54,6 +54,8 @@ class Car:
         # --> demand parameters
         self.demand = None                                                      # --> driving demand time series
         self.usage = None                                                       # --> car @ home and chargeable
+        self.monitor = None                                                     # --> use car for job, errand or hobby
+        self.indexer = 0
         # --> simulation monitoring
         self.empty = False                                                      # --> True if car has not enough energy
         self.virtual_source = 0                                                 # --> used energy if car is empty
@@ -62,8 +64,13 @@ class Car:
         # --> initialize time series
         time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
         date_range = pd.date_range(start=start_date, end=end_date, freq='d')
-        self.usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        self.demand = pd.Series(index=time_range, data=np.zeros(len(time_range)))
+        len_ = len(time_range)
+        self.usage = pd.Series(index=time_range, data=np.zeros(len_))
+        self.demand = pd.Series(index=time_range, data=np.zeros(len_))
+        usage = pd.DataFrame(data=dict(work=np.zeros(len_), errand=np.zeros(len_), hobby=np.zeros(len_)),
+                             index=time_range)
+
+        self.monitor = dict(distance=np.zeros(len_), odometer=np.zeros(len_), soc=np.zeros(len_))
         # --> for each day get car usage
         for key, mobilities in mobility.mobility.items():
             days = date_range[date_range.day_name() == key]
@@ -87,6 +94,7 @@ class Car:
                         arrival = day.combine(day, t_arrival.time())
                     # --> set time series
                     self.usage[departure:arrival] = 1
+                    usage.loc[departure:arrival, mobility['type']] = 1
                     destination = day.combine(day, t1.time())-td(minutes=1)
                     self.demand[departure:destination] = demand
                     destination = arrival - td(minutes=mobility['travel_time'] - 1)
@@ -100,6 +108,9 @@ class Car:
                 else:
                     self.daily_limit[index] = self.limit
 
+        for col in usage.columns:
+            self.monitor[col] = usage[col].values
+
     def drive(self, d_time: datetime):
         if self.demand is None:                 # --> no demand set = demand 1% Soc
             self.soc -= 1
@@ -108,7 +119,8 @@ class Car:
 
         else:                                   # --> use demand time series
             demand = self.demand[d_time]
-            self.odometer += demand / self.consumption
+            distance = demand / self.consumption
+            self.odometer += distance
             capacity = (self.capacity * self.soc/100) - self.demand[d_time]
             soc = capacity / self.capacity * 100
         # --> check if demand > current capacity
@@ -117,10 +129,14 @@ class Car:
             self.empty, self.soc = True, 0
         else:
             self.empty, self.soc = False, soc
+        self.monitor['soc'][self.indexer] = self.soc
+        self.monitor['distance'][self.indexer] = distance
+        self.monitor['odometer'][self.indexer] = self.odometer
+        self.indexer += 1
 
         return self.demand[d_time]
 
-    def charge(self):
+    def charge(self, d_time: datetime):
         # ---> charge battery for 1 minute
         if self.charging:
             capacity = self.capacity * self.soc / 100 + self.maximal_charging_power / 60
@@ -129,6 +145,7 @@ class Car:
             self.duration -= 1
             if self.duration == 0:
                 self.charging = False
+            self.monitor['soc'][self.indexer] = self.soc
             return self.maximal_charging_power / 60
         else:
             return 0
