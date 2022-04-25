@@ -4,13 +4,16 @@ import logging
 import os
 
 from gridLib.model import GridModel
-from interfaces.simulation import update_image, start_scenario, initialize_scenario, get_data, get_scenarios, get_car
+from interfaces.simulation import update_image, start_scenario, initialize_scenario, \
+    get_data, get_scenarios, get_iterations, get_car
 from interfaces.plotting import plot_charging, plot_car, plot_grid
 
 
 logger = logging.getLogger('Control Center')
 grid = GridModel()
 servers = ["10.13.10.54", "10.13.10.55", "10.13.10.56"]
+
+scenarios = get_scenarios()
 
 
 def run_simulation(s, ev_ratio, charge_limit, sd, ed):
@@ -19,15 +22,14 @@ def run_simulation(s, ev_ratio, charge_limit, sd, ed):
     with st.spinner('Build Scenario...'):
         initialize_scenario(s, ev_ratio=ev_ratio, minimum_soc=charge_limit, start_date=sd, end_date=ed)
     with st.spinner('Stating Simulation...'):
-        pass
-        # start_scenario(s)
+        start_scenario(s)
 
 
 st.set_page_config(layout="wide")
 title = st.title('Smart DSO Dashboard')
-scenarios = st.sidebar.form("scenarios")
+sim_control = st.sidebar.form("sim_control")
 
-with scenarios:
+with sim_control:
     slider_ev = st.slider("EV-Ratio", min_value=10, max_value=100, value=50)
     slider_charge = st.slider("Charging-Limit", min_value=-1, max_value=100, value=50)
 
@@ -47,11 +49,11 @@ with st.expander('Charging', expanded=True):
     st.subheader('Charging & Price Overview')
     plot, select = st.columns([3, 1])
     with select:
-        scenario = st.radio("Select Scenario:", get_scenarios(), key='charging')
+        scenario = st.radio("Select Scenario:", scenarios, key='charging_scenario')
     with plot:
-        charged = get_data(type_='charged', scenarios=[scenario])
-        shifted = get_data(type_='shifted', scenarios=[scenario])
-        price = get_data(type_='price', scenarios=[scenario])
+        charged = get_data(type_='charged', scenario=scenario)
+        shifted = get_data(type_='shifted', scenario=scenario)
+        price = get_data(type_='price', scenario=scenario)
         st.plotly_chart(plot_charging(charged, shifted, price), use_container_width=True)
     with st.container():
         col1, col2, col3, _ = st.columns([1, 1, 1, 1])
@@ -66,17 +68,18 @@ with st.expander('Car', expanded=False):
     st.subheader('Example Cars & Metrics')
     plot, select = st.columns([3, 1])
     with select:
-        scenario = st.radio("Select Scenario:", get_scenarios(), key='car')
+        scenario = st.radio("Select Scenario:", scenarios, key='car_scenario')
+        iteration = st.selectbox("Select Car:", get_iterations(scenario), key='car_iteration')
     with plot:
-        car = get_car(scenario)
+        car = get_car(scenario, iteration)
         st.plotly_chart(plot_car(car), use_container_width=True)
 
 with st.expander('Grid', expanded=False):
     st.subheader('Grid Utilization')
     plot, select = st.columns([3, 1])
     with select:
-        sub_id = st.selectbox("Select Grid:", ['total'] + [f'{i}' for i in range(5)], key='car')
-        scenario = st.radio("Select Scenario:", get_scenarios(), key='grid')
+        sub_id = st.selectbox("Select Grid:", ['total'] + [f'{i}' for i in range(5)], key='grid_id')
+        scenario = st.radio("Select Scenario:", scenarios, key='grid')
     with plot:
         st.write(plot_grid(sub_id))
 
