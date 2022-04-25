@@ -48,7 +48,7 @@ class FlexibilityProvider:
                 self.capacity += person.car.capacity
                 self.power += person.car.maximal_charging_power
             self.clients[uuid.uuid1()] = client
-
+        # --> select reference car
         self.reference_car = None
         while self. reference_car is None:
             key = np.random.choice([key for key in self.clients.keys()])
@@ -123,7 +123,18 @@ class FlexibilityProvider:
         self.reference_car.monitor['time'] = self.time_range
         sim_data = pd.DataFrame(dict(charged=self.charged, shifted=self.shifted, sub_grid=self.sub_grid,
                                      price=self.prices, soc=self.soc, time=self.time_range))
-        return pd.DataFrame(self.reference_car.monitor), sim_data
+        # --> determine car data
+        evs, avg_demand, avg_distance = 0, 0, 0
+        for household in self.clients.values():
+            for person in household.persons:
+                if person.car.type == 'ev':
+                    evs += 1
+                    avg_distance += person.car.odometer
+                    avg_demand += person.car.demand.sum() / person.car.odometer * 100
+        days = len(self.time_range) / 1440
+        car_data = pd.DataFrame(dict(evs=evs, distance=avg_distance/evs/days, demand=avg_demand/evs))
+
+        return pd.DataFrame(self.reference_car.monitor), car_data, sim_data
 
 
 if __name__ == "__main__":
@@ -136,6 +147,7 @@ if __name__ == "__main__":
                  'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
                  'start_date': start_date,
                  'end_date': end_date,
+                 'base_price': 29,
                  'ev_ratio': int(os.getenv('EV_RATIO', 100)) / 100}
 
     fp = FlexibilityProvider(**input_set)
