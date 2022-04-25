@@ -16,3 +16,4 @@ seaborn
 paramiko
 pydeck
 streamlit
+geopandas
