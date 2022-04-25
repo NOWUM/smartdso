@@ -66,7 +66,9 @@ def start_scenario(s):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(s, 22, 'nowum', pkey=pk)
     command = 'cd smartdso && docker-compose up --remove-orphans -d'
-    ssh.exec_command(command)
+    stdin, stdout, stderr = ssh.exec_command(command)
+    print(stderr.readlines())
+    print(stdout.readlines())
     logger.info(f'started scenario on {s}')
 
     ssh.close()
@@ -83,21 +85,29 @@ def get_scenarios():
         return set()
 
 
-def get_data(type_: str, scenarios: iter):
-    dataframes = []
-    for scenario in scenarios:
-        query = f"Select time, avg({type_}) as charged from meta where scenario='{scenario}' group by time"
-        dataframe = pd.read_sql(query, engine).set_index('time')
-        dataframe.index = pd.to_datetime(dataframe.index)
-        dataframes += [dataframe.resample('15min').mean()]
-    df = pd.concat(dataframes)
-    df.columns = scenarios
+def get_iterations(scenario):
+    if len(tables) > 0:
+        iteration = dict()
+        for table in tables:
+            query = f"Select Distinct iteration from {table} where scenario='{scenario}'"
+            iteration[table] = set([value._data[0] for value in engine.execute(query).fetchall()])
+        return set.intersection(*iteration.values())
+    else:
+        return set()
+
+
+def get_data(type_: str, scenario: str):
+    query = f"Select time, avg({type_}) as charged from meta where scenario='{scenario}' group by time"
+    dataframe = pd.read_sql(query, engine).set_index('time')
+    dataframe.index = pd.to_datetime(dataframe.index)
+    df = dataframe.resample('15min').mean()
+    df.columns = [scenario]
     return df
 
 
-def get_car(scenario):
+def get_car(scenario: str, iteration: str):
     query = f"Select time, odometer, soc, work, errand, hobby from cars where scenario='{scenario}' " \
-            f"and iteration='{scenario}'"
+            f"and iteration='{iteration}'"
     dataframe = pd.read_sql(query, engine).set_index('time')
     return dataframe
 
