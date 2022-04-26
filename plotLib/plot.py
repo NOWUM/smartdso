@@ -79,7 +79,9 @@ def plot_grid(line_utilization: pd.DataFrame = None, sub_id: str = 'total'):
 
     edges = grid.get_components(type_='edges', grid=sub_id)
     nodes = grid.get_components(type_='nodes', grid=sub_id)
+    nodes['utilization'] = 0
     transformers = grid.get_components(type_='transformers', grid=sub_id)
+    transformers['utilization'] = 0
 
     if line_utilization is None:
         layers += [pdk.Layer(type="PathLayer", data=edges, pickable=True, width_min_pixels=1,
@@ -103,5 +105,6 @@ def plot_grid(line_utilization: pd.DataFrame = None, sub_id: str = 'total'):
                          radius_min_pixels=2, radius_max_pixels=5, get_position="geometry.coordinates",
                          get_color=[0, 0, 127])]
 
-    return pdk.Deck(layers=layers, initial_view_state=view_state, tooltip={"html": "<b>Name: </b> {name} <br /> "},
-                    api_keys=dict(mapbox=api_key), map_provider='mapbox', map_style='road')
+    return pdk.Deck(layers=layers, initial_view_state=view_state, api_keys=dict(mapbox=api_key), map_provider='mapbox',
+                    map_style='road', tooltip={"html": "<b>Name: </b> {name} <br /> "
+                                                       "<b>Utilization: </b> {utilization} %<br />"},)
