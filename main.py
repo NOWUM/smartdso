@@ -12,7 +12,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-15'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-2'))
 logger.info(f' -> simulation for horizon {start_date.date} till {end_date.date}')
 scenario_name = os.getenv('SCENARIO_NAME', 'high')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
@@ -71,8 +71,8 @@ if __name__ == "__main__":
 
 
 # --> collect results
-car_data, sim_data = FlexProvider.get_results()
-table = dict(cars=car_data, meta=sim_data)
+car_data, s_car_data, sim_data = FlexProvider.get_results()
+table = dict(cars=car_data, meta=sim_data, evs=s_car_data)
 for key, value in table.items():
     if key in tables:
         query = f"DELETE FROM {key} WHERE scenario='{scenario_name}'"
@@ -83,17 +83,19 @@ for key, value in table.items():
     value = value.set_index(['time', 'iteration', 'scenario'])
     value.to_sql(key, engine, if_exists='append', index=True, index_label=['time', 'iteration', 'scenario'])
 
-lines, transformers = CapProvider.get_results()
+lines, line_mapping, transformers, transformer_mapping = CapProvider.get_results()
 table = dict(lines=lines, transformers=transformers)
+mapping = dict(lines=line_mapping, transformers=transformer_mapping)
 for key, value in table.items():
     if key in tables:
         query = f"DELETE FROM {key} WHERE scenario='{scenario_name}'"
         engine.execute(query)
-
-    value = pd.Series({(time, sim, scenario_name, asset): utilization for time, values in value.iterrows()
+    value = pd.Series({(time, sim, scenario_name, asset, mapping[key][asset]): utilization
+                       for time, values in value.iterrows()
                        for asset, utilization in values.items()})
     value = value.reset_index()
-    value.columns = ['time', 'iteration', 'scenario', 'id_', 'utilization']
-    value = value.set_index(['time', 'iteration', 'scenario', 'id_'])
-    value.to_sql(key, engine, if_exists='append', index=True, index_label=['time', 'iteration', 'scenario', 'id_'])
+    value.columns = ['time', 'iteration', 'scenario', 'id_', 'grid', 'utilization']
+    value = value.set_index(['time', 'iteration', 'scenario', 'id_', 'grid'])
+    value.to_sql(key, engine, if_exists='append', index=True, index_label=['time', 'iteration',
+                                                                           'scenario', 'id_', 'grid'])
 
