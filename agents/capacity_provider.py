@@ -23,17 +23,20 @@ class CapacityProvider:
                             for i in self.grid.data['connected'].index}
 
         self.max_transformer_capacity = dict()
+        self.transformers_id = dict()
         for sub_id in self.mapper.unique():
             transformers = self.grid.data['transformers']
             buses_in_sub = self.grid.sub_networks[sub_id].buses.index
-            s_max = transformers.loc[transformers['bus0'].isin(buses_in_sub), 's_nom'].values[0]
+            transformer = transformers.loc[transformers['bus0'].isin(buses_in_sub), 's_nom']
+            s_max = transformer.values[0]
+            self.transformers_id[transformer.index[0]] = sub_id
             self.max_transformer_capacity[sub_id] = s_max
 
         data = {i: np.zeros(len(time_range)) for i in self.grid.model.lines.index}
         self.line_utilization = pd.DataFrame(data=data, index=time_range)
         self.line_lock = None
 
-        data = {i.replace('_slack', ''): np.zeros(len(time_range)) for i in self.grid.model.generators.index}
+        data = {index: np.zeros(len(time_range)) for index in self.transformers_id.keys()}
         self.transformer_utilization = pd.DataFrame(data=data, index=time_range)
         self.transformer_lock = None
 
@@ -70,7 +73,8 @@ class CapacityProvider:
 
     def _transformer_utilization(self, sub_id: str):
         transformer = self.grid.sub_networks[sub_id].generators_t.p
-        transformer.columns = [column.replace('_slack', '') for column in transformer.columns]
+        # transformer.columns = [column.replace('_slack', '') for column in transformer.columns]
+        transformer.columns = [next(key for key, value in self.transformers_id.items() if value == sub_id)]
         transformer = transformer/self.max_transformer_capacity[sub_id] * 100
         return transformer
 
@@ -104,10 +108,10 @@ class CapacityProvider:
     def get_results(self):
         line_utilization = self.line_utilization.replace(0, method='ffill')
         line_utilization = line_utilization.resample('15min').mean()
+        line_mapping = self.grid.model.lines['sub_network']
         transformer_utilization = self.transformer_utilization.replace(0, method='ffill')
         transformer_utilization = transformer_utilization.resample('15min').mean()
-
-        return line_utilization, transformer_utilization
+        return line_utilization, line_mapping, transformer_utilization, self.transformers_id
 
 
 if __name__ == "__main__":
