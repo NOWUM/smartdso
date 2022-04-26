@@ -130,9 +130,11 @@ class FlexibilityProvider:
                 if person.car.type == 'ev':
                     evs += 1
                     avg_distance += person.car.odometer
-                    avg_demand += person.car.demand.sum() / person.car.odometer * 100
+                    if person.car.odometer > 0:
+                        avg_demand += person.car.demand.sum() / person.car.odometer * 100
         days = len(self.time_range) / 1440
-        car_data = pd.DataFrame(dict(evs=evs, distance=avg_distance/evs/days, demand=avg_demand/evs))
+        car_data = pd.DataFrame(dict(evs=evs, distance=avg_distance/evs/days, demand=avg_demand/evs,
+                                     time=self.time_range[0]), index=[0])
 
         return pd.DataFrame(self.reference_car.monitor), car_data, sim_data
 
