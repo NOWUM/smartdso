@@ -17,3 +17,4 @@ paramiko
 pydeck
 streamlit
 geopandas
+matplotlib
