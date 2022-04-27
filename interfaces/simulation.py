@@ -65,4 +65,3 @@ def start_scenario(s):
     logger.info(f'started scenario on {s}')
 
     ssh.close()
-

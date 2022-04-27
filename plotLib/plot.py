@@ -30,33 +30,31 @@ def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.Da
     fig = make_subplots(rows=2, cols=1, specs=[[{"secondary_y": False}], [{"secondary_y": True}]],
                         shared_xaxes=True)
     # -> price plot
-    # -> maximal price
-    fig.add_trace(go.Scatter(x=df_price.index,
-                             y=df_price['max'].values + 29,
-                             line=dict(color='rgba(0,0,153,0)', width=0.5),
-                             fillcolor='rgba(50, 50, 50, 0.1)',
-                             fill='tonexty',
-                             showlegend=False,
-                             name=f"Maximal Price"),
-                  secondary_y=False, row=1, col=1)
     # -> mean price
     fig.add_trace(go.Scatter(x=df_price.index,
                              y=df_price['avg'].values + 29,
                              line=dict(color='rgba(0,0,153,1)', width=0.5),
-                             # fillcolor='rgba(50, 50, 50, 0.1)',
-                             # fill='tonexty',
                              showlegend=True,
                              name=f"Price"),
                   secondary_y=False, row=1, col=1)
+
+    # -> maximal price
+    fig.add_trace(go.Scatter(x=df_price.index,
+                             y=df_price['max'].values + 29,
+                             line=dict(color='rgba(0,0,153,0)', width=0.5),
+                             showlegend=False,
+                             name=f"Maximal Price"),
+                  secondary_y=False, row=1, col=1)
+
     # -> min price
-    # fig.add_trace(go.Scatter(x=df_price.index,
-    #                          y=df_price['min'].values + 28.9,
-    #                          line=dict(color='rgba(0,0,153,0)', width=0.5),
-    #                          fillcolor='rgba(50, 50, 50, 0.1)',
-    #                          fill='tonexty',
-    #                          showlegend=False,
-    #                          name=f"Minimal Price"),
-    #               secondary_y=False, row=1, col=1)
+    fig.add_trace(go.Scatter(x=df_price.index,
+                             y=df_price['min'].values + 29,
+                             line=dict(color='rgba(0,0,153,0)', width=0.5),
+                             fillcolor='rgba(50, 50, 50, 0.1)',
+                             fill='tonexty',
+                             showlegend=False,
+                             name=f"Minimal Price"),
+                  secondary_y=False, row=1, col=1)
 
     # -> charge and shift plot
     # -> charging
@@ -65,32 +63,29 @@ def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.Da
                              line=dict(color='rgba(255,0,0,1)', width=1),
                              name=f"Charged"),
                   secondary_y=False, row=2, col=1)
-    # -> maximal shift
-    fig.add_trace(go.Scatter(x=df_shift.index,
-                             y=df_shift['max'].values,
-                             line=dict(color='rgba(0,0,0,0)', width=0.5),
-                             fill='tonexty',
-                             fillcolor='rgba(50, 50, 50, 0.1)',
-                             showlegend=False,
-                             name='Maximal Shift'),
-                  secondary_y=True, row=2, col=1)
     # -> mean shift
     fig.add_trace(go.Scatter(x=df_shift.index,
                              y=df_shift['avg'].values,
                              line=dict(color='rgba(0,0,0,1)', width=1),
-                             # fill='tonexty',
-                             # fillcolor='rgba(50, 50, 50, 0.1)',
                              name="Shifted"),
                   secondary_y=True, row=2, col=1)
+    # -> maximal shift
+    fig.add_trace(go.Scatter(x=df_shift.index,
+                             y=df_shift['max'].values,
+                             line=dict(color='rgba(0,0,0,0)', width=0.5),
+                             showlegend=False,
+                             name='Maximal Shift'),
+                  secondary_y=True, row=2, col=1)
+
     # -> minimal shift
-    # fig.add_trace(go.Scatter(x=df_shift.index,
-    #                          y=df_shift['min'].values,
-    #                          showlegend=False,
-    #                          name='Minimal Shift',
-    #                          fill='tonexty',
-    #                          fillcolor='rgba(50, 50, 50, 0.1)',
-    #                          line=dict(color='rgba(0,0,0,1)', width=0.5)),
-    #               secondary_y=True, row=2, col=1)
+    fig.add_trace(go.Scatter(x=df_shift.index,
+                             y=df_shift['min'].values,
+                             showlegend=False,
+                             name='Minimal Shift',
+                             fill='tonexty',
+                             fillcolor='rgba(50, 50, 50, 0.1)',
+                             line=dict(color='rgba(0,0,0,1)', width=0.5)),
+                  secondary_y=True, row=2, col=1)
 
     # -> set axes titles
     fig.update_yaxes(title_text="Price [ct/kWh]",
@@ -168,6 +163,7 @@ def plot_car_usage(df_car: pd.DataFrame):
     fig.update_layout(hovermode="x unified")
 
     return fig
+
 
 def plot_transformer(df_transformer: pd.DataFrame):
     # -> crate figure with secondary y axis

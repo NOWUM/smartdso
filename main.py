@@ -74,10 +74,6 @@ if __name__ == "__main__":
 car_data, s_car_data, sim_data = FlexProvider.get_results()
 table = dict(cars=car_data, meta=sim_data, evs=s_car_data)
 for key, value in table.items():
-    if key in tables:
-        query = f"DELETE FROM {key} WHERE scenario='{scenario_name.split('_')[0]}'"
-        engine.execute(query)
-
     value['iteration'] = sim
     value['scenario'] = scenario_name.split('_')[0]
     value = value.set_index(['time', 'iteration', 'scenario'])
@@ -87,9 +83,6 @@ lines, line_mapping, transformers, transformer_mapping = CapProvider.get_results
 table = dict(lines=lines, transformers=transformers)
 mapping = dict(lines=line_mapping, transformers=transformer_mapping)
 for key, value in table.items():
-    if key in tables:
-        query = f"DELETE FROM {key} WHERE scenario='{scenario_name.split('_')[0]}'"
-        engine.execute(query)
     value = pd.Series({(time, sim, scenario_name.split('_')[0], asset, mapping[key][asset]): utilization
                        for time, values in value.iterrows()
                        for asset, utilization in values.items()})
