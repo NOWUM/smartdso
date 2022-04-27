@@ -30,17 +30,89 @@ def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.Da
     fig = make_subplots(rows=2, cols=1, specs=[[{"secondary_y": False}], [{"secondary_y": True}]],
                         shared_xaxes=True)
     # -> price plot
-    fig.add_trace(go.Scatter(x=df_price.index, y=df_price.values.flatten() + 29,
-                             name=f"Price"), secondary_y=False, row=1, col=1)
+    # -> maximal price
+    fig.add_trace(go.Scatter(x=df_price.index,
+                             y=df_price['max'].values + 29,
+                             line=dict(color='rgba(0,0,153,0)', width=0.5),
+                             fillcolor='rgba(50, 50, 50, 0.1)',
+                             fill='tonexty',
+                             showlegend=False,
+                             name=f"Maximal Price"),
+                  secondary_y=False, row=1, col=1)
+    # -> mean price
+    fig.add_trace(go.Scatter(x=df_price.index,
+                             y=df_price['avg'].values + 29,
+                             line=dict(color='rgba(0,0,153,1)', width=0.5),
+                             # fillcolor='rgba(50, 50, 50, 0.1)',
+                             # fill='tonexty',
+                             showlegend=True,
+                             name=f"Price"),
+                  secondary_y=False, row=1, col=1)
+    # -> min price
+    # fig.add_trace(go.Scatter(x=df_price.index,
+    #                          y=df_price['min'].values + 28.9,
+    #                          line=dict(color='rgba(0,0,153,0)', width=0.5),
+    #                          fillcolor='rgba(50, 50, 50, 0.1)',
+    #                          fill='tonexty',
+    #                          showlegend=False,
+    #                          name=f"Minimal Price"),
+    #               secondary_y=False, row=1, col=1)
+
     # -> charge and shift plot
-    fig.add_trace(go.Scatter(x=df_charge.index, y=df_charge.values.flatten(),
-                             name=f"Charged"), secondary_y=False, row=2, col=1)
-    fig.add_trace(go.Scatter(x=df_shift.index, y=df_shift.values.flatten(),
-                             name=f"Shifted"), secondary_y=True, row=2, col=1)
+    # -> charging
+    fig.add_trace(go.Scatter(x=df_charge.index,
+                             y=df_charge.values.flatten(),
+                             line=dict(color='rgba(255,0,0,1)', width=1),
+                             name=f"Charged"),
+                  secondary_y=False, row=2, col=1)
+    # -> maximal shift
+    fig.add_trace(go.Scatter(x=df_shift.index,
+                             y=df_shift['max'].values,
+                             line=dict(color='rgba(0,0,0,0)', width=0.5),
+                             fill='tonexty',
+                             fillcolor='rgba(50, 50, 50, 0.1)',
+                             showlegend=False,
+                             name='Maximal Shift'),
+                  secondary_y=True, row=2, col=1)
+    # -> mean shift
+    fig.add_trace(go.Scatter(x=df_shift.index,
+                             y=df_shift['avg'].values,
+                             line=dict(color='rgba(0,0,0,1)', width=1),
+                             # fill='tonexty',
+                             # fillcolor='rgba(50, 50, 50, 0.1)',
+                             name="Shifted"),
+                  secondary_y=True, row=2, col=1)
+    # -> minimal shift
+    # fig.add_trace(go.Scatter(x=df_shift.index,
+    #                          y=df_shift['min'].values,
+    #                          showlegend=False,
+    #                          name='Minimal Shift',
+    #                          fill='tonexty',
+    #                          fillcolor='rgba(50, 50, 50, 0.1)',
+    #                          line=dict(color='rgba(0,0,0,1)', width=0.5)),
+    #               secondary_y=True, row=2, col=1)
+
     # -> set axes titles
-    fig.update_yaxes(title_text="Price [ct/kWh]", secondary_y=False, row=1, col=1)
-    fig.update_yaxes(title_text="Charged Power [kW]", secondary_y=False, row=2, col=1)
-    fig.update_yaxes(title_text="Shifted Power [kW]", secondary_y=True, row=2, col=1)
+    fig.update_yaxes(title_text="Price [ct/kWh]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     range=[29, max(df_price['max'].values) + 30],
+                     gridcolor='rgba(0, 0, 0, 0.2)',
+                     row=1, col=1)
+    fig.update_yaxes(title_text="Charged Power [kW]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)',
+                     row=2, col=1)
+    fig.update_yaxes(title_text="Shifted Power [kW]",
+                     secondary_y=True,
+                     row=2, col=1)
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_layout(hovermode="x unified")
     fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 
     return fig
@@ -51,25 +123,72 @@ def plot_car_usage(df_car: pd.DataFrame):
     # -> crate figure with secondary y axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     # -> soc plot on first y axis
-    fig.add_trace(go.Scatter(x=df_car.index, y=df_car['soc'].values, name='SoC',
-                             line=dict(color='black', width=3, dash='dot')), secondary_y=False)
+    fig.add_trace(go.Scatter(x=df_car.index,
+                             y=df_car['soc'].values,
+                             name='SoC',
+                             line=dict(color='black', width=1, dash='dot')),
+                  secondary_y=False)
     # -> distance on second y axis
-    fig.add_trace(go.Scatter(x=df_car.index, y=df_car['odometer'].values, name='Distance',
-                             line=dict(color='red', width=3)), secondary_y=True)
+    fig.add_trace(go.Scatter(x=df_car.index,
+                             y=df_car['odometer'].values,
+                             name='Distance',
+                             line=dict(color='red', width=1)),
+                  secondary_y=True)
     # -> usage type on second y axis scaled with max distance
-    fig.add_trace(go.Scatter(x=df_car.index, y=df_car['work'].values * scale, name='Work',
-                             fill='tozeroy', mode='lines',
-                             line=dict(width=0.5, color='rgba(200, 0, 0, 0.1)')), secondary_y=True)
-    fig.add_trace(go.Scatter(x=df_car.index, y=df_car['errand'].values * scale, name='Errand',
-                             fill='tozeroy', mode='lines',
-                             line=dict(width=0.5, color='rgba(0, 150, 0, 0.1)')), secondary_y=True)
-    fig.add_trace(go.Scatter(x=df_car.index, y=df_car['hobby'].values * scale, name='Hobby',
-                             fill='tozeroy', mode='lines',
-                             line=dict(width=0.5, color='rgba(0, 0, 200, 0.1)')), secondary_y=True)
+    fig.add_trace(go.Scatter(x=df_car.index,
+                             y=df_car['work'].values * scale,
+                             name='Work',
+                             fill='tozeroy',
+                             line=dict(width=0.5, color='rgba(200, 0, 0, 0.1)')),
+                  secondary_y=True)
+    fig.add_trace(go.Scatter(x=df_car.index,
+                             y=df_car['errand'].values * scale,
+                             name='Errand',
+                             fill='tozeroy',
+                             line=dict(width=0.5, color='rgba(0, 150, 0, 0.1)')),
+                  secondary_y=True)
+    fig.add_trace(go.Scatter(x=df_car.index,
+                             y=df_car['hobby'].values * scale,
+                             name='Hobby',
+                             fill='tozeroy',
+                             line=dict(width=0.5, color='rgba(0, 0, 200, 0.1)')),
+                  secondary_y=True)
     # -> set axes titles
-    fig.update_yaxes(title_text="SoC [%]", secondary_y=False)
-    fig.update_yaxes(title_text="Distance [km]", secondary_y=True)
+    fig.update_yaxes(title_text="SoC [%]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_yaxes(title_text="Distance [km]",
+                     secondary_y=True)
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
     fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(hovermode="x unified")
+
+    return fig
+
+def plot_transformer(df_transformer: pd.DataFrame):
+    # -> crate figure with secondary y axis
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+    # -> soc plot on first y axis
+    fig.add_trace(go.Scatter(x=df_transformer.index,
+                             y=df_transformer['util'].values,
+                             name='Utilization',
+                             line=dict(color='black', width=1)),
+                  secondary_y=False)
+    # -> set axes titles
+    fig.update_yaxes(title_text="Utilization [%]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(hovermode="x unified")
 
     return fig
 
