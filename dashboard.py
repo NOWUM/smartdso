@@ -5,9 +5,9 @@ import logging
 
 from gridLib.model import GridModel
 from interfaces.results import get_simulation_results, get_car_usage, get_scenarios, get_iterations, get_lines, \
-    get_transformers
+    get_transformers, get_transformer_utilization
 from interfaces.simulation import update_image, initialize_scenario, start_scenario
-from plotLib.plot import plot_grid, plot_charge, plot_car_usage
+from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_transformer
 
 # -> logging information
 logger = logging.getLogger('Control Center')
@@ -62,16 +62,23 @@ with st.sidebar.expander('Configure Simulation', expanded=False):
 # -> charge overview
 with st.expander('Charging Overview', expanded=True):
     st.subheader('Charging- & Price-Overview')
-    plot, select = st.columns([3, 1])
 
-    with select:
-        iteration = st.selectbox("Select Simulation:", get_iterations(scenario))
-        show_simulation = st.checkbox("Show Simulation", value=False)
-    with plot:
-        charged = get_simulation_results(type_='charged', scenario=scenario, iteration='total', aggregate='avg')
-        shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='avg')
-        price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='avg')
-        st.plotly_chart(plot_charge(charged, shifted, price), use_container_width=True)
+    charged = get_simulation_results(type_='charged', scenario=scenario, iteration='total', aggregate='avg')
+    min_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='min')
+    max_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='max')
+    avg_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='avg')
+    shifted = pd.DataFrame(data=dict(min=min_shifted['shifted'].values, max=max_shifted['shifted'].values,
+                                     avg=avg_shifted['shifted'].values), index=avg_shifted.index)
+
+    # price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='avg')
+
+    min_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='min')
+    max_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='max')
+    avg_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='avg')
+    price = pd.DataFrame(data=dict(min=min_price['price'].values, max=max_price['price'].values,
+                                   avg=avg_price['price'].values), index=avg_shifted.index)
+
+    st.plotly_chart(plot_charge(charged, shifted, price), use_container_width=True)
 
     col1, col2, col3, _ = st.columns([1, 1, 1, 1])
     c = round(charged.values.sum() / 60, 2)
@@ -91,7 +98,7 @@ with st.expander('Car', expanded=False):
         st.plotly_chart(plot_car_usage(car), use_container_width=True)
 
     col1, col2, col3, _ = st.columns([1, 1, 1, 1])
-    col1.metric("Total EVs", f'{evs["evs"].values[0]}')
+    col1.metric("Total EVs", f'{int(evs["evs"].values[0])}')
     col2.metric("Distance [km/a]", f'{round(365*evs["distance"].values[0], 2)}')
     col3.metric("Mean Demand [kWh/100km]", f'{round(evs["demand"].values[0], 2)}')
 
@@ -100,21 +107,26 @@ with st.expander('Grid', expanded=False):
     st.subheader('Grid Utilization')
 
     sub_id = st.selectbox("Select Grid:", ['total'] + [f'{i}' for i in range(5)], key='grid_id')
-    show_utilization = st.checkbox("Show Mean Utilization", value=False)
+    show_utilization = st.checkbox("Show Maximal Utilization", value=False)
     max_lines, total_lines = get_lines(scenario, sub_id)
     max_transformers = get_transformers(scenario, sub_id)
 
     if show_utilization:
-        st.write(plot_grid(line_utilization=total_lines, sub_id=sub_id))
+        plt = plot_grid(line_utilization=total_lines, sub_id=sub_id)
     else:
-        st.write(plot_grid(line_utilization=None, sub_id=sub_id))
+        plt = plot_grid(line_utilization=None, sub_id=sub_id)
 
-    util_line, util_transformer = st.columns([1, 1])
-
-    with util_line:
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.write(plt)
+    with col2:
         st.caption('Maximal Line Utilization')
         st.dataframe(max_lines)
-    with util_transformer:
         st.caption('Maximal Transformer Utilization')
         st.dataframe(max_transformers)
+
+    if sub_id != 'total':
+        transformer_utilization = get_transformer_utilization(scenario=scenario, sub_id=sub_id)
+        st.plotly_chart(plot_transformer(transformer_utilization), use_container_width=True)
+
 
