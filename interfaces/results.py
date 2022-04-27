@@ -103,11 +103,17 @@ def get_lines(scenario: str, sub_id: str):
     return max_utilization, total_utilization
 
 
-def get_transformer_utilization(scenario:str, sub_id: str):
+def get_transformer_utilization(scenario: str, sub_id: str):
     query = f"Select time, avg(utilization) as util from transformers where scenario='{scenario}' " \
             f"and grid='{sub_id}' group by time order by time"
 
     return pd.read_sql(query, engine).set_index('time')
+
+
+def delete_scenario(scenario: str):
+    for table in tables:
+        query = f"DELETE FROM {table} WHERE scenario='{scenario}'"
+        engine.execute(query)
 
 
 if __name__ == "__main__":

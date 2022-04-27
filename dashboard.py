@@ -5,7 +5,7 @@ import logging
 
 from gridLib.model import GridModel
 from interfaces.results import get_simulation_results, get_car_usage, get_scenarios, get_iterations, get_lines, \
-    get_transformers, get_transformer_utilization
+    get_transformers, get_transformer_utilization, delete_scenario
 from interfaces.simulation import update_image, initialize_scenario, start_scenario
 from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_transformer
 
@@ -40,6 +40,15 @@ title = st.title('Smart DSO Dashboard')
 with st.sidebar.expander('Select Result Set', expanded=True):
     # -> scenario selection
     scenario = st.radio("Select Scenario:", scenarios, key='charging_scenario')
+
+    with st.form(key='delete_scenario'):
+        delete_check = st.checkbox(f'Delete Scenario {scenario}', value=False)
+        delete_submit = st.form_submit_button('Delete')
+
+    if delete_check and delete_submit:
+        st.spinner('Deleting Scenario...')
+        delete_scenario(scenario=scenario)
+        scenario = get_scenarios()[0]
 
 with st.sidebar.expander('Configure Simulation', expanded=False):
     with st.form(key='simulation_vars'):
