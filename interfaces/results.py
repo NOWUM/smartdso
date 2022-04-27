@@ -34,8 +34,9 @@ def get_car_usage(scenario: str, iteration: str):
     dataframe.index = pd.to_datetime(dataframe.index)
     car_usage = dataframe.sort_index()
 
-    query = f"Select * from evs where scenario='{scenario}' and iteration='{iteration}'"
-    dataframe = pd.read_sql(query, engine).set_index('time')
+    query = f"Select avg(evs) as evs, avg(distance) as distance, " \
+            f"avg(demand) as demand from evs where scenario='{scenario}' group by time"
+    dataframe = pd.read_sql(query, engine)
     dataframe.index = pd.to_datetime(dataframe.index)
     total_ev = dataframe.sort_index()
 
@@ -45,12 +46,17 @@ def get_car_usage(scenario: str, iteration: str):
 def get_simulation_results(type_: str, scenario: str, iteration: str, aggregate: str = 'avg'):
     if iteration == 'total':
         query = f"Select time, {aggregate}({type_}) as {type_} from meta where scenario='{scenario}'" \
-                f" group by iteration, time"
+                f" group by time order by time"
     else:
-        query = f"Select time, {type_} from meta where scenario='{scenario}' and iteration={iteration}"
+        query = f"Select time, {type_} from meta where scenario='{scenario}' and iteration={iteration} " \
+                f"order by time"
     dataframe = pd.read_sql(query, engine).set_index('time')
     dataframe.index = pd.to_datetime(dataframe.index)
-    return dataframe.sort_index().resample('5min').mean()
+    dataframe = dataframe.resample('5min').mean()
+    dataframe[type_] = dataframe[type_].apply(lambda x: round(x, 2))
+    # print(dataframe.head(5))
+    return dataframe
+
 
 def get_transformers(scenario: str, sub_id: str):
     # -> get the five with the highest utilization
@@ -68,6 +74,7 @@ def get_transformers(scenario: str, sub_id: str):
 
     max_utilization = pd.read_sql(query, engine).set_index('time')
     return max_utilization
+
 
 def get_lines(scenario: str, sub_id: str):
     # -> get the five with the highest utilization
@@ -96,6 +103,18 @@ def get_lines(scenario: str, sub_id: str):
     return max_utilization, total_utilization
 
 
+def get_transformer_utilization(scenario:str, sub_id: str):
+    query = f"Select time, avg(utilization) as util from transformers where scenario='{scenario}' " \
+            f"and grid='{sub_id}' group by time order by time"
+
+    return pd.read_sql(query, engine).set_index('time')
+
+
 if __name__ == "__main__":
-    sim_result = get_simulation_results(type_='charged', scenario='high', iteration='total', aggregate='max')
-    car_use, evs = get_car_usage(scenario='high', iteration='high')
+    min_shifted = get_simulation_results(type_='shifted', scenario='EV100LIMIT-1', iteration='total', aggregate='min')
+    max_shifted = get_simulation_results(type_='shifted', scenario='EV100LIMIT-1', iteration='total', aggregate='max')
+    avg_shifted = get_simulation_results(type_='shifted', scenario='EV100LIMIT-1', iteration='total', aggregate='avg')
+    shifted = pd.DataFrame(data=dict(min=min_shifted['shifted'].values, max=max_shifted['shifted'].values,
+                                     avg=avg_shifted['shifted'].values), index=avg_shifted.index)
+
+    # car_use, evs = get_car_usage(scenario='high', iteration='high')
