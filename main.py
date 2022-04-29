@@ -8,6 +8,8 @@ from sqlalchemy import create_engine, inspect
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
 
+logging.basicConfig()
+
 logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 

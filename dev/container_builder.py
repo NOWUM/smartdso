@@ -11,6 +11,7 @@ start_date = '2022/01/01'
 end_date = '2022/01/15'
 
 use_london_data = False
+dynamic_fee = True
 
 for scenario in product(ev_quotas, minimum_soc):
     for simulation in range(number_simulation):
@@ -23,7 +24,8 @@ for scenario in product(ev_quotas, minimum_soc):
               EV_RATIO: {scenario[0]}
               MINIMUM_SOC: {scenario[1]}
               BASE_PRICE: 29
-              LONDON_DATA: {use_london_data}
+              LONDON_DATA: "{use_london_data}"
+              DYNAMIC_FEE: "{dynamic_fee}"
               START_DATE: {start_date}
               END_DATE: {end_date}
               SCENARIO_NAME: EV{scenario[0]}LIMIT{scenario[1]}_{simulation}
