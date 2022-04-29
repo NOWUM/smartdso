@@ -1,13 +1,13 @@
 import pandas as pd
 import streamlit as st
 import logging
-
+from datetime import timedelta
 
 from gridLib.model import GridModel
 from interfaces.results import get_simulation_results, get_car_usage, get_scenarios, get_iterations, get_lines, \
-    get_transformers, get_transformer_utilization, delete_scenario
+    get_transformers, get_transformer_utilization, delete_scenario, get_utilization_distribution
 from interfaces.simulation import update_image, initialize_scenario, start_scenario
-from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_transformer
+from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_transformer, plot_histogram
 
 # -> logging information
 logger = logging.getLogger('Control Center')
@@ -20,16 +20,29 @@ scenarios = get_scenarios()
 
 
 # -> start a new simulation
-def run_simulation(s, ev_ratio, charge_limit, sd, ed):
+def run_simulation(s, ev_ratio, charge_limit, sd, ed, df):
+    delete_scenario(scenario=s)
     with st.spinner('Update Image...'):
         update_image(s)
         logger.info('updated images')
     with st.spinner('Build Scenario...'):
-        initialize_scenario(s, ev_ratio=ev_ratio, minimum_soc=charge_limit, start_date=sd, end_date=ed)
+        initialize_scenario(s, ev_ratio=ev_ratio, minimum_soc=charge_limit, start_date=sd, end_date=ed, dynamic_fee=df)
         logger.info('built scenario')
     with st.spinner('Stating Simulation...'):
         start_scenario(s)
         logger.info('started simulation')
+
+
+# -> get_sim_data
+def get_simulation_data(type_: str, sc: str):
+    if type_ == 'charged':
+        return get_simulation_results(type_='charged', scenario=sc, iteration='total', aggregate='avg')
+    else:
+        df_min = get_simulation_results(type_=type_, scenario=scenario, iteration='total', aggregate='min')
+        df_max = get_simulation_results(type_=type_, scenario=scenario, iteration='total', aggregate='max')
+        df_avg = get_simulation_results(type_=type_, scenario=scenario, iteration='total', aggregate='avg')
+        return pd.DataFrame(data=dict(min=df_min[type_].values, max=df_max[type_].values,
+                                      avg=df_avg[type_].values), index=df_avg.index)
 
 
 # -> Dashboard <-
@@ -41,14 +54,23 @@ with st.sidebar.expander('Select Result Set', expanded=True):
     # -> scenario selection
     scenario = st.radio("Select Scenario:", scenarios, key='charging_scenario')
 
-    with st.form(key='delete_scenario'):
-        delete_check = st.checkbox(f'Delete Scenario {scenario}', value=False)
-        delete_submit = st.form_submit_button('Delete')
-
-    if delete_check and delete_submit:
-        st.spinner('Deleting Scenario...')
-        delete_scenario(scenario=scenario)
-        scenario = get_scenarios()[0]
+with st.sidebar.expander('Export Result Plots', expanded=False):
+    charged = get_simulation_data(type_='charged', sc=scenario)
+    shifted = get_simulation_data(type_='shifted', sc=scenario)
+    price = get_simulation_data(type_='price', sc=scenario)
+    with st.form(key='export_charging'):
+        s_date = st.date_input('Start Date', value=pd.to_datetime('2022-01-03'))
+        e_date = st.date_input('End Date', value=pd.to_datetime('2022-01-10'))
+        # -> submit button
+        export = st.form_submit_button("Export Plot")
+    if export:
+        st.spinner('Exporting...')
+        charged = charged[s_date:e_date + timedelta(days=1)]
+        shifted = shifted[s_date:e_date + timedelta(days=1)]
+        price = price[s_date:e_date + timedelta(days=1)]
+        to_save = plot_charge(charged, shifted, price)
+        with open(fr"./images/charging_{scenario}.png", 'wb') as file:
+            to_save.write_image(file, width=1200, height=600, scale=2)
 
 with st.sidebar.expander('Configure Simulation', expanded=False):
     with st.form(key='simulation_vars'):
@@ -63,31 +85,21 @@ with st.sidebar.expander('Configure Simulation', expanded=False):
         sim_server = st.selectbox("Start Simulation on Server", servers)
         # -> submit button
         run = st.form_submit_button("Run Simulation")
-
+        # -> no dynamic greed fees
+        dynamic_fee = st.checkbox('Dynamic Grid Fee', value=True)
         if run:
-            run_simulation(sim_server, slider_ev, slider_charge, s_date, e_date)
+            run_simulation(sim_server, slider_ev, slider_charge, s_date, e_date, dynamic_fee)
             st.markdown(f"Start Simulation on Server **{sim_server}**")
 
 # -> charge overview
 with st.expander('Charging Overview', expanded=True):
     st.subheader('Charging- & Price-Overview')
+    charged = get_simulation_data(type_='charged', sc=scenario)
+    shifted = get_simulation_data(type_='shifted', sc=scenario)
+    price = get_simulation_data(type_='price', sc=scenario)
 
-    charged = get_simulation_results(type_='charged', scenario=scenario, iteration='total', aggregate='avg')
-    min_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='min')
-    max_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='max')
-    avg_shifted = get_simulation_results(type_='shifted', scenario=scenario, iteration='total', aggregate='avg')
-    shifted = pd.DataFrame(data=dict(min=min_shifted['shifted'].values, max=max_shifted['shifted'].values,
-                                     avg=avg_shifted['shifted'].values), index=avg_shifted.index)
-
-    # price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='avg')
-
-    min_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='min')
-    max_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='max')
-    avg_price = get_simulation_results(type_='price', scenario=scenario, iteration='total', aggregate='avg')
-    price = pd.DataFrame(data=dict(min=min_price['price'].values, max=max_price['price'].values,
-                                   avg=avg_price['price'].values), index=avg_shifted.index)
-
-    st.plotly_chart(plot_charge(charged, shifted, price), use_container_width=True)
+    fig = plot_charge(charged, shifted, price)
+    st.plotly_chart(fig, use_container_width=True)
 
     col1, col2, col3, _ = st.columns([1, 1, 1, 1])
     c = round(charged.values.sum() / 60, 2)
@@ -95,6 +107,7 @@ with st.expander('Charging Overview', expanded=True):
     col1.metric("Charged [kWh]", f'{c}')
     col2.metric("Shifted [kWh]", f'{s}')
     col3.metric("Ratio [%]", f'{round(s/c * 100, 2)}')
+
 
 with st.expander('Car', expanded=False):
     st.subheader('Example Cars & Metrics')
@@ -129,13 +142,20 @@ with st.expander('Grid', expanded=False):
     with col1:
         st.write(plt)
     with col2:
-        st.caption('Maximal Line Utilization')
-        st.dataframe(max_lines)
+        # limit = st.slider('Set Limit', max_value=100, min_value=0, step=5, value=75)
+        st.caption('Line Utilization')
+        table, line_utilization = get_utilization_distribution(scenario=scenario, limit=75)
+        st.dataframe(table)
         st.caption('Maximal Transformer Utilization')
-        st.dataframe(max_transformers)
+        st.dataframe(max_transformers.sort_values(by=['util'], ascending=False))
+
+    cols = st.columns(len(table))
+    for col, line in zip(cols, table.index):
+        with col:
+            util = line_utilization.loc[line_utilization['id_'] == line, 'util'].values
+            st.plotly_chart(plot_histogram(util))
 
     if sub_id != 'total':
         transformer_utilization = get_transformer_utilization(scenario=scenario, sub_id=sub_id)
         st.plotly_chart(plot_transformer(transformer_utilization), use_container_width=True)
-
 
