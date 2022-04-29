@@ -29,6 +29,7 @@ class FlexibilityProvider:
                                         freq='min')[:-1]
         self.indexer = 0
         len_ = len(self.time_range)
+        self.dynamic_fee = kwargs['dynamic_fee']
         # --> simulation monitoring
         self.empty_counter = np.zeros(len_)         # --> counts the number of ev, which drive without energy
         self.virtual_source = np.zeros(len_)        # --> energy demand, which is needed if the ev is emtpy
@@ -107,6 +108,8 @@ class FlexibilityProvider:
 
     def commit(self, id_, request: dict, price: float, sub_id: str):
         w = self.clients[id_].waiting_time
+        if not self.dynamic_fee:
+            price = 0
         if self.clients[id_].commit(price):
             self.prices[self.indexer] = price
             self.sub_grid[self.indexer] = int(sub_id)
