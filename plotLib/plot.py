@@ -25,91 +25,82 @@ def get_color(util):
     return [int(255 * c) for c in color[0:3]]
 
 
+# -> add confidence_plot
+def add_confidence(f: go.Figure, df: pd.DataFrame, name: str, row: int = 1, col: int = 1, secondary_y: bool = False):
+    # -> minimal
+    f.add_trace(go.Scatter(x=df.index,
+                           y=df['min'].values,
+                           line=dict(color='rgba(0,0,0,0.5)', width=0.2),
+                           showlegend=False,
+                           name=f"Minimal {name}"),
+                secondary_y=secondary_y, row=row, col=col)
+
+    # -> maximal
+    f.add_trace(go.Scatter(x=df.index,
+                           y=df['max'].values,
+                           line=dict(color='rgba(0,0,0,0.5)', width=0.2),
+                           fillcolor='rgba(50, 50, 50, 0.1)',
+                           fill='tonexty',
+                           showlegend=False,
+                           name=f"Maximal {name}"),
+                secondary_y=secondary_y, row=row, col=col)
+
+    return f
+
+
 def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.DataFrame):
     # -> crate figure with two sub plots
     fig = make_subplots(rows=2, cols=1, specs=[[{"secondary_y": False}], [{"secondary_y": True}]],
                         shared_xaxes=True)
     # -> price plot
     # -> mean price
-    fig.add_trace(go.Scatter(x=df_price.index,
-                             y=df_price['avg'].values + 29,
-                             line=dict(color='rgba(0,0,153,1)', width=0.5),
-                             showlegend=True,
-                             name=f"Price"),
+    fig.add_trace(go.Scatter(x=df_price.index, y=df_price['avg'].values,
+                             line=dict(color='rgba(0,0,153,1)', width=1.5),
+                             showlegend=True, name=f"Price"),
                   secondary_y=False, row=1, col=1)
-
-    # -> maximal price
-    fig.add_trace(go.Scatter(x=df_price.index,
-                             y=df_price['max'].values + 29,
-                             line=dict(color='rgba(0,0,153,0)', width=0.5),
-                             showlegend=False,
-                             name=f"Maximal Price"),
-                  secondary_y=False, row=1, col=1)
-
-    # -> min price
-    fig.add_trace(go.Scatter(x=df_price.index,
-                             y=df_price['min'].values + 29,
-                             line=dict(color='rgba(0,0,153,0)', width=0.5),
-                             fillcolor='rgba(50, 50, 50, 0.1)',
-                             fill='tonexty',
-                             showlegend=False,
-                             name=f"Minimal Price"),
-                  secondary_y=False, row=1, col=1)
+    fig = add_confidence(fig, df_price.loc[:, ['min', 'max']], name='Price')
 
     # -> charge and shift plot
     # -> charging
-    fig.add_trace(go.Scatter(x=df_charge.index,
-                             y=df_charge.values.flatten(),
-                             line=dict(color='rgba(255,0,0,1)', width=1),
-                             name=f"Charged"),
+    fig.add_trace(go.Scatter(x=df_charge.index, y=df_charge.values.flatten(),
+                             line=dict(color='rgba(255,0,0,1)', width=1.5),
+                             showlegend=True, name=f"Charged"),
                   secondary_y=False, row=2, col=1)
-    # -> mean shift
-    fig.add_trace(go.Scatter(x=df_shift.index,
-                             y=df_shift['avg'].values,
-                             line=dict(color='rgba(0,0,0,1)', width=1),
-                             name="Shifted"),
+    # -> shift
+    fig.add_trace(go.Scatter(x=df_shift.index, y=df_shift['avg'].values,
+                             line=dict(color='rgba(0,0,0,1)', width=1.5),
+                             showlegend=True, name="Shifted"),
                   secondary_y=True, row=2, col=1)
-    # -> maximal shift
-    fig.add_trace(go.Scatter(x=df_shift.index,
-                             y=df_shift['max'].values,
-                             line=dict(color='rgba(0,0,0,0)', width=0.5),
-                             showlegend=False,
-                             name='Maximal Shift'),
-                  secondary_y=True, row=2, col=1)
-
-    # -> minimal shift
-    fig.add_trace(go.Scatter(x=df_shift.index,
-                             y=df_shift['min'].values,
-                             showlegend=False,
-                             name='Minimal Shift',
-                             fill='tonexty',
-                             fillcolor='rgba(50, 50, 50, 0.1)',
-                             line=dict(color='rgba(0,0,0,1)', width=0.5)),
-                  secondary_y=True, row=2, col=1)
+    fig = add_confidence(fig, df_shift.loc[:, ['min', 'max']], name='Shift', row=2, col=1, secondary_y=True)
 
     # -> set axes titles
     fig.update_yaxes(title_text="Price [ct/kWh]",
                      secondary_y=False,
                      showgrid=True,
                      gridwidth=0.1,
-                     range=[29, max(df_price['max'].values) + 30],
-                     gridcolor='rgba(0, 0, 0, 0.2)',
+                     gridcolor='rgba(0, 0, 0, 0.5)',
                      row=1, col=1)
     fig.update_yaxes(title_text="Charged Power [kW]",
                      secondary_y=False,
                      showgrid=True,
                      gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.2)',
+                     gridcolor='rgba(0, 0, 0, 0.5)',
                      row=2, col=1)
     fig.update_yaxes(title_text="Shifted Power [kW]",
                      secondary_y=True,
                      row=2, col=1)
     fig.update_xaxes(showgrid=True,
                      gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.2)')
+                     gridcolor='rgba(0, 0, 0, 0.5)')
     fig.update_layout(hovermode="x unified")
     fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 
+    return fig
+
+
+def plot_histogram(data):
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(x=data))
     return fig
 
 
@@ -168,12 +159,14 @@ def plot_car_usage(df_car: pd.DataFrame):
 def plot_transformer(df_transformer: pd.DataFrame):
     # -> crate figure with secondary y axis
     fig = make_subplots(specs=[[{"secondary_y": False}]])
-    # -> soc plot on first y axis
+    # -> mean utilization
     fig.add_trace(go.Scatter(x=df_transformer.index,
-                             y=df_transformer['util'].values,
-                             name='Utilization',
-                             line=dict(color='black', width=1)),
+                             y=df_transformer['avg'].values,
+                             name='Mean',
+                             line=dict(color='red', width=1),
+                             showlegend=True),
                   secondary_y=False)
+    fig = add_confidence(fig, df_transformer.loc[:, ['min', 'max']], name='Utilization')
     # -> set axes titles
     fig.update_yaxes(title_text="Utilization [%]",
                      secondary_y=False,
