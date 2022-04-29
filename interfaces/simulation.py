@@ -44,7 +44,7 @@ def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01'
               START_DATE: {start_date}
               END_DATE: {end_date}
               SCENARIO_NAME: EV{ev_ratio}LIMIT{minimum_soc}DF{str(dynamic_fee).upper()}_{simulation}
-              DYNAMIC_FEE: {dynamic_fee}
+              DYNAMIC_FEE: "{dynamic_fee}"
         ''')
 
     logger.info(f'created scenario with ev ratio {ev_ratio} % and charging strategy {minimum_soc}')
