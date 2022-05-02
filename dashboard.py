@@ -6,7 +6,7 @@ from datetime import timedelta
 from gridLib.model import GridModel
 from interfaces.results import Results
 from interfaces.simulation import update_image, initialize_scenario, start_scenario
-from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_transformer, plot_line_util
+from plotLib.plot import plot_grid, plot_charge, plot_car_usage, plot_utilization
 
 # -> logging information
 logger = logging.getLogger('Control Center')
@@ -120,10 +120,11 @@ with st.expander('Grid', expanded=False):
         st.write(plot_grid(line_utilization=None, sub_id='total'))
     with tables:
         st.caption('Out Line Utilization')
-        st.dataframe(r.get_util(asset='inlet'))
+        st.dataframe(r.get_maximal_util(asset='inlet'))
         st.caption('In Line Utilization')
-        st.dataframe(r.get_util(asset='outlet'))
+        st.dataframe(r.get_maximal_util(asset='outlet'))
         st.caption('Transformer Utilization')
-        st.dataframe(r.get_util(asset='transformer'))
+        st.dataframe(r.get_maximal_util(asset='transformer'))
 
+    st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='outlet')))
 

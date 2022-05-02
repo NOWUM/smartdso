@@ -119,7 +119,7 @@ class Results:
 
         return dataframe
 
-    def get_util(self, asset: str):
+    def get_maximal_util(self, asset: str):
         query = f"select total.id_, 100*filter.c::decimal/total.c::decimal as quantil, total.util " \
                 f"from (select id_, count(id_) as c, avg(avg_util) as util from grid " \
                 f"where scenario='{self.scenario}' and asset='{asset}' group by grid.id_) as total " \
@@ -135,6 +135,16 @@ class Results:
             dataframe[col] = dataframe[col].apply(lambda x: round(x, 2))
 
         return dataframe
+
+    def get_asset_type_util(self, asset: str):
+
+        query = f"select to_char(time, 'YYYY-MM-DD hh24:00:00') as t, avg_util, id_ " \
+                f"from grid where scenario='{self.scenario}' and asset='{asset}'"
+        dataframe = pd.read_sql(query, self.engine)
+        dataframe['t'] = dataframe['t'].map(pd.to_datetime)
+        utilization = [dataframe.loc[dataframe['t'].dt.hour == h, 'avg_util'].values.flatten() for h in range(24)]
+
+        return utilization
 
     def get_asset_util(self, id_: str):
         query = f"select id_, max(max_util) from grid where id_='{id_}' and scenario='{self.scenario}' group by id_"
@@ -230,5 +240,7 @@ if __name__ == "__main__":
     r = Results()
     df_sim = r.get_vars()
     df_car = r.get_cars()
-    df_util = r.get_util(asset='outlet')
+    df_util = r.get_maximal_util(asset='outlet')
     df_evs = r.get_evs()
+    util = r.get_asset_type_util(asset='outlet')
+

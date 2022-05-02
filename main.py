@@ -27,7 +27,7 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'end_date': end_date,
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
              'base_price': int(os.getenv('BASE_PRICE', 29)),
-             'scenario': scenario_name,
+             'scenario': scenario_name.split('_')[0],
              'iteration': sim}
 
 logger.info(' -> starting Flexibility Provider')
