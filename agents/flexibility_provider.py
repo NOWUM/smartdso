@@ -20,7 +20,9 @@ nuts_code = 'DEA26'
 class FlexibilityProvider:
 
     def __init__(self, **kwargs):
-
+        self.scenario = kwargs['scenario']
+        self.iteration = kwargs['iteration']
+        self.base_price = kwargs['base_price']
         self.clients = {}               # --> total clients
         self.capacity = 0               # --> portfolio capacity
         self.power = 0                  # --> portfolio power
@@ -124,8 +126,19 @@ class FlexibilityProvider:
 
     def get_results(self):
         self.reference_car.monitor['time'] = self.time_range
-        sim_data = pd.DataFrame(dict(charged=self.charged, shifted=self.shifted, sub_grid=self.sub_grid,
-                                     price=self.prices, soc=self.soc, time=self.time_range))
+        sim_data = pd.DataFrame(dict(iteration=[self.iteration] * len(self.time_range),
+                                     scenario=[self.scenario] * len(self.time_range),
+                                     charged=self.charged,
+                                     shifted=self.shifted,
+                                     sub_id=self.sub_grid,
+                                     price=self.prices + self.base_price,
+                                     soc=self.soc,
+                                     time=self.time_range))
+
+        car_data = pd.DataFrame(self.reference_car.monitor)
+        car_data['iteration'] = self.iteration
+        car_data['scenario'] = self.scenario
+
         # --> determine car data
         evs, avg_demand, avg_distance = 0, 0, 0
         for household in self.clients.values():
@@ -136,10 +149,12 @@ class FlexibilityProvider:
                     if person.car.odometer > 0:
                         avg_demand += person.car.demand.sum() / person.car.odometer * 100
         days = len(self.time_range) / 1440
-        car_data = pd.DataFrame(dict(evs=evs, distance=avg_distance/evs/days, demand=avg_demand/evs,
-                                     time=self.time_range[0]), index=[0])
 
-        return pd.DataFrame(self.reference_car.monitor), car_data, sim_data
+        sim_data['total_ev'] = evs
+        sim_data['avg_distance'] = avg_distance/evs/days
+        sim_data['avg_demand'] = avg_demand/evs
+
+        return sim_data, car_data
 
 
 if __name__ == "__main__":
