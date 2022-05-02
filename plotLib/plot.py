@@ -182,6 +182,30 @@ def plot_transformer(df_transformer: pd.DataFrame):
     return fig
 
 
+def plot_line_util(data: pd.DataFrame = None):
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    for col in data.columns:
+        fig.add_trace(go.Scatter(x=data.index,
+                                 y=data[col].values,
+                                 name=f'Utilization {col} %',
+                                 line=dict(width=1, color='black'),
+                                 showlegend=True),
+                      secondary_y=False)
+
+    fig.update_yaxes(title_text=">= Utilization [%]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(hovermode="x unified")
+
+    return fig
+
+
 def plot_grid(line_utilization: pd.DataFrame = None, sub_id: str = 'total'):
     layers = []
 
@@ -215,4 +239,4 @@ def plot_grid(line_utilization: pd.DataFrame = None, sub_id: str = 'total'):
 
     return pdk.Deck(layers=layers, initial_view_state=view_state, api_keys=dict(mapbox=api_key), map_provider='mapbox',
                     map_style='road', tooltip={"html": "<b>Name: </b> {name} <br /> "
-                                                       "<b>Utilization: </b> {utilization} %<br />"},)
+                                                       "<b>Utilization: </b> {utilization} %<br />"}, )
