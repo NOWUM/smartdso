@@ -14,8 +14,8 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-15'))
-logger.info(f' -> simulation for horizon {start_date.date} till {end_date.date}')
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
+logger.info(f' -> initialize simulation for {start_date.date()} till {end_date.date()}')
 scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1L_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 logger.info(f' -> scenario {scenario_name}')
@@ -26,7 +26,9 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'start_date': start_date,
              'end_date': end_date,
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
-             'base_price': int(os.getenv('BASE_PRICE', 29))}
+             'base_price': int(os.getenv('BASE_PRICE', 29)),
+             'scenario': scenario_name,
+             'iteration': sim}
 
 logger.info(' -> starting Flexibility Provider')
 FlexProvider = FlexibilityProvider(**input_set)
@@ -74,24 +76,18 @@ if __name__ == "__main__":
 
 
 # --> collect results
-car_data, s_car_data, sim_data = FlexProvider.get_results()
-table = dict(cars=car_data, meta=sim_data, evs=s_car_data)
-for key, value in table.items():
-    value['iteration'] = sim
-    value['scenario'] = scenario_name.split('_')[0]
-    value = value.set_index(['time', 'iteration', 'scenario'])
-    value.to_sql(key, engine, if_exists='append', index=True, index_label=['time', 'iteration', 'scenario'])
+try:
+    sim_data, car_data = FlexProvider.get_results()
+    sim_data.to_sql('vars', engine, index=False, if_exists='append')
+    car_data.to_sql('cars', engine,  index=False, if_exists='append')
+except Exception as e:
+    logger.error(repr(e))
 
-lines, line_mapping, transformers, transformer_mapping = CapProvider.get_results()
-table = dict(lines=lines, transformers=transformers)
-mapping = dict(lines=line_mapping, transformers=transformer_mapping)
-for key, value in table.items():
-    value = pd.Series({(time, sim, scenario_name.split('_')[0], asset, mapping[key][asset]): utilization
-                       for time, values in value.iterrows()
-                       for asset, utilization in values.items()})
-    value = value.reset_index()
-    value.columns = ['time', 'iteration', 'scenario', 'id_', 'grid', 'utilization']
-    value = value.set_index(['time', 'iteration', 'scenario', 'id_', 'grid'])
-    value.to_sql(key, engine, if_exists='append', index=True, index_label=['time', 'iteration',
-                                                                           'scenario', 'id_', 'grid'])
-
+try:
+    lines, transformers, = CapProvider.get_results()
+    for line in lines:
+        pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
+    for transformer in transformers:
+        pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
+except Exception as e:
+    logger.error(repr(e))
