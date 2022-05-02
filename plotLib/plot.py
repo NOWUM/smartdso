@@ -99,7 +99,7 @@ def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.Da
 
 
 def plot_utilization(utilization: list):
-    c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in range(121)]
+    c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in np.linspace(0, 120, 100)]
     fig = make_subplots(specs=[[{"secondary_y": False}]])
 
     for util in utilization:

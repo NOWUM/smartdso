@@ -89,7 +89,7 @@ with st.expander('Charging Overview', expanded=True):
 
     col1, col2, col3, _ = st.columns([1, 1, 1, 1])
     c = round(charged.values.sum() / 60, 2)
-    s = round(shifted.values.sum() / 60, 2)
+    s = round(shifted['avg'].values.sum() / 60, 2)
     col1.metric("Charged [kWh]", f'{c}')
     col2.metric("Shifted [kWh]", f'{s}')
     col3.metric("Ratio [%]", f'{round(s/c * 100, 2)}')

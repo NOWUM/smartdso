@@ -16,9 +16,9 @@ logger.setLevel('INFO')
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
 end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
 logger.info(f' -> initialize simulation for {start_date.date()} till {end_date.date()}')
-scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1L_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1DFTRUE_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
-logger.info(f' -> scenario {scenario_name}')
+logger.info(f' -> scenario {scenario_name.split("_")[0]}')
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'dynamic_fee': (os.getenv('DYNAMIC_FEE', 'True') == 'True'),

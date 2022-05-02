@@ -12,7 +12,8 @@ class Results:
         if len(self.scenarios) > 0:
             self.scenario = [*self.scenarios][0]
             self.iterations = self._get_iterations()
-            self.iteration = [*self.iterations][0]
+            if len(self.iterations) > 0:
+                self.iteration = [*self.iterations][0]
         else:
             self.scenario = None
             self.iterations = None
@@ -88,6 +89,7 @@ class Results:
         for table in self.tables:
             query = f"Select Distinct iteration from {table} where scenario='{self.scenario}'"
             iteration[table] = set([value._data[0] for value in self.engine.execute(query).fetchall()])
+        print(iteration)
         return set.intersection(*iteration.values()) if len(iteration) > 0 else set()
 
     def get_cars(self):
@@ -108,7 +110,7 @@ class Results:
 
     def get_vars(self):
         query = f"select time, avg(price) as avg_price, max(price) as max_price, min(price) as min_price, " \
-                f"avg(shifted) as avg_shifted, max(price) as max_shifted, min(shifted) as min_shifted," \
+                f"avg(shifted) as avg_shifted, max(shifted) as max_shifted, min(shifted) as min_shifted," \
                 f"avg(charged) as charged from vars where scenario='{self.scenario}' " \
                 f"group by time order by time"
         dataframe = pd.read_sql(query, self.engine).set_index('time')
@@ -238,9 +240,10 @@ class Results:
 
 if __name__ == "__main__":
     r = Results()
-    df_sim = r.get_vars()
-    df_car = r.get_cars()
-    df_util = r.get_maximal_util(asset='outlet')
-    df_evs = r.get_evs()
-    util = r.get_asset_type_util(asset='outlet')
+    # r.delete_scenario(scenario='EV100LIMIT-1L')
+    # df_sim = r.get_vars()
+    # df_car = r.get_cars()
+    # df_util = r.get_maximal_util(asset='outlet')
+    # df_evs = r.get_evs()
+    # util = r.get_asset_type_util(asset='outlet')
 

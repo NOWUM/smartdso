@@ -126,7 +126,7 @@ class FlexibilityProvider:
 
     def get_results(self):
         self.reference_car.monitor['time'] = self.time_range
-        sim_data = pd.DataFrame(dict(iteration=[self.iteration] * len(self.time_range),
+        sim_data = pd.DataFrame(dict(iteration=[int(self.iteration)] * len(self.time_range),
                                      scenario=[self.scenario] * len(self.time_range),
                                      charged=self.charged,
                                      shifted=self.shifted,
@@ -136,7 +136,7 @@ class FlexibilityProvider:
                                      time=self.time_range))
 
         car_data = pd.DataFrame(self.reference_car.monitor)
-        car_data['iteration'] = self.iteration
+        car_data['iteration'] = int(self.iteration)
         car_data['scenario'] = self.scenario
 
         # --> determine car data
