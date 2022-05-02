@@ -12,5 +12,3 @@ services:
       END_DATE: 2022/01/15
       SCENARIO_NAME: EV100LIMIT-1_0
       DYNAMIC_FEE: "True"
-    volumes:
-      - ./sim_result:/src/sim_result
