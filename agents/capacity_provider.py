@@ -12,6 +12,8 @@ logging.getLogger('pypsa').setLevel('ERROR')
 class CapacityProvider:
 
     def __init__(self, *args, **kwargs):
+        self.scenario = kwargs['scenario']
+        self.iteration = kwargs['iteration']
         # --> build grid model and set simulation horizon
         self.grid = GridModel()
         self.mapper = self.grid.model.buses['sub_network']
@@ -107,11 +109,40 @@ class CapacityProvider:
 
     def get_results(self):
         line_utilization = self.line_utilization.replace(0, method='ffill')
-        line_utilization = line_utilization.resample('15min').mean()
-        line_mapping = self.grid.model.lines['sub_network']
+        line_avg = line_utilization.resample('15min').mean()
+        line_max = line_utilization.resample('15min').max()
+        lines = []
+        for column in line_utilization.columns:
+            if self.grid.model.lines.loc[column, 'bus0'] in self.grid.data['connected'].index \
+                    or self.grid.model.lines.loc[column, 'bus1'] in self.grid.data['connected'].index:
+                asset = 'outlet'
+            else:
+                asset = 'inlet'
+
+            lines += [dict(time=line_avg.index,
+                           iteration=[int(self.iteration)] * len(line_avg),
+                           scenario=[self.scenario] * len(line_avg),
+                           id_=[column] * len(line_avg),
+                           sub_id=[int(self.grid.model.lines.loc[column, 'sub_network'])] * len(line_avg),
+                           asset=[asset] * len(line_avg),
+                           avg_util=line_avg[column].values,
+                           max_util=line_max[column].values)]
+
         transformer_utilization = self.transformer_utilization.replace(0, method='ffill')
-        transformer_utilization = transformer_utilization.resample('15min').mean()
-        return line_utilization, line_mapping, transformer_utilization, self.transformers_id
+        transformer_avg = transformer_utilization.resample('15min').mean()
+        transformer_max = transformer_utilization.resample('15min').max()
+        transformers = []
+        for column in transformer_utilization.columns:
+            transformers += [dict(time=transformer_avg.index,
+                                  iteration=[int(self.iteration)] * len(transformer_avg),
+                                  scenario=[self.scenario] * len(transformer_avg),
+                                  id_=[column] * len(transformer_avg),
+                                  sub_id=[int(self.transformers_id[column])] * len(transformer_avg),
+                                  asset=['transformer'] * len(transformer_avg),
+                                  avg_util=transformer_avg[column].values,
+                                  max_util=transformer_max[column].values)]
+
+        return lines, transformers
 
 
 if __name__ == "__main__":
