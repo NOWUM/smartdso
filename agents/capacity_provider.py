@@ -109,8 +109,7 @@ class CapacityProvider:
 
     def get_results(self):
         line_utilization = self.line_utilization.replace(0, method='ffill')
-        line_avg = line_utilization.resample('15min').mean()
-        line_max = line_utilization.resample('15min').max()
+        line = line_utilization.resample('15min').mean()
         lines = []
         for column in line_utilization.columns:
             if self.grid.model.lines.loc[column, 'bus0'] in self.grid.data['connected'].index \
@@ -119,28 +118,25 @@ class CapacityProvider:
             else:
                 asset = 'inlet'
 
-            lines += [dict(time=line_avg.index,
-                           iteration=[int(self.iteration)] * len(line_avg),
-                           scenario=[self.scenario] * len(line_avg),
-                           id_=[column] * len(line_avg),
-                           sub_id=[int(self.grid.model.lines.loc[column, 'sub_network'])] * len(line_avg),
-                           asset=[asset] * len(line_avg),
-                           avg_util=line_avg[column].values,
-                           max_util=line_max[column].values)]
+            lines += [dict(time=line.index,
+                           iteration=[int(self.iteration)] * len(line),
+                           scenario=[self.scenario] * len(line),
+                           id_=[column] * len(line),
+                           sub_id=[int(self.grid.model.lines.loc[column, 'sub_network'])] * len(line),
+                           asset=[asset] * len(line),
+                           utilization=line[column].values)]
 
         transformer_utilization = self.transformer_utilization.replace(0, method='ffill')
-        transformer_avg = transformer_utilization.resample('15min').mean()
-        transformer_max = transformer_utilization.resample('15min').max()
+        transformer = transformer_utilization.resample('15min').mean()
         transformers = []
         for column in transformer_utilization.columns:
-            transformers += [dict(time=transformer_avg.index,
-                                  iteration=[int(self.iteration)] * len(transformer_avg),
-                                  scenario=[self.scenario] * len(transformer_avg),
-                                  id_=[column] * len(transformer_avg),
-                                  sub_id=[int(self.transformers_id[column])] * len(transformer_avg),
-                                  asset=['transformer'] * len(transformer_avg),
-                                  avg_util=transformer_avg[column].values,
-                                  max_util=transformer_max[column].values)]
+            transformers += [dict(time=transformer.index,
+                                  iteration=[int(self.iteration)] * len(transformer),
+                                  scenario=[self.scenario] * len(transformer),
+                                  id_=[column] * len(transformer),
+                                  sub_id=[int(self.transformers_id[column])] * len(transformer),
+                                  asset=['transformer'] * len(transformer),
+                                  utilization=transformer[column].values)]
 
         return lines, transformers
 
