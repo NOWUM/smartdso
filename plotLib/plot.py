@@ -6,6 +6,7 @@ import numpy as np
 from gridLib.model import GridModel
 from matplotlib import cm
 
+
 # -> mapbox token
 api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
 # -> init state for pydeck map
@@ -46,6 +47,8 @@ def add_confidence(f: go.Figure, df: pd.DataFrame, name: str, row: int = 1, col:
                 secondary_y=secondary_y, row=row, col=col)
 
     return f
+
+
 
 
 def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.DataFrame):
@@ -98,18 +101,45 @@ def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.Da
     return fig
 
 
-def plot_utilization(utilization: list):
+def plot_utilization(utilization: pd.DataFrame = None):
     c = ['hsl(' + str(h) + ',50%' + ',50%)' for h in np.linspace(0, 120, 100)]
     fig = make_subplots(specs=[[{"secondary_y": False}]])
 
-    for util in utilization:
-        mean_util = np.mean(util)
-        fig.add_trace(go.Box(y=util, marker_color=c[int(mean_util)]))
+    for hour, util in utilization.iterrows():
+        index = int(100-(0.5*util['avg'] + 0.5 * util['max']))
+        fig.add_trace(go.Box(mean=[util['avg']],
+                             median=[util['mdn']],
+                             q1=[util['percentile_25']],
+                             q3=[util['percentile_75']],
+                             upperfence=[util['max']],
+                             lowerfence=[util['min']],
+                             # sd=[util['stddev']],
+                             x=[f"{hour:02d}:00"],
+                             name=f"{hour:02d}:00",
+                             showlegend=False,
+                             marker_color=c[index]))
+    fig.add_trace(go.Scatter(x=[f"{hour:02d}:00" for hour in range(24)],
+                             y=[100 for _ in range(24)],
+                             hoverinfo='none',
+                             showlegend=False,
+                             line=dict(color='rgba(0,0,153,1)', width=0.5)))
 
+    fig.update_yaxes(title_text="Utilization [%]",
+                     secondary_y=False,
+                     range=[0, 150],
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)',
+                     tickmode='linear',
+                     dtick=25)
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.2)')
+    fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     return fig
 
 
-def plot_car_usage(df_car: pd.DataFrame):
+def plot_car_usage(df_car: pd.DataFrame = None):
     scale = df_car['odometer'].values.max()
     # -> crate figure with secondary y axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -161,7 +191,7 @@ def plot_car_usage(df_car: pd.DataFrame):
     return fig
 
 
-def plot_transformer(df_transformer: pd.DataFrame):
+def plot_transformer(df_transformer: pd.DataFrame = None):
     # -> crate figure with secondary y axis
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     # -> mean utilization
