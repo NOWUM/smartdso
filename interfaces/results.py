@@ -1,12 +1,14 @@
 from sqlalchemy import create_engine, inspect
 import pandas as pd
+import os
 
 
 class Results:
 
     def __init__(self):
-        self.engine = create_engine('postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
-        self._create_tables()
+        database_uri = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+        self.engine = create_engine(database_uri)
+        # self._create_tables()
         self.tables = inspect(self.engine).get_table_names()
         self.scenarios = self._get_scenarios()
         if len(self.scenarios) > 0:
@@ -89,7 +91,6 @@ class Results:
         for table in self.tables:
             query = f"Select Distinct iteration from {table} where scenario='{self.scenario}'"
             iteration[table] = set([value._data[0] for value in self.engine.execute(query).fetchall()])
-        print(iteration)
         return set.intersection(*iteration.values()) if len(iteration) > 0 else set()
 
     def get_cars(self):
@@ -115,7 +116,6 @@ class Results:
                 f"group by time order by time"
         dataframe = pd.read_sql(query, self.engine).set_index('time')
         dataframe.index = pd.to_datetime(dataframe.index)
-        dataframe = dataframe.resample('5min').mean()
         for col in dataframe.columns:
             dataframe[col] = dataframe[col].apply(lambda x: round(x, 2))
 
@@ -139,21 +139,34 @@ class Results:
         return dataframe
 
     def get_asset_type_util(self, asset: str):
+        query = f"select to_char(time, 'hh24:00') as t, " \
+                f"percentile_cont(0.25) within group (order by avg_util) as percentile_25," \
+                f" percentile_cont(0.75) within group (order by avg_util) as percentile_75, " \
+                f" percentile_cont(0.95) within group (order by avg_util) as percentile_95, " \
+                f"avg(avg_util), max(avg_util) "
+        if asset == 'transformer':
+            query += f"from grid where scenario='{self.scenario}' and asset='{asset}' group by t"
+        elif asset == 'line':
+            query += f"from grid where scenario='{self.scenario}' and (asset='outlet' " \
+                     f"or asset='inlet') group by t"
 
-        query = f"select to_char(time, 'YYYY-MM-DD hh24:00:00') as t, avg_util, id_ " \
-                f"from grid where scenario='{self.scenario}' and asset='{asset}'"
         dataframe = pd.read_sql(query, self.engine)
-        dataframe['t'] = dataframe['t'].map(pd.to_datetime)
-        utilization = [dataframe.loc[dataframe['t'].dt.hour == h, 'avg_util'].values.flatten() for h in range(24)]
+        dataframe = dataframe.set_index(['t'])
+        dataframe.columns = ['Percentile 25 %', 'Percentile 75 %', 'Percentile 95 %', 'Average', 'Maximum']
 
-        return utilization
+        return dataframe
 
     def get_asset_util(self, id_: str):
         query = f"select id_, max(max_util) from grid where id_='{id_}' and scenario='{self.scenario}' group by id_"
         dataframe = pd.read_sql(query, self.engine)
         return dataframe
 
-#
+    def get_sorted_utilization(self):
+        query = f"select max_util as util from grid where scenario='{self.scenario}' " \
+                f"and max_util > 0.001 order by max_util desc"
+        dataframe = pd.read_sql(query, self.engine)
+        return dataframe.values.flatten()
+
 # def get_transformers(scenario: str, sub_id: str):
 #     # -> get the five with the highest utilization
 #     if sub_id != 'total':
@@ -240,6 +253,10 @@ class Results:
 
 if __name__ == "__main__":
     r = Results()
+    r.scenario = 'EV100LIMIT-1DFTRUE'
+    df = r.get_sorted_utilization()
+    # df = r.get_vars()
+    # df = r.get_asset_type_util(asset='line')
     # r.delete_scenario(scenario='EV100LIMIT-1L')
     # df_sim = r.get_vars()
     # df_car = r.get_cars()
