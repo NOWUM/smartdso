@@ -25,7 +25,7 @@ def update_image(s):
 
 
 def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01', end_date='2022/01/15',
-                        dynamic_fee=True):
+                        dynamic_fee=True, london_data=True):
     output = ['version: "3.9"\n', 'services:\n']
 
     transport = paramiko.Transport((s, 22))
@@ -39,11 +39,12 @@ def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01'
             image: {image_repo}smartdso:latest
             build: .
             environment:
+              LONDON_DATA: "{london_data}"
               EV_RATIO: {ev_ratio}
               MINIMUM_SOC: {minimum_soc}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              SCENARIO_NAME: EV{ev_ratio}LIMIT{minimum_soc}DF{str(dynamic_fee).upper()}_{simulation}
+              SCENARIO_NAME: EV{ev_ratio}CONTROL-{str(dynamic_fee).upper()}_{simulation}
               DYNAMIC_FEE: "{dynamic_fee}"
         ''')
 
