@@ -20,7 +20,7 @@ scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1DFTRUE_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 logger.info(f' -> scenario {scenario_name.split("_")[0]}')
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),
              'dynamic_fee': (os.getenv('DYNAMIC_FEE', 'True') == 'True'),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
              'start_date': start_date,
