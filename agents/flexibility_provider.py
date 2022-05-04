@@ -67,9 +67,9 @@ class FlexibilityProvider:
             self.clients[uuid.uuid1()] = client
 
         # --> create industry clients
-        for _, consumer in rlm_consumers.iterrows():
-            client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-            self.clients[uuid.uuid1()] = client
+        # for _, consumer in rlm_consumers.iterrows():
+        #     client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
+        #     self.clients[uuid.uuid1()] = client
 
         # ---> set weather parameters
         self._nuts3 = nuts_code
