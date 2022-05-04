@@ -126,5 +126,5 @@ with st.expander('Grid', expanded=False):
         st.caption('Transformer Utilization')
         st.dataframe(r.get_maximal_util(asset='transformer'))
 
-    st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='outlet')))
+    st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='inlet')), use_container_width=True)
 
