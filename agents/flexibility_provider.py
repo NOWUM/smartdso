@@ -6,12 +6,15 @@ from collections import defaultdict
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
+from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
 # ---> read known consumers and nodes
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
 h0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'H0']
 g0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'G0']
+rlm_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'RLM']
+
 nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
 
 nuts_code = 'DEA26'
@@ -61,6 +64,11 @@ class FlexibilityProvider:
         # --> create business clients
         for _, consumer in g0_consumers.iterrows():
             client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
+            self.clients[uuid.uuid1()] = client
+
+        # --> create industry clients
+        for _, consumer in rlm_consumers.iterrows():
+            client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
             self.clients[uuid.uuid1()] = client
 
         # ---> set weather parameters
