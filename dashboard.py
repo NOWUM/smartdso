@@ -39,32 +39,22 @@ title = st.title('Smart DSO Dashboard')
 with st.sidebar.expander('Select Result Set', expanded=True):
     scenario = st.radio("Select Scenario:", r.scenarios, key='charging_scenario')
     r.scenario = scenario
-# -> get simulation results
-sim_result = r.get_vars()
-charged = sim_result.loc[:, 'charged']
-shifted = sim_result.loc[:, ['avg_shifted', 'min_shifted', 'max_shifted']]
-shifted.columns = map(lambda x: x.split('_')[0], shifted.columns)
-price = sim_result.loc[:, ['avg_price', 'min_price', 'max_price']]
-price.columns = map(lambda x: x.split('_')[0], shifted.columns)
 
-with st.sidebar.expander('Export Result Plots', expanded=False):
-    with st.form(key='export_charging'):
-        s_date = st.date_input('Start Date', value=pd.to_datetime('2022-01-03'))
-        e_date = st.date_input('End Date', value=pd.to_datetime('2022-01-10'))
-        export = st.form_submit_button("Export Plot")
-    if export:
-        st.spinner('Exporting...')
-        s_charged = charged[s_date:e_date + timedelta(days=1)]
-        s_shifted = shifted[s_date:e_date + timedelta(days=1)]
-        s_price = price[s_date:e_date + timedelta(days=1)]
-        to_save = plot_charge(s_charged, s_shifted, s_price)
-        with open(fr"./images/charging_{scenario}.png", 'wb') as file:
-            to_save.write_image(file, width=1200, height=600, scale=2)
+try:
+    # -> get simulation results
+    sim_result = r.get_vars()
+    charged = sim_result.loc[:, 'charged']
+    shifted = sim_result.loc[:, ['avg_shifted', 'min_shifted', 'max_shifted']]
+    shifted.columns = map(lambda x: x.split('_')[0], shifted.columns)
+    price = sim_result.loc[:, ['avg_price', 'min_price', 'max_price']]
+    price.columns = map(lambda x: x.split('_')[0], shifted.columns)
+except:
+    pass
 
 with st.sidebar.expander('Configure Simulation', expanded=False):
     with st.form(key='simulation_vars'):
         # -> ev ratio
-        slider_ev = st.slider("EV-Ratio", min_value=10, max_value=100, value=50, step=10)
+        slider_ev = st.slider("EV-Ratio", min_value=0, max_value=100, value=50, step=1)
         # -> charging limit
         slider_charge = st.slider("Charging-Limit", min_value=-1, max_value=100, value=50)
         # -> no dynamic greed fees
@@ -83,48 +73,57 @@ with st.sidebar.expander('Configure Simulation', expanded=False):
 
 # -> charge overview
 with st.expander('Charging Overview', expanded=True):
-    st.subheader('Charging- & Price-Overview')
-    fig = plot_charge(charged, shifted, price)
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        st.subheader('Charging- & Price-Overview')
+        fig = plot_charge(charged, shifted, price)
+        st.plotly_chart(fig, use_container_width=True)
 
-    col1, col2, col3, _ = st.columns([1, 1, 1, 1])
-    c = round(charged.values.sum() / 60, 2)
-    s = round(shifted['avg'].values.sum() / 60, 2)
-    col1.metric("Charged [kWh]", f'{c}')
-    col2.metric("Shifted [kWh]", f'{s}')
-    col3.metric("Ratio [%]", f'{round(s/c * 100, 2)}')
+        col1, col2, col3, _ = st.columns([1, 1, 1, 1])
+        c = round(charged.values.sum() / 60, 2)
+        s = round(shifted['avg'].values.sum() / 60, 2)
+        col1.metric("Charged [kWh]", f'{c}')
+        col2.metric("Shifted [kWh]", f'{s}')
+        col3.metric("Ratio [%]", f'{round(s/c * 100, 2)}')
+    except:
+        st.write('Error - No Data Found')
 
 # -> car overview
 with st.expander('Car', expanded=False):
-    st.subheader('Example Cars & Metrics')
-    plot, select = st.columns([3, 1])
+    try:
+        st.subheader('Example Cars & Metrics')
+        plot, select = st.columns([3, 1])
 
-    with select:
-        iteration = st.selectbox("Select Car:", r.iterations)
-    with plot:
-        car_result = r.get_cars()
-        st.plotly_chart(plot_car_usage(car_result), use_container_width=True)
+        with select:
+            iteration = st.selectbox("Select Car:", r.iterations)
+        with plot:
+            car_result = r.get_cars()
+            st.plotly_chart(plot_car_usage(car_result), use_container_width=True)
 
-    evs_result = r.get_evs()
-    count_ev, avg_distance, avg_demand, _ = st.columns([1, 1, 1, 1])
-    count_ev.metric("Total EVs", f'{int(evs_result.total_ev)}')
-    avg_distance.metric("Distance [km/a]", f'{round(365 * evs_result.avg_distance, 2)}')
-    avg_demand.metric("Mean Demand [kWh/100km]", f'{round(evs_result.avg_demand, 2)}')
+        evs_result = r.get_evs()
+        count_ev, avg_distance, avg_demand, _ = st.columns([1, 1, 1, 1])
+        count_ev.metric("Total EVs", f'{int(evs_result.total_ev)}')
+        avg_distance.metric("Distance [km/a]", f'{round(365 * evs_result.avg_distance, 2)}')
+        avg_demand.metric("Mean Demand [kWh/100km]", f'{round(evs_result.avg_demand, 2)}')
+    except:
+        st.write('Error - No Data Found')
 
 # -> grid overview
 with st.expander('Grid', expanded=False):
     st.subheader('Grid Utilization')
-
-    plot, tables = st.columns([2, 1])
-    with plot:
-        st.write(plot_grid(line_utilization=None, sub_id='total'))
-    with tables:
-        st.caption('Out Line Utilization')
-        st.dataframe(r.get_maximal_util(asset='inlet'))
-        st.caption('In Line Utilization')
-        st.dataframe(r.get_maximal_util(asset='outlet'))
-        st.caption('Transformer Utilization')
-        st.dataframe(r.get_maximal_util(asset='transformer'))
-
-    st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='inlet')), use_container_width=True)
-
+    try:
+        plot, tables = st.columns([2, 1])
+        with plot:
+            st.write(plot_grid(line_utilization=None, sub_id='total'))
+        with tables:
+            st.caption('Out Line Utilization')
+            st.dataframe(r.get_maximal_util(asset='inlet'))
+            st.caption('In Line Utilization')
+            st.dataframe(r.get_maximal_util(asset='outlet'))
+            st.caption('Transformer Utilization')
+            st.dataframe(r.get_maximal_util(asset='transformer'))
+        st.caption('Lines')
+        st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='line')), use_container_width=True)
+        st.caption('Transformers')
+        st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='transformer')), use_container_width=True)
+    except:
+        st.write('Error - No Data Found')
