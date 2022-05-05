@@ -14,13 +14,13 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-15'))
 logger.info(f' -> initialize simulation for {start_date.date()} till {end_date.date()}')
 scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1DFTRUE_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 logger.info(f' -> scenario {scenario_name.split("_")[0]}')
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
              'dynamic_fee': (os.getenv('DYNAMIC_FEE', 'True') == 'True'),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
              'start_date': start_date,
@@ -29,6 +29,8 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),
              'base_price': int(os.getenv('BASE_PRICE', 29)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim}
+
+save_demand = True
 
 logger.info(' -> starting Flexibility Provider')
 FlexProvider = FlexibilityProvider(**input_set)
@@ -41,6 +43,7 @@ logger.info(' -> connecting to database')
 engine = create_engine('postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 tables = inspect(engine).get_table_names()
 
+
 if __name__ == "__main__":
     try:
         # -> run SLPs for each day in simulation horizon
@@ -51,6 +54,12 @@ if __name__ == "__main__":
         # -> forward the slp data to the Capacity Provider
         logger.info(f' -> running power flow calculation for {len(CapProvider.mapper.unique())} grids')
         CapProvider.set_fixed_power(data=pd.concat(fixed_power))
+        if save_demand:
+            if input_set.get('london_data'):
+                pd.concat(fixed_power).groupby('t').sum().to_csv('London.csv', sep=';', decimal=',')
+            else:
+                pd.concat(fixed_power).groupby('t').sum().to_csv('SLP.csv', sep=';', decimal=',')
+
     except Exception as e:
         print(repr(e))
         logger.error(f' -> error while slp or power flow calculation: {repr(e)}')
