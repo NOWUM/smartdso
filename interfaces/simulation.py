@@ -63,7 +63,7 @@ def start_scenario(s):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(s, 22, 'nowum', pkey=pk)
-    command = 'cd smartdso && docker-compose up --remove-orphans -d'
+    command = 'cd smartdso && docker-compose down --remove-orphans && docker-compose up -d'
     ssh.exec_command(command)
     logger.info(f'started scenario on {s}')
 
