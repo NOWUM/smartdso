@@ -4,6 +4,12 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 engine = create_engine('postgresql://opendata:opendata@10.13.10.41:5432/londondatastore')
+query = 'SELECT "LCLid" from consumption where ' \
+        '"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\' group by "LCLid" ' \
+        'and power < 11 ' \
+        'having sum(power) >= 2000 and sum(power) < 17000  and count(power) >= 17520'
+ids = pd.read_sql(query, engine)
+
 
 path = r'./demLib/data/'
 
@@ -67,20 +73,15 @@ class StandardLoadProfile:
         self.random_choice = random_choice
 
         if random_choice:
-            draw = True
-            while draw:
-                df = pd.read_sql('SELECT DISTINCT "LCLid" from consumption', engine)
-                id_ = np.random.choice(df.to_numpy().flatten())
-                query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{id_}\' and' \
-                        f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
-                self.data = pd.read_sql(query, engine)
-                self.data = self.data.set_index('time')
-                consumption = self.data['power'].sum() * 0.5
-                self.data['power'] /= consumption
-                self.data['power'] *= demandP
-                # print(self.data)
-                if len(self.data) > 8760 * 2:
-                    draw = False
+            id_ = np.random.choice(ids.to_numpy().flatten())
+            query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{id_}\' and' \
+                    f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
+            self.data = pd.read_sql(query, engine)
+            self.data = self.data.set_index('time')
+            consumption = self.data['power'].sum() * 0.5
+            self.data['power'] /= consumption
+            self.data['power'] *= demandP
+
 
     def run_model(self, d):
 
