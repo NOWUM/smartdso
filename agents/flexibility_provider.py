@@ -144,6 +144,7 @@ class FlexibilityProvider:
                                      sub_id=self.sub_grid,
                                      price=self.prices + self.base_price,
                                      soc=self.soc,
+                                     cost=self.cost,
                                      time=self.time_range))
 
         car_data = pd.DataFrame(self.reference_car.monitor)
