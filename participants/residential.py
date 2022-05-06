@@ -14,7 +14,7 @@ class HouseholdModel(BasicParticipant):
 
         # ---> initialize profile generator
         self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='household', resolution='15min',
-                                                     random_choice=kwargs['london_data'])
+                                                     london_data=kwargs['london_data'], l_id=kwargs['l_id'])
         # ---> residents
         self.persons = [Resident(**kwargs) for i in range(kwargs['residents']) if i <= 1]
 

@@ -2,14 +2,13 @@ import uuid
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta as td
-from collections import defaultdict
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
-# ---> read known consumers and nodes
+# --> read known consumers and nodes
 allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
 h0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'H0']
 g0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'G0']
@@ -43,11 +42,12 @@ class FlexibilityProvider:
         self.shifted = np.zeros(len_)               # --> summarized shift charge of all cars
         self.sub_grid = -1*np.ones(len_)            # --> detect sub grid
         self.soc = np.zeros(len_)                   # --> summarized soc of all cars
+        self.cost = np.zeros(len_)
 
         # --> create household clients
         for _, consumer in h0_consumers.iterrows():
             sim_parameters = dict(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                  residents=int(max(consumer['jeb'] / 1500, 1)))
+                                  residents=int(max(consumer['jeb'] / 1500, 1)), l_id = consumer['london_data'])
             sim_parameters.update(kwargs)
             client = HouseholdModel(**sim_parameters)
             for person in [p for p in client.persons if p.car.type == 'ev']:
@@ -123,11 +123,14 @@ class FlexibilityProvider:
         if self.clients[id_].commit(price):
             self.prices[self.indexer] = price
             self.sub_grid[self.indexer] = int(sub_id)
+            energy = 0
             for _, parameters in request.items():
                 for power, duration in parameters:
                     self.charged[self.indexer:self.indexer + duration] += power
                     if w > 0:
                         self.shifted[self.indexer:self.indexer + duration] += power
+                    energy += (power * duration) / 60
+            self.cost[self.indexer] += (energy * price)
             return True
         else:
             return False

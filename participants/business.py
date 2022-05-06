@@ -10,7 +10,7 @@ class BusinessModel(BasicParticipant):
     def __init__(self, T, *args, **kwargs):
         super().__init__(T, **kwargs)
         self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='business', resolution='15min',
-                                                     random_choice=False)
+                                                     london_data=False)
         self.persons = []
 
     def get_fixed_power(self, d_time: datetime):

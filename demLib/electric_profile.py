@@ -4,11 +4,6 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 engine = create_engine('postgresql://opendata:opendata@10.13.10.41:5432/londondatastore')
-query = 'SELECT "LCLid" from consumption where ' \
-        '"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\' and power <= 11 ' \
-        'group by "LCLid" ' \
-        'having sum(power) >= 2000 and sum(power) < 17000  and count(power) >= 17520'
-ids = pd.read_sql(query, engine)
 
 
 path = r'./demLib/data/'
@@ -60,7 +55,7 @@ summer = np.asarray(np.load(open(fr'{path}summer.pkl', 'rb')))
 
 class StandardLoadProfile:
 
-    def __init__(self, demandP, type='household', resolution='hourly', random_choice=False):
+    def __init__(self, demandP, type='household', resolution='hourly', london_data=False, l_id=None):
 
         self.type = type
         self.demandP = demandP
@@ -70,11 +65,10 @@ class StandardLoadProfile:
         self.summer = summer
 
         self.resolution = resolution
-        self.random_choice = random_choice
+        self.london_data = london_data
 
-        if random_choice:
-            id_ = np.random.choice(ids.to_numpy().flatten())
-            query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{id_}\' and' \
+        if london_data:
+            query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{l_id}\' and' \
                     f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
             self.data = pd.read_sql(query, engine)
             self.data = self.data.set_index('time')
@@ -89,7 +83,7 @@ class StandardLoadProfile:
         dow = d.dayofweek
         year = d.year
 
-        if self.random_choice:
+        if self.london_data:
             demand = self.data.loc[self.data.index.dayofyear == doy]
             if self.resolution == 'min':
                 demand = demand.resample('min').ffill()
