@@ -31,6 +31,7 @@ def run_simulation(s, ev_ratio, charge_limit, sd, ed, df):
         start_scenario(s)
         logger.info('started simulation')
 
+
 # -> Dashboard <-
 st.set_page_config(layout="wide")
 title = st.title('Smart DSO Dashboard')
@@ -83,7 +84,7 @@ with st.expander('Charging Overview', expanded=True):
         s = round(shifted['avg'].values.sum() / 60, 2)
         col1.metric("Charged [kWh]", f'{c}')
         col2.metric("Shifted [kWh]", f'{s}')
-        col3.metric("Ratio [%]", f'{round(s/c * 100, 2)}')
+        col3.metric("Ratio [%]", f'{round(s / c * 100, 2)}')
     except:
         st.write('Error - No Data Found')
 
