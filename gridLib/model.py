@@ -100,7 +100,7 @@ class GridModel:
         else:
             i = self.data[type_]['bus0'].isin(model.buses.index) | self.data[type_]['bus1'].isin(model.buses.index)
             data = self.data[type_].loc[i]
-        data.index.EV_RATIO = 'name'
+        data.index.name = 'name'
         df = data.reset_index()
         return gpd.GeoDataFrame(df.loc[:, ['name', 'geometry']], geometry='geometry')
 
