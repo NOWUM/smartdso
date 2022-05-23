@@ -6,79 +6,83 @@ from datetime import datetime, timedelta as td
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
-from agents.utils import WeatherGenerator
 
-# --> read known consumers and nodes
-allocated_consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
-h0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'H0']
-g0_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'G0']
-rlm_consumers = allocated_consumers.loc[allocated_consumers['profile'] == 'RLM']
-
-nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
-
-nuts_code = 'DEA26'
+# -> read known consumers and nodes
+consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
+h0_consumers = consumers.loc[consumers['profile'] == 'H0']
+g0_consumers = consumers.loc[consumers['profile'] == 'G0']
+rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']
 
 
 class FlexibilityProvider:
 
-    def __init__(self, **kwargs):
-        self.scenario = kwargs['scenario']
-        self.iteration = kwargs['iteration']
-        self.base_price = kwargs['base_price']
-        self.clients = {}               # --> total clients
-        self.capacity = 0               # --> portfolio capacity
-        self.power = 0                  # --> portfolio power
-        # --> save time range
-        self.time_range = pd.date_range(start=kwargs['start_date'], end=kwargs['end_date'] + td(days=1),
-                                        freq='min')[:-1]
+    def __init__(self, scenario: str, iteration: int, base_price: float, dynamic_fee: bool,
+                 start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
+                 minimum_soc: int = -1, london_data: bool = False, *args, **kwargs):
+
+        # -> scenario name and iteration number
+        self.scenario = scenario
+        self.iteration = iteration
+        # -> economic settings
+        self.base_price = base_price
+        self.dynamic_fee = dynamic_fee
+        # -> total clients
+        self.clients = {}
+        # -> time range
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
         self.indexer = 0
         len_ = len(self.time_range)
-        self.dynamic_fee = kwargs['dynamic_fee']
-        # --> simulation monitoring
-        self.empty_counter = np.zeros(len_)         # --> counts the number of ev, which drive without energy
-        self.virtual_source = np.zeros(len_)        # --> energy demand, which is needed if the ev is emtpy
-        self.prices = np.zeros(len_)                # --> summarized prices of all nodes
-        self.charged = np.zeros(len_)               # --> summarized charging of all cars
-        self.shifted = np.zeros(len_)               # --> summarized shift charge of all cars
-        self.sub_grid = -1*np.ones(len_)            # --> detect sub grid
-        self.soc = np.zeros(len_)                   # --> summarized soc of all cars
+        # -> simulation monitoring
+        self.capacity = 0
+        self.power = 0
+        self.empty_counter = np.zeros(len_)
+        self.virtual_source = np.zeros(len_)
+        self.prices = np.zeros(len_)
+        self.charged = np.zeros(len_)
+        self.shifted = np.zeros(len_)
+        self.sub_grid = -1*np.ones(len_)
+        self.soc = np.zeros(len_)
         self.cost = np.zeros(len_)
 
-        # --> create household clients
+        # -> create household clients
         for _, consumer in h0_consumers.iterrows():
-            sim_parameters = dict(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                  residents=int(max(consumer['jeb'] / 1500, 1)), l_id = consumer['london_data'])
-            sim_parameters.update(kwargs)
-            client = HouseholdModel(**sim_parameters)
+
+            client = HouseholdModel(demandP=consumer['jeb'],
+                                    residents=int(max(consumer['jeb'] / 1500, 1)),
+                                    london_data=london_data,
+                                    l_id=consumer['london_data'],
+                                    minimum_soc=minimum_soc,
+                                    ev_ratio=ev_ratio,
+                                    start_date=start_date,
+                                    end_time=end_date,
+                                    grid_node=consumer['bus0'])
+
             for person in [p for p in client.persons if p.car.type == 'ev']:
                 self.capacity += person.car.capacity
                 self.power += person.car.maximal_charging_power
             self.clients[uuid.uuid1()] = client
-        # --> select reference car
-        self.reference_car = None
-        while self. reference_car is None:
-            key = np.random.choice([key for key in self.clients.keys()])
-            for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
-                self.reference_car = person.car
 
-        # --> create business clients
+        # -> select reference car
+        self.reference_car = None
+        if ev_ratio > 0:
+            while self. reference_car is None:
+                key = np.random.choice([key for key in self.clients.keys()])
+                for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
+                    self.reference_car = person.car
+
+        # -> create business clients
         for _, consumer in g0_consumers.iterrows():
             client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
             self.clients[uuid.uuid1()] = client
 
-        # --> create industry clients
+        # -> create industry clients
         for _, consumer in rlm_consumers.iterrows():
             client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
             self.clients[uuid.uuid1()] = client
 
-        # ---> set weather parameters
-        self._nuts3 = nuts_code
-        self._weather_generator = WeatherGenerator()
 
     def _generate_weather(self, d_time: datetime):
-        weather = self._weather_generator.get_weather(d_time.replace(year=1996), self._nuts3)
-        for participant in self.clients.values():
-            participant.set_parameter(weather=weather.copy(), prices={})
+        pass
 
     def get_fixed_power(self, d_time: datetime):
         total_powers = []
@@ -110,10 +114,10 @@ class FlexibilityProvider:
                 empty += int(person.car.empty)
                 pool += person.car.virtual_source
         self.soc[self.indexer] = (capacity / self.capacity) * 100
-        # --> add to simulation monitoring
+        # -> add to simulation monitoring
         self.empty_counter[self.indexer] = empty
         self.virtual_source[self.indexer] = pool
-        # --> increment time counter
+        # -> increment time counter
         self.indexer += 1
 
     def commit(self, id_, request: dict, price: float, sub_id: str):
@@ -136,7 +140,7 @@ class FlexibilityProvider:
             return False
 
     def get_results(self):
-        self.reference_car.monitor['time'] = self.time_range
+        # -> build dataframe for simulation monitoring
         sim_data = pd.DataFrame(dict(iteration=[int(self.iteration)] * len(self.time_range),
                                      scenario=[self.scenario] * len(self.time_range),
                                      charged=self.charged,
@@ -147,11 +151,16 @@ class FlexibilityProvider:
                                      cost=self.cost,
                                      time=self.time_range))
 
-        car_data = pd.DataFrame(self.reference_car.monitor)
-        car_data['iteration'] = int(self.iteration)
-        car_data['scenario'] = self.scenario
+        # -> build dataframe for reference car
+        if self.reference_car:
+            self.reference_car.monitor['time'] = self.time_range
+            car_data = pd.DataFrame(self.reference_car.monitor)
+            car_data['iteration'] = int(self.iteration)
+            car_data['scenario'] = self.scenario
+        else:
+            car_data = None
 
-        # --> determine car data
+        # -> determine car data
         evs, avg_demand, avg_distance = 0, 0, 0
         for household in self.clients.values():
             for person in household.persons:
@@ -167,20 +176,3 @@ class FlexibilityProvider:
         sim_data['avg_demand'] = avg_demand/evs
 
         return sim_data, car_data
-
-
-if __name__ == "__main__":
-    import os
-
-    start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))
-    end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))
-
-    input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),
-                 'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
-                 'start_date': start_date,
-                 'end_date': end_date,
-                 'base_price': 29,
-                 'ev_ratio': int(os.getenv('EV_RATIO', 100)) / 100}
-
-    fp = FlexibilityProvider(**input_set)
-

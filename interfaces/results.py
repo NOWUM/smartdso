@@ -1,13 +1,15 @@
 from sqlalchemy import create_engine, inspect
+from functools import lru_cache
 import pandas as pd
 import os
 
 
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+
 class Results:
 
     def __init__(self, create_tables: bool = False):
-        database_uri = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
-        self.engine = create_engine(database_uri)
+        self.engine = create_engine(DATABASE_URI)
         if create_tables:
             self._create_tables()
         self.tables = inspect(self.engine).get_table_names()
@@ -22,8 +24,7 @@ class Results:
                             "id_ text, "
                             "sub_id integer , "
                             "asset text, "
-                            "avg_util double precision, "
-                            "max_util double precision, "
+                            "utilization double precision, "
                             "PRIMARY KEY (time , id_, iteration, scenario));")
 
         query_create_hypertable = "SELECT create_hypertable('grid', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
@@ -38,8 +39,8 @@ class Results:
                             "charged double precision, "
                             "shifted double precision, "
                             "price double precision, "
-                            "cost double precision, "
                             "soc double precision, "
+                            "cost double precision, "
                             "total_ev double precision, "
                             "avg_distance double precision, "
                             "avg_demand double precision, "
@@ -70,7 +71,7 @@ class Results:
 
     def _get_scenarios(self):
         scenarios = dict()
-        for table in self.tables:
+        for table in self.tables[:1]:
             query = f'select distinct scenario from {table}'
             scenarios[table] = set([value._data[0] for value in self.engine.execute(query).fetchall()])
         return set.intersection(*scenarios.values()) if len(scenarios) > 0 else set()
@@ -87,6 +88,7 @@ class Results:
             iteration[table] = set([value._data[0] for value in self.engine.execute(query).fetchall()])
         return set.intersection(*iteration.values()) if len(iteration) > 0 else set()
 
+    @lru_cache
     def get_cars(self, scenario: str, iteration: int):
         query = f"Select time, odometer, soc, work, errand, hobby from cars where scenario='{scenario}' " \
                 f"and iteration={iteration}"
@@ -96,6 +98,7 @@ class Results:
 
         return dataframe
 
+    @lru_cache
     def get_evs(self, scenario: str, iteration: int):
         query = f"select total_ev, avg_distance, avg_demand from vars where scenario='{scenario}' " \
                 f"and iteration={iteration}"
@@ -103,6 +106,7 @@ class Results:
 
         return dataframe.iloc[0, :]
 
+    @lru_cache
     def get_vars(self, scenario: str):
         query = f"select time, avg(price) as avg_price, max(price) as max_price, min(price) as min_price, " \
                 f"avg(shifted) as avg_shifted, max(shifted) as max_shifted, min(shifted) as min_shifted," \
@@ -115,13 +119,14 @@ class Results:
 
         return dataframe
 
+    @lru_cache
     def get_asset_type_util(self, asset: str, scenario: str):
         query = f"select to_char(time, 'hh24:00') as t, " \
                 f"percentile_cont(0.25) within group (order by utilization) as percentile_25," \
                 f" percentile_cont(0.75) within group (order by utilization) as percentile_75, " \
                 f" percentile_cont(0.95) within group (order by utilization) as percentile_95, " \
                 f"avg(utilization), max(utilization) "
-        if asset == 'transformer':
+        if asset == 'transformer' or asset == 'outlet' or asset == 'inlet':
             query += f"from grid where scenario='{scenario}' and asset='{asset}' group by t"
         elif asset == 'line':
             query += f"from grid where scenario='{scenario}' and (asset='outlet' " \
@@ -133,14 +138,19 @@ class Results:
 
         return dataframe
 
+    @lru_cache
     def get_sorted_utilization(self, scenario: str):
         query = f"select utilization as util from grid where scenario='{scenario}' " \
-                f"and utilization > 0.001 order by max_util desc"
+                f"and utilization > 0.001 order by utilization desc"
         dataframe = pd.read_sql(query, self.engine)
         return dataframe.values.flatten()
 
-
-if __name__ == "__main__":
-    r = Results(create_tables=True)
-
+    @lru_cache
+    def get_line_utilization(self, scenario: str, iteration: int, t: str):
+        query = f"select id_, utilization from grid where scenario='{scenario}' " \
+                f"and iteration='{iteration}' and (asset='outlet' or asset='inlet') " \
+                f"and time ='{t}'"
+        dataframe = pd.read_sql(query, self.engine)
+        dataframe.columns = ['name', 'utilization']
+        return dataframe.set_index('name')
 

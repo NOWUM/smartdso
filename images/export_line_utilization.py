@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger('ImageExporter')
 
-EV_RATIO = 'EV80'
+EV_RATIO = 'EV100'
 FONT = dict(family="Verdana", size=10, color="black")
 START_DATE, END_DATE = pd.to_datetime('2022-01-03'), pd.to_datetime('2022-01-10')
 
@@ -23,13 +23,14 @@ SUB_TITLES = 2 * [f"{TITLES[s]}" for s in [s for s in TITLES.keys()]]
 
 RESULTS = Results()
 
-FIG = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=False, subplot_titles=SUB_TITLES)
+FIG = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=False, subplot_titles=SUB_TITLES,
+                    horizontal_spacing=0.1)
 
 if __name__ == "__main__":
 
     for col, scenario in zip([1, 2], [s for s in TITLES.keys()]):
         logger.info(f'-> collecting data for {scenario}')
-        for row, asset in zip([1, 2], ['line', 'transformer']):
+        for row, asset in zip([1, 2], ['inlet', 'outlet']):
             data = RESULTS.get_asset_type_util(asset=asset, scenario=scenario)
             for column in data.columns:
                 FIG.add_trace(go.Scatter(x=data.index,
@@ -57,4 +58,4 @@ if __name__ == "__main__":
     FIG.update_xaxes(showgrid=True, gridwidth=0.1, gridcolor='rgba(0, 0, 0, 0.5)')
     FIG.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     FIG.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
-    FIG.write_image(f'./images/{EV_RATIO}_utilization.svg', width=1200, height=600)
+    FIG.write_image(f'./images/{EV_RATIO}_line_utilization.svg', width=1200, height=600)

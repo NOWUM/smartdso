@@ -142,5 +142,5 @@ class CapacityProvider:
 
 
 if __name__ == "__main__":
-    cp = CapacityProvider(**dict(start_date='2022-02-01', end_date='2022-02-02'))
+    cp = CapacityProvider(**dict(start_date='2022-02-01', end_date='2022-02-02', scenario=None, iteration=None))
 

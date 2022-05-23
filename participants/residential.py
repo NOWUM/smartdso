@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from datetime import datetime
 
 from participants.basic import BasicParticipant
@@ -9,28 +8,33 @@ from demLib.electric_profile import StandardLoadProfile
 
 class HouseholdModel(BasicParticipant):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, demandP: float, residents: int, london_data: bool = False, l_id: str = None,
+                 ev_ratio = 0.5, minimum_soc=-1, start_date=datetime(2022,1,1), end_time=datetime(2022,1,2),
+                 base_price: float = 29, T: int = 1440, grid_node: str = None,*args, **kwargs):
+        super().__init__(T=T, grid_node=grid_node)
 
-        # ---> initialize profile generator
-        self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='household', resolution='15min',
-                                                     london_data=kwargs['london_data'], l_id=kwargs['l_id'])
-        # ---> residents
-        self.persons = [Resident(**kwargs) for i in range(kwargs['residents']) if i <= 1]
+        # -> initialize profile generator
+        self.profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data, l_id=l_id)
+        # -> create residents with cars
+        self.persons = [Resident(ev_ratio=ev_ratio, minimum_soc=minimum_soc, base_price=base_price,
+                                 start_date=start_date, end_time=end_time)
+                        for _ in range(min(2, residents))]
 
         self.delay = 0
         self.waiting_time = 0
 
     def get_fixed_power(self, d_time: datetime):
-        return self.profile_generator.run_model(d_time)     # --> return time series (1/4 h) [kW]
+        # -> return time series (1/4 h) [kW]
+        return self.profile_generator.run_model(d_time)
 
     def get_request(self, d_time: datetime):
-        if self.delay == 0:                                 # --> charging if waiting expired
+        # -> charging if waiting expired
+        if self.delay == 0:
             requests = [(0, 0)]
             for person in [p for p in self.persons if p.car.type == 'ev']:
                 p, duration = person.car.plan_charging(d_time)
-                requests += [(p, duration)]                 # --> add to request
-            return {str(self.grid_node): requests}          # --> return to fp-agent
+                requests += [(p, duration)]                 # -> add to request
+            return {str(self.grid_node): requests}          # -> return to fp-agent
         elif self.delay > 0:
             self.delay -= 1
         return {str(self.grid_node): [(0, 0)]}
@@ -45,21 +49,18 @@ class HouseholdModel(BasicParticipant):
                         person.car.charging = True
                     self.waiting_time = 0
                 return True
-        # --> wait 30-60 minutes till next try
+        # -> wait 30-60 minutes till next try
         self.delay = np.random.randint(low=30, high=60)
         self.waiting_time += self.delay
         return False
 
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == 'ev']:
-            person.car.charge(d_time)           # --> perform charging
-            demand = person.car.drive(d_time)   # --> drive the car
+            person.car.charge(d_time)           # -> do charging
+            demand = person.car.drive(d_time)   # -> do driving
             if demand > 0:
                 self.waiting_time = 0
 
 
 if __name__ == "__main__":
-    sim_paras = dict(T=96, start_date=pd.to_datetime('2022-01-01'), end_date=pd.to_datetime('2022-02-01'),
-                     ev_ratio=1, minimum_soc=30, grid_node='nowum', residents=3, demandP=3000, london_data=False,
-                     base_price=29)
-    house = HouseholdModel(**sim_paras)
+    house = HouseholdModel(residents=5, demandP=5000)

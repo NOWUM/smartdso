@@ -8,7 +8,7 @@ from matplotlib import cm
 
 
 # -> mapbox token
-api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
+api_key = None
 # -> init state for pydeck map
 view_state = pdk.ViewState(latitude=50.8076277635652, longitude=6.492433919140283, zoom=13)
 # -> plotly font style
@@ -47,8 +47,6 @@ def add_confidence(f: go.Figure, df: pd.DataFrame, name: str, row: int = 1, col:
                 secondary_y=secondary_y, row=row, col=col)
 
     return f
-
-
 
 
 def plot_charge(df_charge: pd.DataFrame, df_shift: pd.DataFrame, df_price: pd.DataFrame):
@@ -262,16 +260,20 @@ def plot_grid(line_utilization: pd.DataFrame = None, sub_id: str = 'total'):
         edges = edges.reset_index()
 
         layers += [pdk.Layer(type="PathLayer", data=edges, pickable=True, width_min_pixels=1,
-                             get_path="geometry.coordinates", get_color='color')]
+                             get_path="geometry.coordinates", get_color='color', getWidth=1)]
 
     layers += [pdk.Layer(type="ScatterplotLayer", data=nodes, pickable=True,
                          radius_min_pixels=2, radius_max_pixels=5, get_position="geometry.coordinates",
                          get_color=[0, 0, 255])]
 
     layers += [pdk.Layer(type="ScatterplotLayer", data=transformers, pickable=True,
-                         radius_min_pixels=2, radius_max_pixels=5, get_position="geometry.coordinates",
-                         get_color=[0, 0, 127])]
+                         radius_min_pixels=3, radius_max_pixels=6, get_position="geometry.coordinates",
+                         get_fill_color=[0, 0, 0])]
 
     return pdk.Deck(layers=layers, initial_view_state=view_state, api_keys=dict(mapbox=api_key), map_provider='mapbox',
                     map_style='road', tooltip={"html": "<b>Name: </b> {name} <br /> "
-                                                       "<b>Utilization: </b> {utilization} %<br />"}, )
+                                                         "<b>Utilization: </b> {utilization} %<br />"}, )
+
+
+if __name__ == "__main__":
+    fig = plot_grid()

@@ -1,7 +1,9 @@
+import time
+
 import pandas as pd
 import streamlit as st
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from gridLib.model import GridModel
 from interfaces.results import Results
@@ -13,10 +15,19 @@ logger = logging.getLogger('Control Center')
 # -> grid reference
 grid = GridModel()
 # -> simulation servers
-servers = ["10.13.10.54", "10.13.10.55", "10.13.10.56"]
-# -> scenarios in DB
-r = Results()
+servers = ["10.13.10.54", "10.13.10.55", "10.13.10.58"]
 
+# -> Dashboard <-
+st.set_page_config(layout="wide")
+title = st.title('Smart DSO Dashboard')
+
+@st.cache(allow_output_mutation=True)
+def get_database_connection():
+    return Results()
+
+r = get_database_connection()
+scs = list(r.scenarios)
+scs.sort()
 
 # -> start a new simulation
 def run_simulation(s, ev_ratio, charge_limit, sd, ed, df):
@@ -32,25 +43,22 @@ def run_simulation(s, ev_ratio, charge_limit, sd, ed, df):
         logger.info('started simulation')
 
 
-# -> Dashboard <-
-st.set_page_config(layout="wide")
-title = st.title('Smart DSO Dashboard')
-
 # -> scenario selection
 with st.sidebar.expander('Select Result Set', expanded=True):
-    scenario = st.radio("Select Scenario:", r.scenarios, key='charging_scenario')
-    r.scenario = scenario
+    scenario = st.radio("Select Scenario:", scs, key='charging_scenario')
 
 try:
     # -> get simulation results
-    sim_result = r.get_vars()
+    sim_result = r.get_vars(scenario=scenario)
     charged = sim_result.loc[:, 'charged']
     shifted = sim_result.loc[:, ['avg_shifted', 'min_shifted', 'max_shifted']]
     shifted.columns = map(lambda x: x.split('_')[0], shifted.columns)
     price = sim_result.loc[:, ['avg_price', 'min_price', 'max_price']]
     price.columns = map(lambda x: x.split('_')[0], shifted.columns)
 except:
-    pass
+    charged = pd.DataFrame(columns=['charged'])
+    shifted = pd.DataFrame(columns=['avg', 'min', 'max'])
+    price = pd.DataFrame(columns=['avg', 'min', 'max'])
 
 with st.sidebar.expander('Configure Simulation', expanded=False):
     with st.form(key='simulation_vars'):
@@ -85,7 +93,8 @@ with st.expander('Charging Overview', expanded=True):
         col1.metric("Charged [kWh]", f'{c}')
         col2.metric("Shifted [kWh]", f'{s}')
         col3.metric("Ratio [%]", f'{round(s / c * 100, 2)}')
-    except:
+    except Exception as e:
+        print(e)
         st.write('Error - No Data Found')
 
 # -> car overview
@@ -95,12 +104,12 @@ with st.expander('Car', expanded=False):
         plot, select = st.columns([3, 1])
 
         with select:
-            iteration = st.selectbox("Select Car:", r.iterations)
+            iteration = st.selectbox("Select Car:", range(30))
         with plot:
-            car_result = r.get_cars()
+            car_result = r.get_cars(scenario=scenario, iteration=iteration)
             st.plotly_chart(plot_car_usage(car_result), use_container_width=True)
 
-        evs_result = r.get_evs()
+        evs_result = r.get_evs(scenario=scenario, iteration=iteration)
         count_ev, avg_distance, avg_demand, _ = st.columns([1, 1, 1, 1])
         count_ev.metric("Total EVs", f'{int(evs_result.total_ev)}')
         avg_distance.metric("Distance [km/a]", f'{round(365 * evs_result.avg_distance, 2)}')
@@ -111,20 +120,18 @@ with st.expander('Car', expanded=False):
 # -> grid overview
 with st.expander('Grid', expanded=False):
     st.subheader('Grid Utilization')
-    try:
-        plot, tables = st.columns([2, 1])
-        with plot:
-            st.write(plot_grid(line_utilization=None, sub_id='total'))
-        with tables:
-            st.caption('Out Line Utilization')
-            st.dataframe(r.get_maximal_util(asset='inlet'))
-            st.caption('In Line Utilization')
-            st.dataframe(r.get_maximal_util(asset='outlet'))
-            st.caption('Transformer Utilization')
-            st.dataframe(r.get_maximal_util(asset='transformer'))
-        st.caption('Lines')
-        st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='line')), use_container_width=True)
-        st.caption('Transformers')
-        st.plotly_chart(plot_utilization(r.get_asset_type_util(asset='transformer')), use_container_width=True)
-    except:
-        st.write('Error - No Data Found')
+
+    plot, select = st.columns([3, 1])
+    with select:
+        iteration = st.selectbox("Select Iteration:", range(30))
+        start_time = st.selectbox("Select Time:", [t.strftime("%Y-%m-%d %H:%M")
+                                                for t in pd.date_range(start='2022-01-01 00:00',
+                                                                       end='2022-01-15 23:45',
+                                                                       freq='15min')])
+    with plot:
+        try:
+            df = r.get_line_utilization(scenario=scenario, iteration=iteration, t=start_time)
+            st.write(plot_grid(line_utilization=df, sub_id='total'))
+        except Exception as e:
+            print(e)
+            st.write('Error - No Data Found')

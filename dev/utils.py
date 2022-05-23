@@ -1,7 +1,7 @@
 from pvlib.location import Location
 import pandas as pd
 
-from interfaces.weather import WeatherInterface
+from dev.weather import WeatherInterface
 
 
 def pool_func(participant, d_time):

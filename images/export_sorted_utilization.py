@@ -13,8 +13,13 @@ font = dict(family="Verdana", size=10, color="black")
 
 names = {f'EV100CONTROL-FALSE': f'EV 100 % - Without Grid Fee',
          f'EV100CONTROL-TRUE': f'EV 100 % - Dynamic Grid Fee',
-         f'EV80CONTROL-FALSE': f'EV 80 % - Without Grid Fee',
-         f'EV50CONTROL-FALSE': f'EV 50 % - Without Grid Fee'}
+         f'EV80CONTROL-FALSE': f'EV 80 % - Without Grid Fee'}
+         #f'EV50CONTROL-FALSE': f'EV 50 % - Without Grid Fee'}
+
+lines = {f'EV100CONTROL-FALSE':dict(color='rgba(135,0,0,1)', width=1.5),
+         f'EV100CONTROL-TRUE':dict(color='rgba(0,135,0,1)', width=1.5),
+         f'EV80CONTROL-FALSE':dict(color='rgba(0,0,135,1)', width=1.5)
+         }
 
 fig = make_subplots(rows=1, cols=1, shared_xaxes=True, shared_yaxes=False)
 
@@ -23,10 +28,23 @@ for key in names.keys():
     data = r.get_sorted_utilization(scenario=key)[::10000]
     fig.add_trace(go.Scatter(x=np.linspace(0,100,len(data)),
                              y=data,
-                             # line=lines[column],
+                             line=lines[key],
                              showlegend=True,
                              name=names[key]),
                   secondary_y=False, row=1, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=[0],
+        y=[data[0]],
+        mode="markers+text",
+        text=[names[key]],
+        line=lines[key],
+        textposition="bottom right",
+        showlegend=False),
+        row=1,
+        col=1,
+        secondary_y=False
+    )
 
 fig.update_yaxes(title_text=f"Utilization [%]", showgrid=True, gridwidth=0.1, gridcolor='rgba(0, 0, 0, 0.5)',
                  range=[0, 150], dtick=25)

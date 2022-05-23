@@ -9,18 +9,18 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 data_path = r'./gridLib/data/export'
-# ---> read nodes
+# -> read nodes
 total_nodes = pd.read_csv(fr'{data_path}/nodes.csv', index_col=0)
 total_nodes['geometry'] = total_nodes['shape'].apply(loads)
-# ---> read transformers
+# -> read transformers
 total_transformers = pd.read_csv(fr'{data_path}/transformers.csv', index_col=0)
 total_transformers['geometry'] = total_transformers['shape'].apply(loads)
-# ---> read edges
+# -> read edges
 total_edges = pd.read_csv(fr'{data_path}/edges.csv', index_col=0)
 total_edges['geometry'] = total_edges['shape'].apply(loads)
-# ---> read known consumers
+# -> read known consumers
 total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
-
+# total_consumers = pd.read_csv(fr'{data_path}/consumers.csv', index_col=0)
 
 class GridModel:
 
@@ -98,8 +98,9 @@ class GridModel:
         elif type_ == 'edges':
             data = self.data[type_].loc[self.data[type_].index.isin(model.lines.index)]
         else:
-            data = self.data[type_].loc[self.data[type_].index.isin(model.transformers.index)]
-        data.index.name = 'name'
+            i = self.data[type_]['bus0'].isin(model.buses.index) | self.data[type_]['bus1'].isin(model.buses.index)
+            data = self.data[type_].loc[i]
+        data.index.EV_RATIO = 'name'
         df = data.reset_index()
         return gpd.GeoDataFrame(df.loc[:, ['name', 'geometry']], geometry='geometry')
 
@@ -118,5 +119,26 @@ class GridModel:
             self._logger.error(repr(e))
             self._logger.error('error during power flow calculation')
 
+if __name__ == "__main__":
+    from plotting import show_plot
+    import plotly
+    key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
+    # plotly.io.orca.config.mapbox_access_token = key
+    m = GridModel()
+    # for s_id in [f'{i}' for i in range(5)]:
+    #     index_set = m.sub_networks[s_id].buses.index
+    #     nodes = m.data['nodes'].loc[index_set]
+    #     edges = m.data['edges'].loc[m.data['edges']['bus0'].isin(index_set)
+    #                                 | m.data['edges']['bus1'].isin(index_set)]
+    #     transformers = m.data['transformers'].loc[m.data['transformers']['bus0'].isin(index_set)
+    #                                               | m.data['transformers']['bus1'].isin(index_set)]
+    #     # consumers = m.data['connected']
+    #     consumers = pd.DataFrame()
+    #
+    #     fig =show_plot(nodes=nodes, edges=edges, transformers=transformers, consumers=consumers)
+    #     font = dict(family="Verdana", size=10, color="black")
+    #     fig.update_layout(font=font, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    #     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+    #     fig.write_image(rf'./images/sub_{s_id}.svg', width=1200, height=600)
 
 

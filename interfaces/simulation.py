@@ -5,7 +5,6 @@ import os
 
 logger = logging.getLogger('simulation_server')
 
-api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
 pk = paramiko.Ed25519Key.from_private_key(open(r'C:\Users\rieke\.ssh\id_ed25519'))
 image_repo = 'registry.git.fh-aachen.de/nowum-energy/projects/smartdso/'
 

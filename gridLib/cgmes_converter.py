@@ -37,7 +37,7 @@ class CGMESConverter:
 
         self._logger = logging.getLogger('converter')                   # converting logging
         self._working_path = path                                       # path where the xml file are stored
-        self._sub_paths = {'0.4': fr'{self._working_path}400V/*.xml',
+        self._sub_paths = {'0.4': fr'{self._working_path}_400V/*.xml',
                            '10': fr'{self._working_path}10kV/*.xml',
                            '20': fr'{self._working_path}20kV/*.xml' }
         self._voltage_levels = levels                                   # maximal voltage level
@@ -430,9 +430,9 @@ class CGMESConverter:
             print(repr(e))
 
 if __name__ == "__main__":
-    converter = CGMESConverter()
+    converter = CGMESConverter(levels=(0.4,))
     converter.convert()
-    converter.save()
+    converter.save(r'./data/export/new/')
     # converter.plot()
 
 
