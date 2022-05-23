@@ -101,21 +101,21 @@ if __name__ == "__main__":
                 logger.error(f' -> error during simulation: {repr(e)}')
 
     # -> collect results
-    # try:
-    #     sim_data, car_data = FlexProvider.get_results()
-    #     sim_data.to_sql('vars', engine, index=False, if_exists='append')
-    #     if car_data:
-    #         car_data.to_sql('cars', engine,  index=False, if_exists='append')
-    # except Exception as e:
-    #     logger.error(repr(e))
-    #     raise Exception(f"Can't store data from FlexProvider in database {DATABASE_URI}")
-    #
-    # try:
-    #     lines, transformers, = CapProvider.get_results()
-    #     for line in lines:
-    #         pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
-    #     for transformer in transformers:
-    #         pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
-    # except Exception as e:
-    #     logger.error(repr(e))
-    #     raise Exception(f"Can't store data from CapProvider in database {DATABASE_URI}")
+    try:
+        sim_data, car_data = FlexProvider.get_results()
+        sim_data.to_sql('vars', engine, index=False, if_exists='append')
+        if car_data:
+            car_data.to_sql('cars', engine,  index=False, if_exists='append')
+    except Exception as e:
+        logger.error(repr(e))
+        raise Exception(f"Can't store data from FlexProvider in database {DATABASE_URI}")
+
+    try:
+        lines, transformers, = CapProvider.get_results()
+        for line in lines:
+            pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
+        for transformer in transformers:
+            pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
+    except Exception as e:
+        logger.error(repr(e))
+        raise Exception(f"Can't store data from CapProvider in database {DATABASE_URI}")
