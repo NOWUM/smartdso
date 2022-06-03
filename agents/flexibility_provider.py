@@ -6,6 +6,7 @@ from datetime import datetime, timedelta as td
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
+from agents.utils import WeatherGenerator
 
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
@@ -18,7 +19,7 @@ class FlexibilityProvider:
 
     def __init__(self, scenario: str, iteration: int, base_price: float, dynamic_fee: bool,
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
-                 minimum_soc: int = -1, london_data: bool = False, *args, **kwargs):
+                 minimum_soc: int = -1, london_data: bool = False, pv_ratio: float = 0.3, *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
@@ -28,6 +29,9 @@ class FlexibilityProvider:
         self.dynamic_fee = dynamic_fee
         # -> total clients
         self.clients = {}
+        self._rq_id = None
+        # -> weather generator
+        self.weather_generator = WeatherGenerator()
         # -> time range
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
         self.indexer = 0
@@ -43,9 +47,16 @@ class FlexibilityProvider:
         self.sub_grid = -1*np.ones(len_)
         self.soc = np.zeros(len_)
         self.cost = np.zeros(len_)
+        self.pv_capacity = 0
 
         # -> create household clients
         for _, consumer in h0_consumers.iterrows():
+
+            if np.random.choice(a=[True, False], p=[pv_ratio, 1-pv_ratio]):
+                pv_system = dict(pdc0=consumer['photovoltaic_potential'], surface_tilt=35, surface_azimuth=180)
+                self.pv_capacity += consumer['photovoltaic_potential']
+            else:
+                pv_system = None
 
             client = HouseholdModel(demandP=consumer['jeb'],
                                     residents=int(max(consumer['jeb'] / 1500, 1)),
@@ -53,8 +64,9 @@ class FlexibilityProvider:
                                     l_id=consumer['london_data'],
                                     minimum_soc=minimum_soc,
                                     ev_ratio=ev_ratio,
+                                    pv_system=pv_system,
                                     start_date=start_date,
-                                    end_time=end_date,
+                                    end_date=end_date,
                                     grid_node=consumer['bus0'])
 
             for person in [p for p in client.persons if p.car.type == 'ev']:
@@ -70,40 +82,49 @@ class FlexibilityProvider:
                 for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
                     self.reference_car = person.car
 
-        # -> create business clients
-        for _, consumer in g0_consumers.iterrows():
-            client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-            self.clients[uuid.uuid1()] = client
+        # # -> create business clients
+        # for _, consumer in g0_consumers.iterrows():
+        #     client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
+        #     self.clients[uuid.uuid1()] = client
+        #
+        # # -> create industry clients
+        # for _, consumer in rlm_consumers.iterrows():
+        #     client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
+        #     self.clients[uuid.uuid1()] = client
 
-        # -> create industry clients
-        for _, consumer in rlm_consumers.iterrows():
-            client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-            self.clients[uuid.uuid1()] = client
+    def initialize_time_series(self):
 
+        def build_dataframe(data, id_):
+            dataframe = pd.DataFrame({'power': data.values})
+            dataframe.index = self.time_range
+            dataframe['id_'] = str(id_)
+            dataframe['node_id'] = client.grid_node
+            dataframe = dataframe.rename_axis('t')
+            return dataframe
 
-    def _generate_weather(self, d_time: datetime):
-        pass
+        weather = pd.concat([self.weather_generator.get_weather(area='DEA26', date=date)
+                            for date in pd.date_range(start=self.time_range[0], end=self.time_range[-1] + td(days=1),
+                                                      freq='d')])
+        weather = weather.resample('15min').ffill()
+        weather = weather.loc[weather.index.isin(self.time_range)]
 
-    def get_fixed_power(self, d_time: datetime):
-        total_powers = []
-        for id_, participant in self.clients.items():
-            df = pd.DataFrame({'power': participant.get_fixed_power(d_time)})
-            df.index = pd.date_range(start=d_time, freq='15min', periods=len(df))
-            df['id_'] = str(id_)
-            df['node_id'] = participant.grid_node
-            df = df.rename_axis('t')
-            total_powers.append(df)
+        demand_, generation_ = [], []
+        for id_, client in self.clients.items():
+            client.set_parameter(weather=weather.copy())
+            client.set_photovoltaic_generation()
+            client.set_fixed_demand()
+            client.set_residual()
+            _, demand = client.get_demand()
+            demand_.append(build_dataframe(demand, id_))
+            _, generation = client.get_generation()
+            generation_.append(build_dataframe(generation, id_))
 
-        return pd.concat(total_powers)
+        return pd.concat(demand_), pd.concat(generation_)
 
     def get_requests(self, d_time: datetime):
-        requests = {id_: participant.get_request(d_time) for id_, participant in self.clients.items()}
-        response = {}
-        for id_, request in requests.items():
-            for key, values in request.items():
-                if any([duration > 0 for _, duration in values]):
-                    response[id_] = request
-        return response
+        for id_, client in self.clients.items():
+            self._rq_id = id_
+            yield client.get_request(d_time), client.grid_node
 
     def simulate(self, d_time: datetime):
         capacity, empty, pool = 0, 0, 0
@@ -120,24 +141,8 @@ class FlexibilityProvider:
         # -> increment time counter
         self.indexer += 1
 
-    def commit(self, id_, request: dict, price: float, sub_id: str):
-        w = self.clients[id_].waiting_time
-        if not self.dynamic_fee:
-            price = 0
-        if self.clients[id_].commit(price):
-            self.prices[self.indexer] = price
-            self.sub_grid[self.indexer] = int(sub_id)
-            energy = 0
-            for _, parameters in request.items():
-                for power, duration in parameters:
-                    self.charged[self.indexer:self.indexer + duration] += power
-                    if w > 0:
-                        self.shifted[self.indexer:self.indexer + duration] += power
-                    energy += (power * duration) / 60
-            self.cost[self.indexer] += (energy * price)
-            return True
-        else:
-            return False
+    def commit(self, price: pd.Series):
+        return self.clients[self._rq_id].commit(price=price)
 
     def get_results(self):
         # -> build dataframe for simulation monitoring

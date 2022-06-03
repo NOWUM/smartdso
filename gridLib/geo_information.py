@@ -52,7 +52,8 @@ class GeoInformation:
         information = []
         for poi in tqdm(self.poi_s):
             information += [self._get_building_info(lon=poi[0], lat=poi[1])]
-        return  information
+        return information
+
 
 if __name__ == "__main__":
     geo_coder = GeoInformation()

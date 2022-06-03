@@ -1,11 +1,8 @@
 from pvlib.location import Location
 import pandas as pd
+import calendar
 
-from dev.weather import WeatherInterface
-
-
-def pool_func(participant, d_time):
-    return participant.get_request(d_time)
+from interfaces.weather import WeatherInterface
 
 
 class WeatherGenerator:
@@ -18,10 +15,14 @@ class WeatherGenerator:
         self.sun_position = self.location.get_solarposition(pd.date_range(start='1972-01-01 00:00', periods=8684,
                                                             freq='h'))
 
-    def get_weather(self, date, area):
+    def get_weather(self, date: pd.Timestamp, area: str):
         azimuth = self.sun_position.loc[self.sun_position.index.day_of_year == date.day_of_year, 'azimuth'].to_numpy()
         zenith = self.sun_position.loc[self.sun_position.index.day_of_year == date.day_of_year, 'zenith'].to_numpy()
-
+        year_ = date.year
+        if calendar.isleap(date.year):
+            date = date.replace(year=2016)
+        else:
+            date = date.replace(year=2015)
         temp_air = self.weather.get_temperature_in_area(area, date)
         wind_speed = self.weather.get_wind_in_area(area, date)
         dhi = self.weather.get_direct_radiation_in_area(area, date)
@@ -30,6 +31,7 @@ class WeatherGenerator:
         df['ghi'] = df['dhi'] + df['dni']
         df['azimuth'] = azimuth
         df['zenith'] = zenith
+        df.index = map(lambda x: x.replace(year=year_), df.index)
 
         return df
 

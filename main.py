@@ -1,9 +1,11 @@
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 import logging
 import os
 from datetime import timedelta as td
 from sqlalchemy import create_engine, inspect
+from matplotlib import pyplot as plt
 
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
@@ -14,7 +16,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))              # -> default start date
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-15'))                  # -> default end date
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))                  # -> default end date
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
@@ -24,6 +26,7 @@ sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 logger.info(f' -> scenario {scenario_name.split("_")[0]}')
 
 save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
+plot = True
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
              'dynamic_fee': (os.getenv('DYNAMIC_FEE', 'True') == 'True'),       #    see: demLib.london_data.py
@@ -31,6 +34,7 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      
              'start_date': start_date,
              'end_date': end_date,
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
+             'pv_ratio': int(os.getenv('PV_RATIO', 30))/100,
              'base_price': int(os.getenv('BASE_PRICE', 29)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim}
@@ -64,19 +68,20 @@ if __name__ == "__main__":
 
     try:
         # -> run SLPs for each day in simulation horizon
-        logger.info(f' -> running slp - generation for {start_date.date()} - {end_date.date()}')
-        fixed_power = []
-        for day in tqdm(pd.date_range(start=start_date, end=end_date, freq='d')):
-            fixed_power += [FlexProvider.get_fixed_power(day)]
+        logger.info(f' -> running photovoltaic and slp generation')
+        fixed_demand, fixed_generation = FlexProvider.initialize_time_series()
         # -> forward the slp data to the Capacity Provider
-        logger.info(f' -> running power flow calculation for {len(CapProvider.mapper.unique())} grids')
-        CapProvider.set_fixed_power(data=pd.concat(fixed_power))
+        logger.info(f' -> running initial power flow calculation')
+        CapProvider.set_fixed_power(data=fixed_demand)
         if save_demand_as_csv:
             if input_set.get('london_data'):
-                pd.concat(fixed_power).groupby('t').sum().to_csv('London.csv', sep=';', decimal=',')
+                fixed_demand.groupby('t').sum().to_csv('London.csv', sep=';', decimal=',')
             else:
-                pd.concat(fixed_power).groupby('t').sum().to_csv('SLP.csv', sep=';', decimal=',')
-
+                fixed_demand.groupby('t').sum().to_csv('SLP.csv', sep=';', decimal=',')
+        if plot:
+            fixed_demand.groupby('t').sum().plot()
+            fixed_generation.groupby('t').sum().plot()
+            plt.show()
     except Exception as e:
         print(repr(e))
         logger.error(f' -> error while slp or power flow calculation: {repr(e)}')
@@ -87,35 +92,32 @@ if __name__ == "__main__":
         logger.info(f' -> running day {day.date()}')
         for d_time in tqdm(pd.date_range(start=day, periods=1440, freq='min')):
             try:
-                for id_, request in FlexProvider.get_requests(d_time).items():
-                    price, utilization, sub_id = CapProvider.get_price(request, d_time)
-                    if FlexProvider.commit(id_, request, price, sub_id):
-                        for node_id, parameters in request.items():
-                            for power, duration in parameters:
-                                CapProvider.fixed_power[node_id][d_time:d_time + td(minutes=duration)] += power
-                        CapProvider.set_utilization()
+                for request, id_ in FlexProvider.get_requests(d_time):
+                    if sum(request.values) > 0:
+                        price = CapProvider.get_price(request=request, node_id=id_)
+                        if FlexProvider.commit(price):
+                            CapProvider.commit(request=request, node_id=id_)
                 FlexProvider.simulate(d_time)
 
             except Exception as e:
-                print(repr(e))
                 logger.error(f' -> error during simulation: {repr(e)}')
 
-    # -> collect results
-    try:
-        sim_data, car_data = FlexProvider.get_results()
-        sim_data.to_sql('vars', engine, index=False, if_exists='append')
-        if car_data:
-            car_data.to_sql('cars', engine,  index=False, if_exists='append')
-    except Exception as e:
-        logger.error(repr(e))
-        raise Exception(f"Can't store data from FlexProvider in database {DATABASE_URI}")
-
-    try:
-        lines, transformers, = CapProvider.get_results()
-        for line in lines:
-            pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
-        for transformer in transformers:
-            pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
-    except Exception as e:
-        logger.error(repr(e))
-        raise Exception(f"Can't store data from CapProvider in database {DATABASE_URI}")
+    # # -> collect results
+    # try:
+    #     sim_data, car_data = FlexProvider.get_results()
+    #     sim_data.to_sql('vars', engine, index=False, if_exists='append')
+    #     if car_data:
+    #         car_data.to_sql('cars', engine,  index=False, if_exists='append')
+    # except Exception as e:
+    #     logger.error(repr(e))
+    #     raise Exception(f"Can't store data from FlexProvider in database {DATABASE_URI}")
+    #
+    # try:
+    #     lines, transformers, = CapProvider.get_results()
+    #     for line in lines:
+    #         pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
+    #     for transformer in transformers:
+    #         pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
+    # except Exception as e:
+    #     logger.error(repr(e))
+    #     raise Exception(f"Can't store data from CapProvider in database {DATABASE_URI}")

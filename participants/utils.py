@@ -27,7 +27,7 @@ class Resident:
             if max_distance < 600:
                 car_type = np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1 - ev_ratio])
             self.car = Car(car_type=car_type, maximal_distance=max_distance, charging_limit=minimum_soc)
-            self.car.set_demand(self.mobility, start_date, end_time)
+            self.car.initialize_time_series(self.mobility, start_date, end_time)
         else:
             self.car = Car(car_type='no car')
 

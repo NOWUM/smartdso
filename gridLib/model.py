@@ -30,8 +30,6 @@ class GridModel:
         self._logger = logging.getLogger('GridModel')
         self._logger.setLevel('ERROR')
 
-        self.sub_networks = []
-
         self.model = pypsa.Network()   # --> total grid model
         self.sub_networks = {}         # --> dict for sub network models
 
@@ -85,13 +83,15 @@ class GridModel:
             model.determine_network_topology()
             model.consistency_check()
 
-            self.sub_networks[index] = model
+            transformer = transformers.loc[transformers['bus0'].isin(model.buses.index), 's_nom']
+
+            self.sub_networks[index] = {'model': model, 's_max': transformer.values[0]}
 
     def get_components(self, type_: str = 'edges', grid='total'):
         if grid == 'total':
             model = self.model
         else:
-            model = self.sub_networks[str(grid)]
+            model = self.sub_networks[str(grid)]['model']
 
         if type_ == 'nodes':
             data = self.data[type_].loc[self.data[type_].index.isin(model.buses.index)]
@@ -107,7 +107,7 @@ class GridModel:
     def run_power_flow(self, sub_id: int):
 
         try:
-            result_summary = self.sub_networks[sub_id].pf()
+            result_summary = self.sub_networks[sub_id]['model'].pf()
             converged = result_summary.converged
             for col in converged.columns:
                 if any(converged[col]):
