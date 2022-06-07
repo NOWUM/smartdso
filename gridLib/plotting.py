@@ -30,8 +30,7 @@ def show_plot(nodes: pd.DataFrame,
             x, y = loads(shape).xy
             lats = np.append(lats, y)
             lons = np.append(lons, x)
-            names = np.append(names, [f'<b>Name:</b> {name} <br />'
-                                      f'<b>S:</b> {round(attributes["s_nom"], 2)} MVA'] * len(y))
+            names = np.append(names, [f'<b>Name:</b> {name} <br />'])
             lats = np.append(lats, [None])
             lons = np.append(lons, [None])
             names = np.append(names, [None])
@@ -54,8 +53,7 @@ def show_plot(nodes: pd.DataFrame,
         demand = consumers.loc[consumers['v_nom'] == voltage_level]
         grid_plot = go.Scattermapbox(name=f'Consumers on {voltage_level} kV', mode='markers',
                                      lon=demand['lon'], lat=demand['lat'],
-                                     hoverinfo='text', hovertext=[f'<b>Name:</b> {index}' for index in demand.index],
-                                     marker=dict(symbol='zoo'))
+                                     hoverinfo='text', hovertext=[f'<b>Name:</b> {index}' for index in demand.index])
         return grid_plot
 
     def get_transformers(voltage_level):
@@ -71,19 +69,19 @@ def show_plot(nodes: pd.DataFrame,
         return grid_plot
 
     fig = go.Figure()
-    try:
-        for voltage_level in voltage_levels:
-            fig.add_trace(get_nodes(voltage_level))
-            # fig.add_trace(get_consumers(voltage_level))
-            fig.add_trace(get_edges(voltage_level))
-            fig.add_trace(get_transformers(voltage_level))
+    #try:
+    for voltage_level in voltage_levels:
+        fig.add_trace(get_nodes(voltage_level))
+        fig.add_trace(get_consumers(voltage_level))
+        fig.add_trace(get_edges(voltage_level))
+        # fig.add_trace(get_transformers(voltage_level))
 
-        api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
+    api_key = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
 
-        fig.update_layout(mapbox=dict(accesstoken=api_key, bearing=0, pitch=0, zoom=16,
-                                      center=go.layout.mapbox.Center(lat=nodes['lat'].mean(), lon=nodes['lon'].mean()),
-                                      style='white-bg', layers=layers), autosize=True)
-        return fig
+    fig.update_layout(mapbox=dict(accesstoken=api_key, bearing=0, pitch=0, zoom=16,
+                                  center=go.layout.mapbox.Center(lat=nodes['lat'].mean(), lon=nodes['lon'].mean()),
+                                  layers=layers), autosize=True)
+    return fig
 
-    except Exception as e:
-        print(repr(e))
+    #except Exception as e:
+    #    print(repr(e))
