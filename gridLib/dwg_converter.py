@@ -3,8 +3,6 @@ import sys
 from matplotlib import pyplot as plt
 import pandas as pd
 import uuid
-from shapely import wkt
-from shapely.geometry import Point
 import logging
 from gridLib.plotting import show_plot
 
