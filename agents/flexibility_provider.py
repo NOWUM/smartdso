@@ -124,7 +124,9 @@ class FlexibilityProvider:
     def get_requests(self, d_time: datetime):
         for id_, client in self.clients.items():
             self._rq_id = id_
-            yield client.get_request(d_time), client.grid_node
+            request = client.get_request(d_time)
+            if sum(request.values) > 0:
+                yield request, client.grid_node
 
     def simulate(self, d_time: datetime):
         capacity, empty, pool = 0, 0, 0
