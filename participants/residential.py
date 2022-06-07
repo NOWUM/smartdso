@@ -20,8 +20,7 @@ VAR_PRICE = 7.9
 # -> default prices EPEX SPOT 2015
 TARIFF = pd.read_csv(r'./participants/data/default_prices.csv', index_col=0)
 TARIFF = TARIFF.values.flatten().repeat(60)
-TARIFF = pd.DataFrame(data=dict(prices=TARIFF),
-                      index=pd.date_range(start='2015-01-01', periods=len(TARIFF), freq='min'))
+TARIFF = pd.Series(data=TARIFF, index=pd.date_range(start='2015-01-01', periods=len(TARIFF), freq='min'))
 
 
 class HouseholdModel(BasicParticipant):
@@ -62,6 +61,8 @@ class HouseholdModel(BasicParticipant):
 
         self.power = None
         self.charging = None
+        self._charging = 0
+        self.grid_fee = pd.Series(index=self.time_range, data=2.6 * np.ones(len(self.time_range)))
 
     def set_fixed_demand(self):
         # -> return time series (1/4 h) [kW]
@@ -97,7 +98,7 @@ class HouseholdModel(BasicParticipant):
 
     def get_request(self, d_time: datetime):
         cars_ = [person.car for person in self.persons if person.car.type == 'ev']
-        if cars_:
+        if self._charging == 0 and cars_ and any([car.soc < 95 for car in cars_]):
             cars = range(len(cars_))
             # -> calculate total capacity of all cars and the total benefit
             total_capacity = sum([c.capacity for c in cars_])
@@ -107,7 +108,9 @@ class HouseholdModel(BasicParticipant):
             g = g.loc[d_time:].values
             steps = range(min(self.T, len(g)))
             # -> get prices
-            prices = self.tariff.loc[d_time.replace(year=2015):].values
+            tariff = self.tariff.loc[d_time.replace(year=2015):].values
+            grid_fee = self.grid_fee[d_time:].values
+            prices = tariff[steps] + grid_fee[steps]
 
             # -> build model
             self.model.clear()
@@ -141,6 +144,7 @@ class HouseholdModel(BasicParticipant):
                 self.model.soc_limit.add(quicksum(1 / 60 * self.model.power[c, t] for t in steps) <= max_capacity)
 
             self.model.total_capacity = Constraint(expr=self.model.capacity == 1 / 60 * quicksum(self.model.power[c, t]
+
                                                                                                  for c in cars for t in
                                                                                                  steps))
             # -> balance charging, pv and grid consumption
@@ -164,7 +168,6 @@ class HouseholdModel(BasicParticipant):
             self.charging = {c: pd.Series(data=np.asarray([self.model.power[c, t].value for t in steps]),
                                    index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq='min'))
                              for c in cars}
-
         else:
             self.power = pd.Series(data=np.zeros(self.T), index=pd.date_range(start=d_time, periods=self.T, freq='min'))
 
@@ -173,18 +176,26 @@ class HouseholdModel(BasicParticipant):
     def commit(self, price: pd.Series):
         mean_price = sum((self.power.values/60) * price.values)/sum((self.power.values/60))
         if mean_price < self.price_limit:
+            self._charging = 1440
             cars_ = [person.car for person in self.persons if person.car.type == 'ev']
             for car in range(len(cars_)):
                 cars_[car].charging = self.charging[car]
                 cars_[car].charging = True
             return True
         else:
+            self.grid_fee[price.index] = price.values
             return False
 
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == 'ev']:
+            if self._charging == 0:
+                person.car.charging = False
             person.car.charge(d_time)  # -> do charging
             person.car.drive(d_time)  # -> do driving
+
+        if self._charging > 0:
+            self._charging = -1
+
 
 
 if __name__ == "__main__":
