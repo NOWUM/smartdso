@@ -70,27 +70,36 @@ class CapacityProvider:
 
             self.line_utilization[sub_id].loc[snapshots, self._rq_l_util.columns] = self._rq_l_util.values
             self.line_utilization[sub_id].fillna(method='ffill', inplace=True)
-            self.transformer_utilization[sub_id].loc[snapshots, self._rq_t_util.columns] = self._rq_t_util.values
+            self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
             self.transformer_utilization[sub_id].fillna(method='ffill', inplace=True)
 
     def get_price(self, request: pd.Series = None, node_id: str = ''):
         def price_func(util):
-            return ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100 if util and util < 100 else np.inf
+            if util > 100:
+                return 9_999
+            else:
+                return ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
 
-        response = pd.Series(index=request.index, data=[np.inf for _ in range(len(request))])
         # -> set current demand at each node
         data = self.demand.copy()
-        # data = data.loc[data.index.get_level_values(1).isin(request.index)]
-        data.loc[(data.index.get_level_values(0) == node_id) &
-                 (data.index.get_level_values(1).isin(request.index)), 'power'] += request.values
+        data = data.loc[(data.index.get_level_values(level='t') <= request.index[-1]) &
+                        (data.index.get_level_values(level='t') >= request.index[0])]
+        request_ = pd.DataFrame(data=dict(node_id=len(request) * [node_id], t=request.index, power=request.values))
+        request_.set_index(['node_id', 't'], inplace=True)
+
+        data = pd.concat([data, request_], axis=0)
+        data = data.groupby(['node_id', 't']).sum()
+
         sub_id = self.mapper[node_id]
         self.run_power_flow(data=data, sub_id=sub_id)
         self._rq_l_util = self._line_utilization(sub_id=sub_id)
         self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
-        utilization = pd.concat([self._rq_l_util, self._rq_t_util]).max(axis=1)
+        utilization = pd.concat([self._rq_l_util, self._rq_t_util], axis=1).max(axis=1)
+
         prices = [price_func(u) for u in utilization.values]
+        response = pd.Series(index=request.index, data=np.zeros(len(request)))
         response.loc[utilization.index] = prices
-        response.replace(to_replace=np.inf, method='ffill', inplace=True)
+        response.replace(to_replace=0, method='ffill', inplace=True)
 
         return response
 
@@ -102,7 +111,7 @@ class CapacityProvider:
         snapshots = self.grid.sub_networks[sub_id]['model'].snapshots
         self.line_utilization[sub_id].loc[snapshots, self._rq_l_util.columns] = self._rq_l_util.values
         self.line_utilization[sub_id].fillna(method='ffill', inplace=True)
-        self.transformer_utilization[sub_id].loc[snapshots, self._rq_t_util.columns] = self._rq_t_util.values
+        self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
         self.transformer_utilization[sub_id].fillna(method='ffill', inplace=True)
 
         # for sub_id in self.mapper.unique():
