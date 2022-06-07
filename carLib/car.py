@@ -50,7 +50,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = np.random.randint(low=10, high=20)                           # -> state of charge [0,..., 100]
+        self.soc = np.random.randint(low=90, high=100)                          # -> state of charge [0,..., 100]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging = False                                                   # -> true if car charges
@@ -157,8 +157,8 @@ class Car:
     def charge(self, d_time: datetime):
         # -> charge battery for 1 minute
         if self.charging:
-            if self.charging_series:
-                capacity = self.capacity * self.soc / 100 + self.charging_series.loc[d_time].values[0] / 60
+            if self.charging_series is not None:
+                capacity = self.capacity * self.soc / 100 + self.charging_series.loc[d_time] / 60
                 self.soc = capacity / self.capacity * 100
                 self.soc = min(self.soc, 100)
             else:
