@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
 from participants.basic import BasicParticipant
@@ -7,26 +8,26 @@ from demLib.electric_profile import StandardLoadProfile
 
 class BusinessModel(BasicParticipant):
 
-    def __init__(self, T, *args, **kwargs):
-        super().__init__(T, **kwargs)
-        self.profile_generator = StandardLoadProfile(demandP=kwargs['demandP'], type='business', resolution='15min',
-                                                     london_data=False)
-        self.persons = []
+    def __init__(self,
+                 demandP: float,
+                 grid_node: str = None,
+                 start_date: datetime = datetime(2022, 1, 1), end_date: datetime = datetime(2022, 1, 2),
+                 T: int = 1440,
+                 *args, **kwargs):
+        super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date)
+        self.profile_generator = StandardLoadProfile(demandP=demandP, type='business')
 
-    def get_fixed_power(self, d_time: datetime):
-        # ---> get standard load profile
-        self.demand['power'] = self.profile_generator.run_model(pd.to_datetime(d_time))
-        self.power = self.demand['power']
-        return self.power
+    def set_fixed_demand(self) -> None:
+        # -> return time series (1/4 h) [kW]
+        demand = np.asarray([self.profile_generator.run_model(date) for date in self.date_range]).flatten()
+        self._demand = pd.Series(index=self.time_range, data=np.repeat(demand, 15))
 
-    def simulate(self, d_time: datetime):
-        pass
+    def set_photovoltaic_generation(self) -> None:
+        generation = np.zeros(96*len(self.date_range))
+        self._generation = pd.Series(index=self.time_range, data=np.repeat(generation, 15))
 
-    def get_request(self, d_time: datetime):
-        return {str(self.grid_node): [(0, 0)]}
-
-    def commit_charging(self, price):
-        return False
-
-    def set_mobility(self, d_time: datetime):
-        pass
+    def set_residual(self) -> None:
+        self._residual_demand = self._demand - self._generation
+        self._residual_demand[self._residual_demand < 0] = 0
+        self._residual_generation = self._generation - self._demand
+        self._residual_generation[self._residual_generation < 0] = 0
