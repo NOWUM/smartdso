@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import uuid
 import logging
-from gridLib.plotting import show_plot
+from gridLib.plotting import get_plot
 
 logger = logging.getLogger('dwg-converter')
 
@@ -130,5 +130,5 @@ if __name__ == "__main__":
     n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
     consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
 
-    fig = show_plot(nodes=n, consumers=consumers, edges=lines, transformers=None)
+    fig = get_plot(nodes=n, consumers=consumers, edges=lines)
     fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
