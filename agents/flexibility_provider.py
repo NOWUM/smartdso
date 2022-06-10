@@ -2,6 +2,8 @@ import uuid
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta as td
+import threading
+from multiprocessing import Queue
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
@@ -42,7 +44,7 @@ class FlexibilityProvider:
         self.empty_counter = np.zeros(len_)
         self.virtual_source = np.zeros(len_)
         self.prices = np.zeros(len_)
-        self.charged = np.zeros(len_)
+        self.charged = pd.Series(index=self.time_range, data=np.zeros(len_))
         self.shifted = np.zeros(len_)
         self.sub_grid = -1*np.ones(len_)
         self.soc = np.zeros(len_)
@@ -82,17 +84,19 @@ class FlexibilityProvider:
                 for person in [p for p in self.clients[key].persons if p.car.type == 'ev']:
                     self.reference_car = person.car
 
-        # # -> create business clients
-        # for _, consumer in g0_consumers.iterrows():
-        #     client = BusinessModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-        #     self.clients[uuid.uuid1()] = client
-        #
-        # # -> create industry clients
-        # for _, consumer in rlm_consumers.iterrows():
-        #     client = IndustryModel(T=96, demandP=consumer['jeb'], grid_node=consumer['bus0'], **kwargs)
-        #     self.clients[uuid.uuid1()] = client
+        # -> create business clients
+        for _, consumer in g0_consumers.iterrows():
+            client = BusinessModel(T=1440, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+                                   start_date=start_date, end_date=end_date)
+            self.clients[uuid.uuid1()] = client
 
-    def initialize_time_series(self):
+        # -> create industry clients
+        for _, consumer in rlm_consumers.iterrows():
+            client = IndustryModel(T=1440, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+                                   start_date=start_date, end_date=end_date)
+            self.clients[uuid.uuid1()] = client
+
+    def initialize_time_series(self) -> (pd.DataFrame, pd.DataFrame):
 
         def build_dataframe(data, id_):
             dataframe = pd.DataFrame({'power': data.values})
@@ -121,32 +125,34 @@ class FlexibilityProvider:
 
         return pd.concat(demand_), pd.concat(generation_)
 
-    def get_requests(self, d_time: datetime):
+    def get_requests(self, d_time: datetime) -> (pd.Series, str):
         for id_, client in self.clients.items():
-            self._rq_id = id_
             request = client.get_request(d_time)
-            if sum(request.values) > 0:
-                yield request, client.grid_node
+            if sum(request.values) > 1e-6:
+                yield request, client.grid_node, id_
 
-    def simulate(self, d_time: datetime):
+    def simulate(self, d_time: datetime) -> None:
         capacity, empty, pool = 0, 0, 0
         for participant in self.clients.values():
             participant.simulate(d_time)
             for person in [p for p in participant.persons if p.car.type == 'ev']:
-                capacity += person.car.soc / 100 * person.car.capacity
+                capacity += person.car.soc * person.car.capacity
                 empty += int(person.car.empty)
                 pool += person.car.virtual_source
-        self.soc[self.indexer] = (capacity / self.capacity) * 100
+        self.soc[self.indexer] = capacity / self.capacity
         # -> add to simulation monitoring
         self.empty_counter[self.indexer] = empty
         self.virtual_source[self.indexer] = pool
         # -> increment time counter
         self.indexer += 1
 
-    def commit(self, price: pd.Series):
-        return self.clients[self._rq_id].commit(price=price)
+    def commit(self, price: pd.Series, request: pd.Series, consumer_id: uuid.uuid1) -> bool:
+        commit_ = self.clients[consumer_id].commit(price=price)
+        if commit_:
+            self.charged.loc[request.index] += request.values
+        return commit_
 
-    def get_results(self):
+    def get_results(self) -> (pd.DataFrame, pd.DataFrame):
         # -> build dataframe for simulation monitoring
         sim_data = pd.DataFrame(dict(iteration=[int(self.iteration)] * len(self.time_range),
                                      scenario=[self.scenario] * len(self.time_range),
