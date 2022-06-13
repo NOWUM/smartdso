@@ -3,6 +3,8 @@ from datetime import timedelta as td
 from datetime import datetime
 import pandas as pd
 
+RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+
 
 class BasicParticipant:
 
@@ -13,12 +15,12 @@ class BasicParticipant:
 
         # -> time resolution information
         self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T])[:-1]
         self.date_range = pd.date_range(start=start_date, end=end_date, freq='d')
         # -> input parameters and time series for the optimization
         self.weather, self.prices = pd.DataFrame(index=self.time_range), pd.DataFrame(index=self.time_range)
         # -> optimization output time series
-        steps = self.T * len(self.date_range)
+        steps = len(self.time_range)
         self._generation = pd.Series(index=self.time_range, data=np.zeros(steps))
         self._demand = pd.Series(index=self.time_range, data=np.zeros(steps))
         self._residual_demand = pd.Series(index=self.time_range, data=np.zeros(steps))

@@ -4,15 +4,13 @@ from mobLib.mobility_demand import MobilityDemand
 from carLib.car import Car
 from datetime import datetime
 
-# -> price data from survey
-MEAN_PRICE = 28.01
-VAR_PRICE = 7.9
-
 
 class Resident:
 
-    def __init__(self, ev_ratio: float, minimum_soc: int, start_date: datetime, end_time: datetime,
-                 base_price: float, *args, **kwargs):
+    def __init__(self, ev_ratio: float, start_date: datetime, end_time: datetime, T: int = 1440,
+                 charging_limit: str = 'required', *args, **kwargs):
+
+        self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)
 
         categories = ['hobby', 'errand']
         if np.random.choice(a=[True, False], p=[0.7, 0.3]):
@@ -26,14 +24,10 @@ class Resident:
             car_type = 'fv'
             if max_distance < 600:
                 car_type = np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1 - ev_ratio])
-            self.car = Car(car_type=car_type, maximal_distance=max_distance, charging_limit='required')
+            self.car = Car(car_type=car_type, maximal_distance=max_distance, charging_limit=charging_limit, T=self.T)
             self.car.initialize_time_series(self.mobility, start_date, end_time)
         else:
             self.car = Car(car_type='no car')
-
-        # -> price limits from survey
-        prc_level = round(np.random.normal(loc=MEAN_PRICE, scale=VAR_PRICE), 2)
-        self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51 - base_price, 5)
 
 
 if __name__ == "__main__":

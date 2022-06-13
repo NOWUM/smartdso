@@ -12,7 +12,6 @@ from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteMod
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
 # http://yetanothermathprogrammingconsultant.blogspot.com/2015/10/piecewise-linear-functions-in-mip-models.html
 
-from carLib.car import Car
 from participants.basic import BasicParticipant
 from participants.utils import Resident
 from demLib.electric_profile import StandardLoadProfile
@@ -27,15 +26,13 @@ logger.setLevel(LOG_LEVEL)
 MEAN_PRICE = 28.01
 VAR_PRICE = 7.9
 
+RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+
 # -> default prices EPEX-SPOT 2015
 TARIFF = pd.read_csv(r'./participants/data/default_prices.csv', index_col=0)
-TARIFF = TARIFF.values.flatten() / 10  # -> [€/MWh] in [ct/kWh]
-TARIFF = pd.Series(data=TARIFF, index=pd.date_range(start='2015-01-01', periods=len(TARIFF), freq='h'))
-CHARGES = {
-    'others': 2.9,
-    'taxes': 8.0,
-    'eeg': 6.5,
-}
+TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]
+TARIFF.index = pd.to_datetime(TARIFF.index)
+CHARGES = {'others': 2.9, 'taxes': 8.0, 'eeg': 6.5}
 for values in CHARGES.values():
     TARIFF += values
 
@@ -44,7 +41,7 @@ class HouseholdModel(BasicParticipant):
 
     def __init__(self, residents: int,
                  demandP: float, london_data: bool = False, l_id: str = None,
-                 ev_ratio: float = 0.5, minimum_soc: int = -1,
+                 ev_ratio: float = 0.5,
                  pv_system: dict = None,
                  grid_node: str = None,
                  start_date: datetime = datetime(2022, 1, 1), end_date: datetime = datetime(2022, 1, 2),
@@ -55,30 +52,31 @@ class HouseholdModel(BasicParticipant):
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date)
 
         # -> initialize profile generator
-        self.profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data, l_id=l_id)
+        self.profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data, l_id=l_id,
+                                                     resolution=self.T)
         # -> create residents with cars
-        self.persons = [Resident(ev_ratio=ev_ratio, minimum_soc=minimum_soc, base_price=29,
-                                 start_date=start_date, end_time=end_date)
+        self.persons = [Resident(ev_ratio=ev_ratio, charging_limit='required',
+                                 start_date=start_date, end_time=end_date, T=self.T)
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
         prc_level = round(np.random.normal(loc=MEAN_PRICE, scale=VAR_PRICE), 2)
         self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51, 5)
 
-        self.tariff = pd.Series(data=tariff.values.flatten().repeat(60),
-                                index=pd.date_range(start=datetime(start_date.year, 1, 1),
-                                                    periods=60 * len(tariff), freq='min'))
+        tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
+        self.tariff = tariff.resample(RESOLUTION[self.T]).ffill()
+        self.grid_fee = pd.Series(index=self.time_range, data=2.6 * np.ones(len(self.time_range)))
+
         self.pv_system = pv_system
         if self.pv_system:
             self.pv_system = PVSystem(module_parameters=pv_system)
-            self.pv_usage = pd.Series(data=np.zeros(self.T), index=self.time_range[:1440])
+            self.pv_usage = pd.Series(data=np.zeros(self.T), index=self.time_range[:self.T])
 
         self.model = ConcreteModel()
         self.solver_type = 'glpk'
         self.solver = SolverFactory(self.solver_type)
 
         self._charging = self.time_range[0] - td(minutes=1)
-        self.grid_fee = pd.Series(index=self.time_range, data=2.6 * np.ones(len(self.time_range)))
 
         cars_ = [person.car for person in self.persons if person.car.type == 'ev']
         if len(cars_) > 0:
@@ -94,7 +92,7 @@ class HouseholdModel(BasicParticipant):
     def set_fixed_demand(self):
         # -> return time series (1/4 h) [kW]
         demand = np.asarray([self.profile_generator.run_model(date) for date in self.date_range]).flatten()
-        self._demand = pd.Series(index=self.time_range, data=np.repeat(demand, 15))
+        self._demand = pd.Series(index=self.time_range, data=demand)
 
     def get_demand(self):
         return self._demand, self._residual_demand
@@ -114,8 +112,13 @@ class HouseholdModel(BasicParticipant):
             # -> get generation in [kW/m^2] * [m^2]
             generation = (irradiance['poa_global'] / 1e3) * self.pv_system.arrays[0].module_parameters['pdc0']
             generation = generation.values
-        # resample to minute resolution
-        self._generation = pd.Series(index=self.time_range, data=np.repeat(generation, 15))
+        if self.T == 1440:
+            self._generation = pd.Series(index=self.time_range, data=np.repeat(generation, 15))
+        elif self.T == 96:
+            self._generation = pd.Series(index=self.time_range, data=generation)
+        elif self.T == 24:
+            generation = np.asarray([np.mean(generation[i:i + 3]) for i in range(0, 96, 4)], np.float).flatten()
+            self._generation = pd.Series(index=self.time_range, data=generation)
 
     def set_residual(self):
         self._residual_demand = self._demand - self._generation
@@ -143,7 +146,6 @@ class HouseholdModel(BasicParticipant):
         return segments
 
     def _optimize_photovoltaic_usage(self, d_time: datetime, strategy: str = 'required'):
-        # TODO: check benefit gain vs. power prices (Ableitung Benefit vs. niedrigster Strompreis)
         logger.debug('optimize charging with photovoltaic generation')
 
         lin_steps = 10
@@ -154,7 +156,7 @@ class HouseholdModel(BasicParticipant):
         generation = self._residual_generation.loc[d_time:].values
         steps = range(min(self.T, len(generation)))
         # -> get prices
-        prices = self.tariff.loc[d_time:].values[steps] + self.grid_fee[d_time:].values[steps]
+        prices = self.tariff.loc[d_time:].values.flatten()[steps] + self.grid_fee[d_time:].values[steps]
         # -> clear model
         self.model.clear()
         # -> declare variables
@@ -196,7 +198,7 @@ class HouseholdModel(BasicParticipant):
         # -> limit maximal charging power
         self.model.power_limit = ConstraintList()
         for c, car in zip(cars, cars_):
-            usage = car.usage.loc[d_time:].values
+            usage = car.usage.loc[d_time:].resample(RESOLUTION[self.T]).last().values
             for t in steps:
                 self.model.power_limit.add(self.model.power[c, t] <= car.maximal_charging_power * (1 - usage[t]))
 
@@ -206,53 +208,52 @@ class HouseholdModel(BasicParticipant):
             limit = car.get_limit(d_time, strategy)
             min_charging = max(car.capacity * limit - car.capacity * car.soc, 0)
             max_charging = car.capacity - car.capacity * car.soc
-            self.model.soc_limit.add(quicksum(1 / 60 * self.model.power[c, t] for t in steps) >= min_charging)
-            self.model.soc_limit.add(quicksum(1 / 60 * self.model.power[c, t] for t in steps) <= max_charging)
+            self.model.soc_limit.add(quicksum(self.dt * self.model.power[c, t] for t in steps) >= min_charging)
+            self.model.soc_limit.add(quicksum(self.dt * self.model.power[c, t] for t in steps) <= max_charging)
 
         self.model.total_capacity = Constraint(expr=self.model.capacity == quicksum(self.model.power[c, t]
-                                                                                    for c in cars for t in steps) / 60
+                                                                                    for c in cars for t in steps) * self.dt
                                                     + quicksum(car.capacity * car.soc for car in cars_))
         # -> balance charging, pv and grid consumption
         self.model.balance = ConstraintList()
         for t in steps:
             self.model.balance.add(quicksum(self.model.power[car, t] for car in cars) == self.model.grid[t]
                                    + self.model.pv[t])
-
         # -> pv range
         self.model.pv_limit = ConstraintList()
         for t in steps:
             self.model.pv_limit.add(self.model.pv[t] <= generation[t])
 
-        self.model.obj = Objective(expr=self.model.benefit - quicksum(prices[t] * self.model.grid[t] / 60
+        self.model.obj = Objective(expr=self.model.benefit - quicksum(prices[t] * self.model.grid[t] * self.dt
                                                                       for t in steps), sense=maximize)
         self.solver.solve(self.model)
 
         self.request = pd.Series(data=np.asarray([self.model.grid[t].value for t in steps]),
-                               index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq='min'))
+                                 index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq=RESOLUTION[self.T]))
 
         self.charging = {c: pd.Series(data=np.asarray([self.model.power[c, t].value for t in steps]),
-                                      index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq='min'))
+                                      index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq=RESOLUTION[self.T]))
                          for c in cars}
 
         self.pv_usage = pd.Series(data=np.asarray([self.model.pv[t].value for t in steps]),
-                                  index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq='min'))
+                                  index=pd.date_range(start=d_time, periods=steps[-1] + 1, freq=RESOLUTION[self.T]))
 
-        if self.request.sum() < 0.01 and self.pv_usage.sum() > 0:
+        if self.request.sum() < 1e-6 and self.pv_usage.sum() > 0:
             self._charging = self.pv_usage.index[-1]
             for car in cars:
-                time_stamps = self.charging[car].index
-                cars_[car].charging.loc[time_stamps] += self.charging[car]
-                self.power.loc[time_stamps] += self.charging[car]
+                cars_[car].charging.loc[self.charging[car].index] += self.charging[car]
+                self.power.loc[self.charging[car].index] += self.charging[car]
 
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str):
         cars = [person.car for person in self.persons if person.car.type == 'ev']
 
-        remaining_steps = int(min((self.time_range[-1] - d_time).total_seconds() / 60, self.T))
+        remaining_steps = len(self.time_range[self.time_range >= d_time])
         self.request = pd.Series(data=np.zeros(remaining_steps),
-                                 index=pd.date_range(start=d_time, freq='min', periods=remaining_steps))
+                                 index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
         for car, c in zip(cars, range(len(cars))):
             self.charging[c] = pd.Series(data=np.zeros(remaining_steps),
-                                         index=pd.date_range(start=d_time, freq='min', periods=remaining_steps))
+                                         index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
+                                                             periods=remaining_steps))
             # -> plan charge if the soc < limit and the car is not already charging and the car is at home
             if car.soc < car.get_limit(d_time, strategy) and car.usage[d_time] == 0:
                 logger.debug(f'plan charging without photovoltaic for car: {c}')
@@ -271,11 +272,12 @@ class HouseholdModel(BasicParticipant):
                 # -> if d_time in charging block --> plan charging
                 if t2 > t1:
                     total_energy = car.capacity - car.capacity * car.soc
-                    limit_by_capacity = total_energy / car.maximal_charging_power * 60
-                    limit_by_slot = (t2-t1).total_seconds() / 60
+                    limit_by_capacity = round(total_energy / car.maximal_charging_power * 1/self.dt)
+                    limit_by_slot = len(self.time_range[(self.time_range >= t1) & (self.time_range <= t2)])
                     duration = int(min(limit_by_slot, limit_by_capacity))
                     self.charging[c] = pd.Series(data=car.maximal_charging_power * np.ones(duration),
-                                                 index=pd.date_range(start=d_time, freq='min', periods=duration))
+                                                 index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
+                                                                     periods=duration))
                     # -> add planed charging to power
                     self.request.loc[self.charging[c].index] += self.charging[c].values
 
@@ -295,16 +297,17 @@ class HouseholdModel(BasicParticipant):
 
     def commit(self, price: pd.Series):
         # price_index = [t.replace(year=2015) for t in price.index]
-        total_price = self.tariff.loc[price.index].values + price.values
+        total_price = self.tariff.loc[price.index].values.flatten() + price.values
         mean_price = sum(self.request.values * total_price) / sum(self.request.values)
         if mean_price < self.price_limit:
             logger.debug(f'-> commit charging {mean_price}')
             cars_ = [person.car for person in self.persons if person.car.type == 'ev']
             for car in range(len(cars_)):
-                time_stamps = self.charging[car].index
-                cars_[car].charging.loc[time_stamps] += self.charging[car]
+                cars_[car].charging.loc[self.charging[car].index] += self.charging[car]
+                self.power.loc[self.charging[car].index] += self.charging[car]
             self._charging = price.index.max()
-            self.power.loc[self.request.index] += self.request.values
+            # self.power.loc[self.request.index] += self.request.values
+            # self.grid_mobility
             self.request = pd.Series(data=[0], index=[price.index[0]])
             return True
         else:
@@ -330,8 +333,8 @@ if __name__ == "__main__":
     # -> default pv system
     pv_system = dict(pdc0=5, surface_tilt=35, surface_azimuth=180)
     house_opt = HouseholdModel(residents=2, demandP=5000, pv_system=pv_system, start_date=start_date, end_date=end_date,
-                               ev_ratio=1, base_price=10)
-    # -> get weather data
+                               ev_ratio=1, T=96)
+    # # -> get weather data
     weather_generator = WeatherGenerator()
     weather = pd.concat([weather_generator.get_weather(area='DEA26', date=date)
                          for date in pd.date_range(start=start_date, end=end_date + td(days=1),
@@ -343,38 +346,39 @@ if __name__ == "__main__":
     house_opt.set_fixed_demand()
     house_opt.set_photovoltaic_generation()
     house_opt.set_residual()
+    # opt_power = house_opt.get_request(house_opt.time_range[0], strategy='PV')
     time_range = house_opt.time_range
     # -> clone house_1
     house_simple = deepcopy(house_opt)
-    offset = [100] * 10
+    # offset = [100] * 10
+
     for t in time_range:
+        # print(t)
         simple_power = house_simple.get_request(t, strategy='simple')
         if sum(simple_power) > 0:
             house_simple.commit(pd.Series(data=np.ones(len(simple_power)), index=simple_power.index))
         house_simple.simulate(d_time=t)
-
+    #
         opt_power = house_opt.get_request(t, strategy='PV')
         if sum(opt_power) > 0.01:
-            print(sum(opt_power))
-            print(opt_power)
-            if len(offset) > 0:
-                house_opt.commit(pd.Series(data=offset.pop() * np.ones(len(opt_power)), index=opt_power.index))
-            else:
-                house_opt.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
+            house_opt.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
         house_opt.simulate(d_time=t)
-
-    for house, strategy in zip([house_simple, house_opt], ['simple', 'opt']):
-        generation, residual_generation = house.get_generation()
-        demand, residual_demand = house.get_demand()
-        charged = house.power
-        cars = [person.car.monitor for person in house.persons if person.car.type == 'ev']
-        cars = pd.concat(cars, axis=1)
-        prices = house.tariff.loc[house.time_range]
-        result = pd.concat([prices, demand, generation, charged, cars], axis=1)
-        result.columns = ['prices', 'demand', 'generation', 'charged',
-                          'distance_1', 'odometer_1', 'soc_1', 'work_1', 'errand_1', 'hobby_1',
-                          'distance_2', 'odometer_2', 'soc_2', 'work_2', 'errand_2', 'hobby_2']
-        result.to_excel(f'house_{strategy}.xlsx')
+        break
+    # plt.plot(house_opt.power)
+    # plt.plot(house_opt.persons[0].car.charging + house_opt.persons[1].car.charging)
+    # plt.show()
+    # for house, strategy in zip([house_opt, house_simple], ['opt', 'simple']):
+    #     generation, residual_generation = house.get_generation()
+    #     demand, residual_demand = house.get_demand()
+    #     charged = house.power
+    #     cars = [person.car.monitor for person in house.persons if person.car.type == 'ev']
+    #     cars = pd.concat(cars, axis=1)
+    #     prices = house.tariff.loc[house.time_range]
+    #     result = pd.concat([prices, demand, residual_generation, charged, cars], axis=1)
+    #     result.columns = ['prices', 'demand', 'generation', 'charged',
+    #                       'distance_1', 'odometer_1', 'soc_1', 'work_1', 'errand_1', 'hobby_1',
+    #                       'distance_2', 'odometer_2', 'soc_2', 'work_2', 'errand_2', 'hobby_2']
+    #     result.to_excel(f'house_{strategy}.xlsx')
         # opt_power = house_1.get_request(t, strategy='PV')
         # if sum(opt_power) > 0:
         #     print('get order house_1')
