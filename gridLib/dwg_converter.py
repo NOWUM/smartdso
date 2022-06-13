@@ -43,8 +43,9 @@ def get_consumers(data):
     consumers_ = {}
     nodes_ = {}
     inserted = {}
-    for consumer in msp.query('POINT[layer=="Hausanschluss"]').entities:
-        x, y, _ = consumer.dxf.location.xy
+    for consumer in msp.query('INSERT[layer=="Hausanschluss"]').entities:
+        # print(consumer.dxf.color)
+        x, y, _ = consumer.dxf.insert.xy
         x, y = get_coord(x, y)
         shape = f'POINT ({x} {y})'
         if shape not in inserted.keys():
@@ -55,7 +56,7 @@ def get_consumers(data):
                                          'v_nom': 0.4}
             inserted[shape] = id_
         else:
-            consumers_[consumer.uuid] = {'bus0': inserted[shape], 'lon': x, 'lat': y, 'shape': shape,}
+            consumers_[consumer.uuid] = {'bus0': inserted[shape], 'lon': x, 'lat': y, 'shape': shape}
 
     for station in msp.query('INSERT[layer=="Stationen" | layer =="KVS"]').entities:
         x, y, _ = station.dxf.insert
