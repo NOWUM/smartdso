@@ -8,6 +8,7 @@ from mobLib.mobility_demand import MobilityDemand
 electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
 electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
 
+RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
 # -> function to get the EV for the corresponding distance
 def get_electric_vehicle(distance):
@@ -29,7 +30,8 @@ def get_fossil_vehicle():
 
 class Car:
 
-    def __init__(self, car_type: str = 'ev', maximal_distance: float = 350, charging_limit: str = 'required'):
+    def __init__(self, car_type: str = 'ev', maximal_distance: float = 350, charging_limit: str = 'required',
+                 T: int = 1440):
         self.type = car_type
         # -> select car depending on type and distance
         if self.type == 'ev':
@@ -37,6 +39,8 @@ class Car:
         else:
             properties = get_fossil_vehicle()
 
+        # -> time resolution information
+        self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)
         # -> technical parameters
         self.model = properties['model']                                        # -> model type
         self.capacity = properties['capacity']                                  # -> capacity [kWh]
@@ -59,9 +63,22 @@ class Car:
         self.virtual_source = 0                                                 # -> used energy if car is empty
 
     def initialize_time_series(self, mobility: MobilityDemand, start_date: datetime, end_date: datetime):
+
+        def round_ts_to_base(ts: datetime, b: int):
+            if b * round((ts.minute / b)) == 60:
+                ts = ts + td(hours=1)
+                ts = ts.replace(minute=0)
+            else:
+                ts = ts.replace(minute=base * round((ts.minute / base)))
+
+            return ts
+
         # -> initialize time stamps
-        time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
+        time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T])[:-1]
         date_range = pd.date_range(start=start_date, end=end_date, freq='d')
+
+        base = int(60 / (self.T / 24))
+
         # -> initialize time series
         self.usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
         self.demand = pd.Series(index=time_range, data=np.zeros(len(time_range)))
@@ -75,29 +92,40 @@ class Car:
             days = date_range[date_range.day_name() == key]
             demand_ = 0
             for mobility in mobilities:
-                # -> demand in [kWh/min]
-                demand = (mobility['distance'] * self.consumption) / mobility['travel_time']
+                # -> demand in [kWh]
+                demand = mobility['distance'] * self.consumption
                 demand_ += 2 * (mobility['distance'] * self.consumption)
+
+                travel_time = max(mobility['travel_time'], base)
                 # -> departure time
                 t1 = datetime.strptime(mobility['start_time'], '%H:%M:%S')
-                t_departure = t1 - td(minutes=mobility['travel_time'])
                 # -> arrival time
-                t2 = t1 + td(minutes=mobility['duration'])
-                t_arrival = t2 + td(minutes=mobility['travel_time'])
+                t2 = t1 + td(minutes=mobility['duration'] + travel_time)
+
                 # -> set demand for mondays, tuesdays, ...
                 for day in days:
-                    departure = day.combine(day, t_departure.time())
                     if t2.day > t1.day:
-                        arrival = day.combine(day + td(days=1), t_arrival.time())
+                        arrival = day.combine(day + td(days=1), t2.time())
                     else:
-                        arrival = day.combine(day, t_arrival.time())
+                        arrival = day.combine(day, t2.time())
                     # -> set time series
-                    self.usage[departure:arrival] = 1
-                    self.monitor.loc[departure:arrival, mobility['type']] = 1
-                    destination = day.combine(day, t1.time())-td(minutes=1)
-                    self.demand[departure:destination] = demand
-                    destination = arrival - td(minutes=mobility['travel_time'] - 1)
-                    self.demand[destination:arrival] = demand
+                    destination = day.combine(day, t1.time())
+                    destination = round_ts_to_base(destination, base)
+
+                    departure = round_ts_to_base((destination - td(minutes=travel_time)), base)
+                    steps = len(self.demand.loc[departure:destination])
+                    if departure >= start_date and destination <= end_date:
+                        self.demand.loc[departure:destination] = demand / steps
+
+                    destination = round_ts_to_base((arrival - td(minutes=travel_time)), base)
+                    if destination >= start_date and arrival <= end_date:
+                        self.demand.loc[destination:arrival] = demand / steps
+
+                        self.usage.loc[departure:arrival] = 1
+                        self.monitor.loc[departure:arrival, mobility['type']] = 1
+                    else:
+                        self.usage.loc[departure:time_range[-1]] = 1
+                        self.monitor.loc[departure:time_range[-1], mobility['type']] = 1
 
             if len(days) > 0:
                 if self.charging_limit == 'max':
@@ -142,7 +170,7 @@ class Car:
             return self.capacity * 0.01
         else:
             # -> charge battery for 1 minute
-            capacity = self.capacity * self.soc + self.charging.loc[d_time] / 60
+            capacity = self.capacity * self.soc + self.charging.loc[d_time] * self.dt
             self.soc = capacity / self.capacity
             self.soc = min(self.soc, 1)
 
