@@ -24,7 +24,12 @@ logger = logging.getLogger('StandardLoadProfile-Generator')
 
 class StandardLoadProfile:
 
-    def __init__(self, demandP, type='household', resolution='15min', london_data=False, l_id=None):
+    def __init__(self,
+                 demandP: float,
+                 type: str = 'household',
+                 resolution: int = 96,
+                 london_data: bool = False,
+                 l_id: str = None):
 
         self.type = type                    # -> profile typ ['household', 'business', ...]
         self.demandP = demandP              # -> yearly energy demand
@@ -59,7 +64,7 @@ class StandardLoadProfile:
 
         if self.london_data:
             demand = self.data.loc[self.data.index.dayofyear == doy]
-            demand = np.asarray([[d,d] for d in demand['power'].values]).flatten()
+            demand = np.asarray([[d, d] for d in demand['power'].values]).flatten()
         else:
             demand, f = np.zeros(96), self.demandP / 1e6
             if self.type == 'household':
@@ -70,9 +75,9 @@ class StandardLoadProfile:
                 demand = self.profile[:, 5] * f if doy in self.summer else self.profile[:, 2] * f
             elif dow == 5:
                 demand = self.profile[:, 3] * f if doy in self.summer else self.profile[:, 0] * f
-        if self.resolution == 'hourly':
+        if self.resolution == 60:
             return np.asarray([np.mean(demand[i:i + 3]) for i in range(0, 96, 4)], np.float).flatten()
-        elif self.resolution == 'min':
+        elif self.resolution == 1440:
             return np.asarray([demand[int(i)] for i in np.arange(0, 96, 1/15)], np.float).flatten()
         else:
             return demand
