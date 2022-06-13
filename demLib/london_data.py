@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 pd.options.mode.chained_assignment = None
 
 # change to your running timescaledb
-DATABASE_URI =  'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
+DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
 engine = create_engine(DATABASE_URI)
 
 # download data from:
