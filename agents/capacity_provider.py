@@ -7,11 +7,13 @@ from datetime import timedelta as td, datetime
 from gridLib.model import GridModel
 logging.getLogger('pypsa').setLevel('ERROR')
 
+RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+
 
 class CapacityProvider:
 
-    def __init__(self, scenario: str, iteration: int,
-                 start_date: datetime, end_date: datetime, *args, **kwargs):
+    def __init__(self, scenario: str, iteration: int, start_date: datetime, end_date: datetime,
+                 T: int = 1440, *args, **kwargs):
         self.scenario = scenario
         self.iteration = iteration
         # -> build grid model and set simulation horizon
@@ -19,7 +21,7 @@ class CapacityProvider:
         self.mapper = self.grid.model.buses['sub_network']
         self.mapper = self.mapper[self.mapper.index.isin(self.grid.data['connected'].index)]
 
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T])[:-1]
 
         self.line_utilization = {sub_id: pd.DataFrame(columns=self.grid.sub_networks[sub_id]['model'].lines.index,
                                                       index=self.time_range)
@@ -82,9 +84,11 @@ class CapacityProvider:
 
         # -> set current demand at each node
         data = self.demand.copy()
-        data = data.loc[(data.index.get_level_values(level='t') <= request.index[-1]) &
-                        (data.index.get_level_values(level='t') >= request.index[0])]
-        request_ = pd.DataFrame(data=dict(node_id=len(request) * [node_id], t=request.index, power=request.values))
+        data = data.loc[data.index.get_level_values(level='t').isin(request[request.values > 0].index)]
+        request_ = pd.DataFrame(request)
+        request_.columns = ['power']
+        request_ = request_.rename_axis('t').reset_index()
+        request_['node_id'] = node_id
         request_.set_index(['node_id', 't'], inplace=True)
 
         data = pd.concat([data, request_], axis=0)

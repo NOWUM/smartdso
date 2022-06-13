@@ -2,8 +2,6 @@ import uuid
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta as td
-import threading
-from multiprocessing import Queue
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
@@ -16,18 +14,20 @@ h0_consumers = consumers.loc[consumers['profile'] == 'H0']
 g0_consumers = consumers.loc[consumers['profile'] == 'G0']
 rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']
 
+RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+
 
 class FlexibilityProvider:
 
-    def __init__(self, scenario: str, iteration: int, base_price: float, dynamic_fee: bool,
+    def __init__(self, scenario: str, iteration: int, dynamic_fee: bool,
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
-                 minimum_soc: int = -1, london_data: bool = False, pv_ratio: float = 0.3, *args, **kwargs):
+                 minimum_soc: int = -1, london_data: bool = False, pv_ratio: float = 0.3,
+                 T: int = 1440, *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
         self.iteration = iteration
         # -> economic settings
-        self.base_price = base_price
         self.dynamic_fee = dynamic_fee
         # -> total clients
         self.clients = {}
@@ -35,7 +35,7 @@ class FlexibilityProvider:
         # -> weather generator
         self.weather_generator = WeatherGenerator()
         # -> time range
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='min')[:-1]
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T])[:-1]
         self.indexer = 0
         len_ = len(self.time_range)
         # -> simulation monitoring
@@ -69,6 +69,7 @@ class FlexibilityProvider:
                                     pv_system=pv_system,
                                     start_date=start_date,
                                     end_date=end_date,
+                                    T=T,
                                     grid_node=consumer['bus0'])
 
             for person in [p for p in client.persons if p.car.type == 'ev']:
@@ -86,13 +87,13 @@ class FlexibilityProvider:
 
         # -> create business clients
         for _, consumer in g0_consumers.iterrows():
-            client = BusinessModel(T=1440, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+            client = BusinessModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
                                    start_date=start_date, end_date=end_date)
             self.clients[uuid.uuid1()] = client
 
         # -> create industry clients
         for _, consumer in rlm_consumers.iterrows():
-            client = IndustryModel(T=1440, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+            client = IndustryModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
                                    start_date=start_date, end_date=end_date)
             self.clients[uuid.uuid1()] = client
 
