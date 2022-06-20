@@ -98,12 +98,11 @@ class CapacityProvider:
         self.run_power_flow(data=data, sub_id=sub_id)
         self._rq_l_util = self._line_utilization(sub_id=sub_id)
         self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
-        utilization = pd.concat([self._rq_l_util, self._rq_t_util], axis=1).max(axis=1)
 
-        prices = [price_func(u) for u in utilization.values]
-        response = pd.Series(index=request.index, data=np.zeros(len(request)))
-        response.loc[utilization.index] = prices
-        response.replace(to_replace=0, method='ffill', inplace=True)
+        utilization = pd.concat([self._rq_l_util, self._rq_t_util,
+                                 self.line_utilization[sub_id].loc[request.index],
+                                 self.transformer_utilization[sub_id].loc[request.index]], axis=1).max(axis=1)
+        response = pd.Series(index=request.index, data=[price_func(u) for u in utilization.values])
 
         return response
 
