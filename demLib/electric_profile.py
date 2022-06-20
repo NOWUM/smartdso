@@ -7,7 +7,7 @@ from demLib.utils import get_holidays
 
 DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
 engine = create_engine(DATABASE_URI)
-path = r'./demLib/data/'
+path = r'./demLib/data/load_profiles/'
 
 profiles = {
     'household': np.load(open(fr'{path}household.pkl', 'rb')),
@@ -65,6 +65,9 @@ class StandardLoadProfile:
         if self.london_data:
             demand = self.data.loc[self.data.index.dayofyear == doy]
             demand = np.asarray([[d, d] for d in demand['power'].values]).flatten()
+            mean_demand = np.mean(demand)
+            missing = 96 - len(demand)
+            demand = np.hstack([demand, np.ones(missing) * mean_demand])
         else:
             demand, f = np.zeros(96), self.demandP / 1e6
             if self.type == 'household':
