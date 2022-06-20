@@ -18,3 +18,4 @@ pydeck
 streamlit
 geopandas
 matplotlib
+glpk

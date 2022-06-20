@@ -1,5 +1,4 @@
 *.db
-/sim_result/*
 dev/analyse.py
 dev/container_builder.py
 docker-compose.yml
