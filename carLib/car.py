@@ -10,6 +10,7 @@ electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
 
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
+
 # -> function to get the EV for the corresponding distance
 def get_electric_vehicle(distance):
     possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] > distance]
@@ -47,17 +48,14 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = np.random.randint(low=10, high=20)/100                       # -> state of charge [0,..., 1]
+        self.soc = np.random.randint(low=10, high=90)/100                       # -> state of charge [0,..., 1]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy
         self.daily_limit = {}                                                   # -> limit @ day
-        self.charging = None
-        # -> demand parameters
-        self.demand = pd.Series(dtype=float)                                    # -> driving demand time series
-        self.usage = pd.Series(dtype=float)                                     # -> car @ home and chargeable
-        self.monitor = pd.DataFrame(columns=['distance', 'odometer', 'soc',
-                                             'work', 'errand', 'hobby'])        # -> use car for job, errand or hobby
+
+        self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planed_charge', 'final_charge',
+                                           'demand', 'usage', 'work', 'errand', 'hobby'])
         # -> simulation monitoring
         self.empty = False                                                      # -> True if car has not enough energy
         self.virtual_source = 0                                                 # -> used energy if car is empty
@@ -80,12 +78,9 @@ class Car:
         base = int(60 / (self.T / 24))
 
         # -> initialize time series
-        self.usage = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        self.demand = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        self.charging = pd.Series(index=time_range, data=np.zeros(len(time_range)))
-        for column in self.monitor.columns:
-            self.monitor[column] = np.zeros(len(time_range))
-        self.monitor.index = time_range
+        for column in self._data.columns:
+            self._data[column] = np.zeros(len(time_range))
+        self._data.index = time_range
 
         # -> for each day get car usage
         for key, mobilities in mobility.mobility.items():
@@ -113,19 +108,18 @@ class Car:
                     destination = round_ts_to_base(destination, base)
 
                     departure = round_ts_to_base((destination - td(minutes=travel_time)), base)
-                    steps = len(self.demand.loc[departure:destination])
+                    steps = len(self._data.loc[departure:destination, 'demand'])
                     if departure >= start_date and destination <= end_date:
-                        self.demand.loc[departure:destination] = demand / steps
+                        self._data.loc[departure:destination, 'demand'] = demand / steps
 
                     destination = round_ts_to_base((arrival - td(minutes=travel_time)), base)
                     if destination >= start_date and arrival <= end_date:
-                        self.demand.loc[destination:arrival] = demand / steps
-
-                        self.usage.loc[departure:arrival] = 1
-                        self.monitor.loc[departure:arrival, mobility['type']] = 1
-                    else:
-                        self.usage.loc[departure:time_range[-1]] = 1
-                        self.monitor.loc[departure:time_range[-1], mobility['type']] = 1
+                        self._data.loc[destination:arrival, 'demand'] = demand / steps
+                        self._data.loc[departure:arrival, 'usage'] = 1
+                        self._data.loc[departure:arrival, mobility['type']] = 1
+                    elif destination < end_date:
+                        self._data.loc[destination:time_range[-1], 'demand'] = 1
+                        self._data.loc[departure:time_range[-1], mobility['type']] = 1
 
             if len(days) > 0:
                 if self.charging_limit == 'max':
@@ -137,17 +131,11 @@ class Car:
 
     def drive(self, d_time: datetime):
         # -> if no demand is set --> demand 1 % of Soc
-        if self.demand is None:
-            self.soc -= 0.01
-            self.soc = max(0, self.soc)
-            return self.capacity * 0.01
-        # -> else use demand time series
-        else:
-            demand = self.demand.loc[d_time]
-            distance = demand / self.consumption
-            self.odometer += distance
-            capacity = (self.capacity * self.soc) - demand
-            soc = capacity / self.capacity
+        demand = self._data.loc[d_time, 'demand']
+        distance = demand / self.consumption
+        self.odometer += distance
+        capacity = (self.capacity * self.soc) - demand
+        soc = capacity / self.capacity
 
         # -> check if demand > current capacity
         if soc < 0:
@@ -156,27 +144,28 @@ class Car:
         else:
             self.empty, self.soc = False, soc
 
-        self.monitor.at[d_time, 'soc'] = self.soc
-        self.monitor.at[d_time, 'distance'] = distance
-        self.monitor.at[d_time, 'odometer'] = self.odometer
+        self._data.at[d_time, 'soc'] = self.soc
+        self._data.at[d_time, 'distance'] = distance
+        self._data.at[d_time, 'total_distance'] = self.odometer
 
-        return self.demand.loc[d_time]
+        return self._data.loc[d_time, 'demand']
 
     def charge(self, d_time: datetime):
-        # -> if no charging set = charge 1 % of Soc
-        if self.charging is None:
-            self.soc += 0.01
-            self.soc = min(self.soc, 1)
-            return self.capacity * 0.01
-        else:
-            # -> charge battery for 1 minute
-            capacity = self.capacity * self.soc + self.charging.loc[d_time] * self.dt
-            self.soc = capacity / self.capacity
-            self.soc = min(self.soc, 1)
 
-        return self.charging.loc[d_time]
+        # -> charge battery for 1 minute
+        capacity = self.capacity * self.soc + self._data.loc[d_time, 'final_charge'] * self.dt
+        self.soc = capacity / self.capacity
+        self.soc = min(self.soc, 1)
 
-    def get_limit(self, d_time: datetime, strategy: str = 'required'):
+        return self._data.loc[d_time, 'final_charge']
+
+    def get_data(self, column: str) -> pd.Series:
+        return self._data[column]
+
+    def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
+        return self._data.loc[time_range]
+
+    def get_limit(self, d_time: datetime, strategy: str = 'required') -> float:
         if strategy == 'max':
             limit = 0.98
         elif strategy == 'required':
@@ -192,3 +181,11 @@ class Car:
             limit = 0.5
 
         return limit
+
+    def set_planed_charging(self, time_series: pd.Series) -> None:
+        self._data.loc[time_series.index, 'planed_charge'] = time_series.values
+
+    def set_final_charging(self, time_series: pd.Series) -> None:
+        self._data.loc[time_series.index, 'final_charge'] = time_series.values
+
+
