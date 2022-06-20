@@ -9,35 +9,47 @@ from matplotlib import pyplot as plt
 
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
+from interfaces.smartgrid import SmartGridInterface
 
 logging.basicConfig()
 
 logger = logging.getLogger('Simulation')
-logger.setLevel('INFO')
+logger.setLevel('DEBUG')
 
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-01-01'))              # -> default start date
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-01-02'))                  # -> default end date
+# -> timescaledb connection to store the simulation results
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+
+try:
+    simulation_interface = SmartGridInterface(create_tables=True, database_uri=DATABASE_URI)
+    logger.info(' -> connected to database')
+except Exception as e:
+    logger.error(f" -> can't connect to {DATABASE_URI}")
+    logger.error(repr(e))
+    engine = None
+    raise Exception("Bad simulation parameters, please check your input")
+
+start_date = pd.to_datetime(os.getenv('START_DATE', '2015-08-01'))              # -> default start date
+end_date = pd.to_datetime(os.getenv('END_DATE', '2015-08-10'))                  # -> default end date
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'EV100LIMIT-1DFTRUE_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'EV100PV50_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]}')
 
 save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
-plot = True
+plot = False
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
-             'dynamic_fee': (os.getenv('DYNAMIC_FEE', 'True') == 'True'),       #    see: demLib.london_data.py
-             'minimum_soc': int(os.getenv('MINIMUM_SOC', -1)),
-             'start_date': start_date,
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      # -> Need london data set
+             'start_date': start_date,                                         #    see: demLib.london_data.py
              'end_date': end_date,
+             'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
-             'pv_ratio': int(os.getenv('PV_RATIO', 30))/100,
-             'base_price': int(os.getenv('BASE_PRICE', 29)),
+             'pv_ratio': int(os.getenv('PV_RATIO', 80))/100,
              'scenario': scenario_name.split('_')[0],
-             'iteration': sim}
+             'iteration': sim,
+             'database_uri': DATABASE_URI}
 
 try:
     FlexProvider = FlexibilityProvider(**input_set)
@@ -51,18 +63,6 @@ except Exception as e:
     logger.error(repr(e))
     raise Exception("Bad simulation parameters, please check your input")
 
-
-# -> timescaledb connection to store the simulation results
-DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso'
-try:
-    engine = create_engine(DATABASE_URI)
-    tables = inspect(engine).get_table_names()
-    logger.info(' -> connected to database')
-except Exception as e:
-    logger.error(f" -> can't connect to {DATABASE_URI}")
-    logger.error(repr(e))
-    engine = None
-    raise Exception("Bad simulation parameters, please check your input")
 
 if __name__ == "__main__":
 
@@ -90,34 +90,16 @@ if __name__ == "__main__":
     logger.info(' -> starting simulation')
     for day in pd.date_range(start=start_date, end=end_date, freq='d'):
         logger.info(f' -> running day {day.date()}')
-        for d_time in tqdm(pd.date_range(start=day, periods=1440, freq='min')):
-            try:
-                for request, id_ in FlexProvider.get_requests(d_time):
-                    if sum(request.values) > 0:
-                        price = CapProvider.get_price(request=request, node_id=id_)
-                        if FlexProvider.commit(price):
-                            CapProvider.commit(request=request, node_id=id_)
+        logger.info(' -> consumers plan charging...')
+        try:
+            for d_time in tqdm(pd.date_range(start=day, periods=96, freq='15min')):
+                while sum([int(c) for c in FlexProvider.commits.values()]) < len(FlexProvider.clients):
+                    for request, node_id, consumer_id in FlexProvider.get_requests(d_time=d_time):
+                        price = CapProvider.get_price(request=request, node_id=node_id)
+                        if FlexProvider.commit(price, consumer_id):
+                            CapProvider.commit(request=request, node_id=node_id)
+                    logger.info(f' -> {sum([int(c) for c in FlexProvider.commits.values()])} Consumers commits charging')
                 FlexProvider.simulate(d_time)
-
-            except Exception as e:
-                logger.error(f' -> error during simulation: {repr(e)}')
-
-    # # -> collect results
-    # try:
-    #     sim_data, car_data = FlexProvider.get_results()
-    #     sim_data.to_sql('vars', engine, index=False, if_exists='append')
-    #     if car_data:
-    #         car_data.to_sql('cars', engine,  index=False, if_exists='append')
-    # except Exception as e:
-    #     logger.error(repr(e))
-    #     raise Exception(f"Can't store data from FlexProvider in database {DATABASE_URI}")
-    #
-    # try:
-    #     lines, transformers, = CapProvider.get_results()
-    #     for line in lines:
-    #         pd.DataFrame(line).to_sql('grid', engine, index=False, if_exists='append')
-    #     for transformer in transformers:
-    #         pd.DataFrame(transformer).to_sql('grid', engine, index=False, if_exists='append')
-    # except Exception as e:
-    #     logger.error(repr(e))
-    #     raise Exception(f"Can't store data from CapProvider in database {DATABASE_URI}")
+            FlexProvider.save_results(day)
+        except Exception as e:
+            logger.error(f' -> error during simulation: {repr(e)}')
