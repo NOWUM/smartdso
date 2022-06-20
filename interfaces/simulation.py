@@ -24,7 +24,7 @@ def update_image(s):
 
 
 def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01', end_date='2022/01/15',
-                        dynamic_fee=True, london_data=True):
+                        pv_ratio=80, london_data=True):
     output = ['version: "3.9"\n', 'services:\n']
 
     transport = paramiko.Transport((s, 22))
@@ -40,20 +40,19 @@ def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01'
             environment:
               LONDON_DATA: "{london_data}"
               EV_RATIO: {ev_ratio}
-              MINIMUM_SOC: {minimum_soc}
+              PV_RATIO: {pv_ratio}
               START_DATE: {start_date}
               END_DATE: {end_date}
-              SCENARIO_NAME: EV{ev_ratio}CONTROL-{str(dynamic_fee).upper()}_{simulation}
-              DYNAMIC_FEE: "{dynamic_fee}"
+              SCENARIO_NAME: EV{ev_ratio}PV{pv_ratio})_{simulation}
         ''')
 
-    logger.info(f'created scenario with ev ratio {ev_ratio} % and charging strategy {minimum_soc}')
-    with open(f'EV{ev_ratio}LIMIT{minimum_soc}.yml', 'w') as f:
+    logger.info(f'created scenario with ev ratio {ev_ratio} % and pv ratio {pv_ratio}')
+    with open(f'EV{ev_ratio}PV{pv_ratio}.yml', 'w') as f:
         f.writelines(output)
 
-    sftp.put(f'EV{ev_ratio}LIMIT{minimum_soc}.yml', f'smartdso/docker-compose.yml')
+    sftp.put(f'EV{ev_ratio}PV{pv_ratio}.yml', f'smartdso/docker-compose.yml')
     logger.info(f'put scenario file on {s}')
-    os.remove(f'EV{ev_ratio}LIMIT{minimum_soc}.yml')
+    os.remove(f'EV{ev_ratio}PV{pv_ratio}.yml')
 
     sftp.close()
 
