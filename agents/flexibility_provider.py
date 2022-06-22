@@ -142,6 +142,7 @@ class FlexibilityProvider:
             if client.consumer_type == 'household':
                 time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
                 data = client.get_result(time_range)
+                data['node_id'] = client.grid_node
                 data['iteration'] = self.iteration
                 data['scenario'] = self.scenario
                 data = data.rename_axis('time').reset_index()
