@@ -31,7 +31,7 @@ if __name__ == "__main__":
               PV_RATIO: {paras.pv}
               START_DATE: {paras.start}
               END_DATE: {paras.end}
-              SCENARIO_NAME: EV{paras.ev}PV{paras.pv})_{simulation}
+              SCENARIO_NAME: EV{paras.ev}PV{paras.pv}_{simulation}
         ''')
 
     with open(f'docker-compose.yml', 'w') as f:
