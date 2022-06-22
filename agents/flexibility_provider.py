@@ -2,6 +2,7 @@ import uuid
 import os
 import pandas as pd
 import numpy as np
+import logging
 from datetime import datetime, timedelta as td
 from sqlalchemy import create_engine
 
@@ -22,6 +23,8 @@ rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']                    
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> database uri to store the results
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+
+logger = logging.getLogger('FlexibilityProvider')
 
 
 class FlexibilityProvider:
@@ -61,24 +64,24 @@ class FlexibilityProvider:
                                     london_data=london_data, l_id=consumer['london_data'],
                                     pv_systems=pv_systems,
                                     start_date=start_date, end_date=end_date, T=T,
-                                    database_uri=database_uri)
+                                    database_uri=database_uri, consumer_type='household')
 
             self.clients[id_] = client
 
         # -> create business clients
-        # for _, consumer in g0_consumers.iterrows():
-        #     client = BusinessModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-        #                            start_date=start_date, end_date=end_date)
-        #     self.clients[uuid.uuid1()] = client
-        #
-        # # -> create industry clients
-        # for _, consumer in rlm_consumers.iterrows():
-        #     client = IndustryModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-        #                            start_date=start_date, end_date=end_date)
-        #     self.clients[uuid.uuid1()] = client
+        for _, consumer in g0_consumers.iterrows():
+            client = BusinessModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+                                   start_date=start_date, end_date=end_date, consumer_type='business')
+            self.clients[uuid.uuid1()] = client
 
-        self.keys = [*self.clients.keys()]
-        self.commits = {key: False for key in self.keys}
+        # -> create industry clients
+        for _, consumer in rlm_consumers.iterrows():
+            client = IndustryModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
+                                   start_date=start_date, end_date=end_date, consumer_type='industry')
+            self.clients[uuid.uuid1()] = client
+
+        self.keys = [key for key, value in self.clients.items() if value.consumer_type == 'household']
+        self._commits = {key: False for key in self.keys}
 
     def initialize_time_series(self) -> (pd.DataFrame, pd.DataFrame):
 
@@ -107,11 +110,14 @@ class FlexibilityProvider:
 
         return pd.concat(demand_), pd.concat(generation_)
 
+    def get_commits(self) -> int:
+        return sum([int(c) for c in self._commits.values()])
+
     def get_requests(self, d_time: datetime) -> (pd.Series, str):
         np.random.shuffle(self.keys)
         for id_ in self.keys:
-            self.commits[id_] = self.clients[id_].has_commit()
-            if not self.commits[id_]:
+            self._commits[id_] = self.clients[id_].has_commit()
+            if not self._commits[id_]:
                 request = self.clients[id_].get_request(d_time)
                 if sum(request.values) > 0:
                     yield request, self.clients[id_].grid_node, id_
@@ -128,30 +134,40 @@ class FlexibilityProvider:
     def commit(self, price: pd.Series, consumer_id: uuid.uuid1) -> bool:
         commit_ = self.clients[consumer_id].commit(price=price)
         if commit_:
-            self.commits[consumer_id] = self.clients[consumer_id].has_commit()
+            self._commits[consumer_id] = self.clients[consumer_id].has_commit()
         return commit_
 
     def save_results(self, d_time: datetime):
         for id_, client in self.clients.items():
-            time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
-            data = client.get_result(time_range)
-            data['iteration'] = self.iteration
-            data['scenario'] = self.scenario
-            data = data.rename_axis('time').reset_index()
-            data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
-            data.to_sql(name='residential', con=self._database, if_exists='append')
-
-            for key, car in client.cars.items():
-                data = car.get_result(time_range)
-                data['car_id'] = key
-                data['consumer_id'] = id_
+            if client.consumer_type == 'household':
+                time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+                data = client.get_result(time_range)
                 data['iteration'] = self.iteration
                 data['scenario'] = self.scenario
                 data = data.rename_axis('time').reset_index()
-                data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
-                data.to_sql(name='cars', con=self._database, if_exists='append')
+                data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
+                try:
+                    data.to_sql(name='residential', con=self._database, if_exists='append')
+                except Exception as e:
+                    logger.warning(f'server closed the connection {repr(e)}')
+                    data.to_sql(name='residential', con=self._database, if_exists='append')
+                    logger.error(f'data for residential {id_} are not stored in database')
 
-        for key in self.keys:
-            self.commits[key] = False
-            self.clients[key].reset_commit()
+                for key, car in client.cars.items():
+                    data = car.get_result(time_range)
+                    data['car_id'] = key
+                    data['consumer_id'] = id_
+                    data['iteration'] = self.iteration
+                    data['scenario'] = self.scenario
+                    data = data.rename_axis('time').reset_index()
+                    data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
+                    try:
+                        data.to_sql(name='cars', con=self._database, if_exists='append')
+                    except Exception as e:
+                        logger.warning(f'server closed the connection {repr(e)}')
+                        data.to_sql(name='cars', con=self._database, if_exists='append')
+                        logger.error(f'data for car {key} are not stored in database')
+
+                client.reset_commit()
+                self._commits[id_] = False
 
