@@ -110,11 +110,11 @@ class Car:
                     departure = round_ts_to_base((destination - td(minutes=travel_time)), base)
                     steps = len(self._data.loc[departure:destination, 'demand'])
                     if departure >= start_date and destination <= end_date:
-                        self._data.loc[departure:destination, 'demand'] = demand / steps
+                        self._data.loc[departure:destination, 'demand'] = demand / steps / self.dt
 
                     destination = round_ts_to_base((arrival - td(minutes=travel_time)), base)
                     if destination >= start_date and arrival <= end_date:
-                        self._data.loc[destination:arrival, 'demand'] = demand / steps
+                        self._data.loc[destination:arrival, 'demand'] = demand / steps / self.dt
                         self._data.loc[departure:arrival, 'usage'] = 1
                         self._data.loc[departure:arrival, mobility['type']] = 1
                     elif destination < end_date:
@@ -131,7 +131,7 @@ class Car:
 
     def drive(self, d_time: datetime):
         # -> if no demand is set --> demand 1 % of Soc
-        demand = self._data.loc[d_time, 'demand']
+        demand = self._data.loc[d_time, 'demand'] * self.dt
         distance = demand / self.consumption
         self.odometer += distance
         capacity = (self.capacity * self.soc) - demand
