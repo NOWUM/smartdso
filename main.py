@@ -17,7 +17,7 @@ logger.setLevel('DEBUG')
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
 
 try:
-    TableCreator(create_tables=False, database_uri=DATABASE_URI)
+    tables = TableCreator(create_tables=False, database_uri=DATABASE_URI)
     logger.info(' -> connected to database')
 except Exception as e:
     logger.error(f" -> can't connect to {DATABASE_URI}")
