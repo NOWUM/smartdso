@@ -53,7 +53,7 @@ class BasicParticipant:
 
     def initial_time_series(self):
         # -> return time series (1/4 h) [kW]
-        demand = np.asarray([self._profile_generator.run_model(date) for date in self._date_range]).flatten()
+        demand = np.hstack([self._profile_generator.run_model(date) for date in self._date_range])
         self._data.loc[self.time_range, 'demand'] = demand
         # -> calculate generation
         generation = np.zeros(self._steps)

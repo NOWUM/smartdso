@@ -63,11 +63,15 @@ class StandardLoadProfile:
         doy, dow, year = d.dayofyear, d.dayofweek, d.year
 
         if self.london_data:
-            demand = self.data.loc[self.data.index.dayofyear == doy]
-            demand = np.asarray([[d, d] for d in demand['power'].values]).flatten()
-            mean_demand = np.mean(demand)
-            missing = 96 - len(demand)
-            demand = np.hstack([demand, np.ones(missing) * mean_demand])
+            try:
+                demand = self.data.loc[self.data.index.dayofyear == doy]
+                demand = np.asarray([[d, d] for d in demand['power'].values]).flatten()
+                missing = max(96 - len(demand), 0)
+                demand = np.hstack([demand, np.ones(missing) * np.mean(demand)])[:96]
+            except Exception as e:
+                logger.warning(f'no data found {repr(e)}')
+                demand = 0.2 * np.ones(96)
+
         else:
             demand, f = np.zeros(96), self.demandP / 1e6
             if self.type == 'household':
