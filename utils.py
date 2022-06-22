@@ -12,6 +12,7 @@ class TableCreator:
         if create_tables:
             for table in self.tables:
                 if table != 'spatial_ref_sys':
+                    print(table)
                     self.engine.execute(f"DROP TABLE IF EXISTS {table}")
             self._create_tables()
             self.tables = inspect(self.engine).get_table_names()
@@ -37,6 +38,7 @@ class TableCreator:
         self.engine.execute("CREATE TABLE IF NOT EXISTS residential( "
                             "time timestamp without time zone NOT NULL, "
                             "consumer_id text, "
+                            "node_id text,"
                             "iteration integer, "
                             "scenario text, "
                             "demand double precision, "
