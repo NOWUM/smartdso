@@ -60,7 +60,7 @@ class StandardLoadProfile:
 
     def run_model(self, d: pd.Timestamp):
 
-        doy, dow, year= d.dayofyear, d.dayofweek, d.year
+        doy, dow, year = d.dayofyear, d.dayofweek, d.year
 
         if self.london_data:
             demand = self.data.loc[self.data.index.dayofyear == doy]
