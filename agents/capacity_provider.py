@@ -163,11 +163,11 @@ class CapacityProvider:
                     logger.error(f'data for line {column} are not stored in database')
 
         for sub_id, dataframe in self.transformer_utilization.items():
-
+            id_ = int(sub_id)
             df = pd.DataFrame(dict(time=time_range,
                                    iteration=self.T * [int(self.iteration)],
                                    scenario=self.T * [self.scenario],
-                                   id_=self.T * [int(sub_id)],
+                                   id_=self.T * [self._geo_info['transformers'][id_]['name'].values[0]],
                                    sub_grid=self.T * [int(sub_id)],
                                    asset=self.T * ['transformer'],
                                    utilization=dataframe.loc[time_range, 'utilization'].values))
