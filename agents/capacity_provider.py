@@ -1,19 +1,26 @@
 import logging
+import os
 import pandas as pd
 import numpy as np
 from datetime import timedelta as td, datetime
+from sqlalchemy import create_engine
 
 
 from gridLib.model import GridModel
 logging.getLogger('pypsa').setLevel('ERROR')
 
+# -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+# -> database uri to store the results
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+
+logger = logging.getLogger('CapacityProvider')
 
 
 class CapacityProvider:
 
     def __init__(self, scenario: str, iteration: int, start_date: datetime, end_date: datetime,
-                 T: int = 1440, *args, **kwargs):
+                 database_uri: str = DATABASE_URI, T: int = 1440, write_geo: bool = True, *args, **kwargs):
         self.scenario = scenario
         self.iteration = iteration
         # -> build grid model and set simulation horizon
@@ -33,6 +40,21 @@ class CapacityProvider:
 
         self._rq_l_util = pd.DataFrame()
         self._rq_t_util = pd.DataFrame()
+
+        self.T = T
+        self._database = create_engine(database_uri)
+
+        self._geo_info = dict(edges=[], nodes=[], transformers=[])
+
+        for sub_id in self.mapper.unique():
+            for asset_type in self._geo_info.keys():
+                df = self.grid.get_components(asset_type, grid=sub_id)
+                df.set_crs(crs='EPSG:4326', inplace=True)
+                self._geo_info[asset_type] += [df]
+                if write_geo:
+                    df['asset'] = asset_type
+                    # df.set_index('name', inplace=True)
+                    df.to_postgis(name=f'{asset_type}_geo', con=self._database, if_exists='append')
 
     def _line_utilization(self, sub_id: str) -> pd.DataFrame:
         lines = self.grid.sub_networks[sub_id]['model'].lines_t.p0
@@ -117,9 +139,9 @@ class CapacityProvider:
         self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
         self.transformer_utilization[sub_id].fillna(method='ffill', inplace=True)
 
-    def get_results(self) -> (pd.DataFrame, pd.DataFrame):
+    def save_results(self, d_time: datetime):
 
-        lines, transformers = [], []
+        time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
         for sub_id, dataframe in self.line_utilization.items():
             for column in dataframe.columns:
@@ -129,32 +151,35 @@ class CapacityProvider:
                 else:
                     asset = 'inlet'
 
-                dataframe = dataframe.resample('15min').mean()
-                steps = len(dataframe)
-
-                lines += [dict(time=dataframe.index,
-                               iteration=steps * [int(self.iteration)],
-                               scenario=steps * [self.scenario],
-                               id_=steps * [column],
-                               sub_id=steps * [int(sub_id)],
-                               asset=steps * [asset],
-                               utilization=dataframe[column].values)]
+                df = pd.DataFrame(dict(time=time_range, iteration=self.T * [int(self.iteration)],
+                                       scenario=self.T * [self.scenario], id_=self.T * [column],
+                                       sub_grid=self.T * [int(sub_id)], asset=self.T * [asset],
+                                       utilization=dataframe.loc[time_range, column].values))
+                try:
+                    df.to_sql('grid', self._database, index=False, if_exists='append')
+                except Exception as e:
+                    logger.warning(f'server closed the connection {repr(e)}')
+                    df.to_sql('grid', self._database, index=False, if_exists='append')
+                    logger.error(f'data for line {column} are not stored in database')
 
         for sub_id, dataframe in self.transformer_utilization.items():
-            dataframe = dataframe.resample('15min').mean()
-            steps = len(dataframe)
 
-            transformers += [dict(time=dataframe.index,
-                                  iteration=steps * [int(self.iteration)],
-                                  scenario=steps * [self.scenario],
-                                  id_=steps * int(sub_id),
-                                  sub_id=steps * [int(sub_id)],
-                                  asset=steps * ['transformer'],
-                                  utilization=dataframe['utilization'].values)]
-
-        return lines, transformers
+            df = pd.DataFrame(dict(time=time_range,
+                                   iteration=self.T * [int(self.iteration)],
+                                   scenario=self.T * [self.scenario],
+                                   id_=self.T * [int(sub_id)],
+                                   sub_grid=self.T * [int(sub_id)],
+                                   asset=self.T * ['transformer'],
+                                   utilization=dataframe.loc[time_range, 'utilization'].values))
+            try:
+                df.to_sql('grid', self._database, index=False, if_exists='append')
+            except Exception as e:
+                logger.warning(f'server closed the connection {repr(e)}')
+                df.to_sql('grid', self._database, index=False, if_exists='append')
+                logger.error(f'data for transformer {sub_id} are not stored in database')
 
 
 if __name__ == "__main__":
-    cp = CapacityProvider(**dict(start_date='2022-02-01', end_date='2022-02-02', scenario=None, iteration=None))
+    cp = CapacityProvider(**dict(start_date=datetime(2022, 1, 1), end_date=datetime(2022, 1, 2),
+                                 scenario=None, iteration=None, T=96))
 
