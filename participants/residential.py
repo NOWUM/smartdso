@@ -54,11 +54,12 @@ class HouseholdModel(BasicParticipant):
                  consumer_id: str = 'nowum',
                  *args, **kwargs):
 
-        super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date, database_uri=database_uri)
+        super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
+                         database_uri=database_uri, consumer_type='household')
 
         # -> initialize profile generator
-        self.profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data,
-                                                     l_id=l_id, resolution=self.T)
+        self._profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data,
+                                                      l_id=l_id, resolution=self.T)
         # -> create residents with cars
         self.persons = [Resident(ev_ratio=ev_ratio, charging_limit='required',
                                  start_date=start_date, end_time=end_date, T=self.T)
@@ -68,7 +69,7 @@ class HouseholdModel(BasicParticipant):
         prc_level = round(np.random.normal(loc=MEAN_PRICE, scale=VAR_PRICE), 2)
         self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51, 5)
 
-        self.pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
+        self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
         self.cars = {uuid.uuid1(): person.car for person in self.persons if person.car.type == 'ev'}
         if len(self.cars) > 0:
@@ -96,55 +97,6 @@ class HouseholdModel(BasicParticipant):
         self._data.loc[self.time_range, 'consumer_id'] = [consumer_id] * self._steps
         self._data.loc[self.time_range, 'car_capacity'] = self._total_capacity * np.ones(self._steps)
 
-    def get_demand(self, time_range=None) -> (pd.Series, pd.Series):
-        if time_range is None:
-            time_range = self.time_range
-        return self._data.loc[time_range, 'demand'], self._data.loc[time_range, 'residual_demand']
-
-    def get_generation(self, time_range=None) -> (pd.Series, pd.Series):
-        if time_range is None:
-            time_range = self.time_range
-        return self._data.loc[time_range, 'generation'], self._data.loc[time_range, 'residual_generation']
-
-    def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
-        if time_range is None:
-            time_range = self.time_range
-        return self._data.loc[time_range]
-
-    def initial_time_series(self):
-        # -> return time series (1/4 h) [kW]
-        demand = np.asarray([self.profile_generator.run_model(date) for date in self._date_range]).flatten()
-        self._data.loc[self.time_range, 'demand'] = demand
-        # -> calculate generation
-        generation = np.zeros(self._steps)
-        for system in self.pv_systems:
-            # -> irradiance unit [W/m²]
-            rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
-                                         dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
-            # -> get generation in [kW/m^2] * [m^2]
-            power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
-            generation += power.values
-
-        if self.T == 1440:
-            self._data.loc[self.time_range, 'generation'] = np.repeat(generation, 15)
-        elif self.T == 96:
-            self._data.loc[self.time_range, 'generation'] = generation
-        elif self.T == 24:
-            generation = np.asarray([np.mean(generation[i:i + 3]) for i in range(0, 96, 4)], np.float).flatten()
-            self._data.loc[self.time_range, 'generation'] = generation
-        # -> set residual time series
-        residual_demand = self._data['demand'] - self._data['generation']
-        residual_demand[residual_demand < 0] = 0
-        self._data.loc[self.time_range, 'residual_demand'] = residual_demand
-
-        residual_generation = self._data['generation'] - self._data['demand']
-        residual_generation[residual_generation < 0] = 0
-        self._data.loc[self.time_range, 'residual_generation'] = residual_generation
-
-        self._data.loc[self.time_range, 'car_demand'] = np.zeros(self._steps)
-        for car in self.cars.values():
-            self._data.loc[self.time_range, 'car_demand'] += car.get_data('demand').values
-
     def _get_segments(self, steps: int = 20) -> dict:
 
         x_data = list(np.linspace(0, self._total_capacity, steps))
@@ -171,6 +123,7 @@ class HouseholdModel(BasicParticipant):
         # -> get residual generation and determine possible opt. time steps
         generation = self._data.loc[d_time:, 'residual_generation'].values
         steps = range(min(self.T, len(generation)))
+        demand = {key: car.get_data('demand').loc[d_time:].values[steps] for key, car in self.cars.items()}
         # -> get prices
         tariff = self._data.loc[d_time:, 'tariff'].values.flatten()[steps]
         grid_fee = self._data.loc[d_time:, 'grid_fee'].values.flatten()[steps]
@@ -227,20 +180,22 @@ class HouseholdModel(BasicParticipant):
         self._model.soc_limit = ConstraintList()
         for key, car in self.cars.items():
             limit = car.get_limit(d_time, strategy)
-            min_charging = max(car.capacity * limit - car.capacity * car.soc, 0)
-            max_charging = car.capacity - car.capacity * car.soc
+            min_charging = max(car.capacity * (limit - car.soc), 0)
+            max_charging = car.capacity * (1 - car.soc)
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) >= min_charging)
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) <= max_charging)
 
         self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
+                                                                                      - demand[key][t]
                                                                                       for key in self.cars.keys()
                                                                                       for t in steps) * self.dt
                                                      + quicksum(car.capacity * car.soc for car in self.cars.values()))
         # -> balance charging, pv and grid consumption
         self._model.balance = ConstraintList()
         for t in steps:
-            self._model.balance.add(quicksum(self._model.power[key, t] for key in self.cars.keys()) == self._model.grid[t]
-                                    + self._model.pv[t])
+            self._model.balance.add(quicksum(self._model.power[key, t] for key in self.cars.keys())
+                                    == self._model.grid[t] + self._model.pv[t])
+
         # -> pv range
         self._model.pv_limit = ConstraintList()
         for t in steps:
@@ -327,7 +282,6 @@ if __name__ == "__main__":
     # -> testing class residential
     from agents.utils import WeatherGenerator
     from datetime import timedelta as td
-    from copy import deepcopy
 
     # -> testing horizon
     start_date = pd.to_datetime('2022-08-01')
