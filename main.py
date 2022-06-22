@@ -1,15 +1,12 @@
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
 import logging
 import os
-from datetime import timedelta as td
-from sqlalchemy import create_engine, inspect
 from matplotlib import pyplot as plt
 
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
-from interfaces.smartgrid import SmartGridInterface
+from utils import TableCreator
 
 logging.basicConfig()
 
@@ -20,7 +17,7 @@ logger.setLevel('DEBUG')
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
 
 try:
-    simulation_interface = SmartGridInterface(create_tables=True, database_uri=DATABASE_URI)
+    TableCreator(create_tables=False, database_uri=DATABASE_URI)
     logger.info(' -> connected to database')
 except Exception as e:
     logger.error(f" -> can't connect to {DATABASE_URI}")
@@ -33,7 +30,7 @@ end_date = pd.to_datetime(os.getenv('END_DATE', '2015-08-10'))                  
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'EV100PV50_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'TEST100_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]}')
@@ -55,7 +52,7 @@ try:
     FlexProvider = FlexibilityProvider(**input_set)
     logger.info(' -> started Flexibility Provider')
     logging.getLogger('FlexibilityProvider').setLevel('WARNING')
-    CapProvider = CapacityProvider(**input_set)
+    CapProvider = CapacityProvider(**input_set, write_geo=False)
     logger.info(' -> started Capacity Provider')
     logging.getLogger('CapacityProvider').setLevel('WARNING')
 except Exception as e:
@@ -93,13 +90,15 @@ if __name__ == "__main__":
         logger.info(' -> consumers plan charging...')
         try:
             for d_time in tqdm(pd.date_range(start=day, periods=96, freq='15min')):
-                while sum([int(c) for c in FlexProvider.commits.values()]) < len(FlexProvider.clients):
+                while FlexProvider.get_commits() < len(FlexProvider.keys):
                     for request, node_id, consumer_id in FlexProvider.get_requests(d_time=d_time):
                         price = CapProvider.get_price(request=request, node_id=node_id)
                         if FlexProvider.commit(price, consumer_id):
                             CapProvider.commit(request=request, node_id=node_id)
-                    logger.info(f' -> {sum([int(c) for c in FlexProvider.commits.values()])} Consumers commits charging')
+                    logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
                 FlexProvider.simulate(d_time)
             FlexProvider.save_results(day)
+            CapProvider.save_results(day)
         except Exception as e:
             logger.error(f' -> error during simulation: {repr(e)}')
+
