@@ -34,6 +34,10 @@ class TableCreator:
             with connection.begin():
                 connection.execute(query_create_hypertable)
 
+        self.engine.execute("CREATE INDEX grid_id ON grid (id_);")
+        self.engine.execute("CREATE INDEX grid_iteration ON grid (iteration);")
+        self.engine.execute("CREATE INDEX grid_scenario ON grid (scenario);")
+
         # -> residential table
         self.engine.execute("CREATE TABLE IF NOT EXISTS residential( "
                             "time timestamp without time zone NOT NULL, "
