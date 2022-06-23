@@ -27,14 +27,14 @@ def initialize_scenario(s, ev_ratio=100, minimum_soc=-1, start_date='2022/01/01'
                         pv_ratio=80, london_data=True):
     output = ['version: "3.9"\n', 'services:\n']
 
-    transport = paramiko.Transport((s, 22))
-    transport.connect(username='nowum', pkey=pk)
-    sftp = paramiko.SFTPClient.from_transport(transport)
+    #transport = paramiko.Transport((s, 22))
+    #transport.connect(username='nowum', pkey=pk)
+    #sftp = paramiko.SFTPClient.from_transport(transport)
 
     for simulation in range(30):
         output.append(f'''
-          scenario_{ev_ratio}_{minimum_soc}_{simulation}:
-            container_name: s{ev_ratio}{minimum_soc}_{simulation}
+          scenario_{ev_ratio}_{pv_ratio}_{simulation}:
+            container_name: s{ev_ratio}{pv_ratio}_{simulation}
             image: {image_repo}smartdso:latest
             build: .
             environment:
@@ -66,3 +66,8 @@ def start_scenario(s):
     logger.info(f'started scenario on {s}')
 
     ssh.close()
+
+
+if __name__ == "__main__":
+    ip = '10.13.10.54'
+    update_image(ip)
