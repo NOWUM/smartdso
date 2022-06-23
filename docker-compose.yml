@@ -1,14 +1,363 @@
 version: "3.9"
 services:
-  scenario_100_-1_0:
-    container_name: s100-1_0
-    image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
-    build: .
-    environment:
-      EV_RATIO: 100
-      MINIMUM_SOC: -1
-      LONDON_DATA: False
-      START_DATE: 2022/01/01
-      END_DATE: 2022/01/15
-      SCENARIO_NAME: EV100LIMIT-1_0
-      DYNAMIC_FEE: "True"
+
+          scenario_100_50_0:
+            container_name: s10050_0
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_0
+        
+          scenario_100_50_1:
+            container_name: s10050_1
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_1
+        
+          scenario_100_50_2:
+            container_name: s10050_2
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_2
+        
+          scenario_100_50_3:
+            container_name: s10050_3
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_3
+        
+          scenario_100_50_4:
+            container_name: s10050_4
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_4
+        
+          scenario_100_50_5:
+            container_name: s10050_5
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_5
+        
+          scenario_100_50_6:
+            container_name: s10050_6
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_6
+        
+          scenario_100_50_7:
+            container_name: s10050_7
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_7
+        
+          scenario_100_50_8:
+            container_name: s10050_8
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_8
+        
+          scenario_100_50_9:
+            container_name: s10050_9
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_9
+        
+          scenario_100_50_10:
+            container_name: s10050_10
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_10
+        
+          scenario_100_50_11:
+            container_name: s10050_11
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_11
+        
+          scenario_100_50_12:
+            container_name: s10050_12
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_12
+        
+          scenario_100_50_13:
+            container_name: s10050_13
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_13
+        
+          scenario_100_50_14:
+            container_name: s10050_14
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_14
+        
+          scenario_100_50_15:
+            container_name: s10050_15
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_15
+        
+          scenario_100_50_16:
+            container_name: s10050_16
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_16
+        
+          scenario_100_50_17:
+            container_name: s10050_17
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_17
+        
+          scenario_100_50_18:
+            container_name: s10050_18
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_18
+        
+          scenario_100_50_19:
+            container_name: s10050_19
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_19
+        
+          scenario_100_50_20:
+            container_name: s10050_20
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_20
+        
+          scenario_100_50_21:
+            container_name: s10050_21
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_21
+        
+          scenario_100_50_22:
+            container_name: s10050_22
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_22
+        
+          scenario_100_50_23:
+            container_name: s10050_23
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_23
+        
+          scenario_100_50_24:
+            container_name: s10050_24
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_24
+        
+          scenario_100_50_25:
+            container_name: s10050_25
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_25
+        
+          scenario_100_50_26:
+            container_name: s10050_26
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_26
+        
+          scenario_100_50_27:
+            container_name: s10050_27
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_27
+        
+          scenario_100_50_28:
+            container_name: s10050_28
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_28
+        
+          scenario_100_50_29:
+            container_name: s10050_29
+            image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+            build: .
+            environment:
+              LONDON_DATA: "True"
+              EV_RATIO: 100
+              PV_RATIO: 50
+              START_DATE: 2015-08-01
+              END_DATE: 2015-08-31
+              SCENARIO_NAME: EV100PV50_29
+        
