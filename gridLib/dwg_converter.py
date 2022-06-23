@@ -127,9 +127,9 @@ if __name__ == "__main__":
     plt.scatter(n.loc[n['type'] == 'sleeve', 'lon'], n.loc[n['type'] == 'sleeve', 'lat'])
     # plt.show()
 
-    lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
-    n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
-    consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
-
-    fig = get_plot(nodes=n, consumers=consumers, edges=lines)
-    fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
+    # lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
+    # n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
+    # consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
+    #
+    # fig = get_plot(nodes=n, consumers=consumers, edges=lines)
+    # fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
