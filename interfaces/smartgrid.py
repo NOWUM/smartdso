@@ -87,3 +87,9 @@ class SmartGridInterface:
                 connection.execute(query_create_hypertable)
 
 
+        # -> geojson table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS geojson( "
+                            "id_ text, "
+                            "feature text, "
+                            "PRIMARY KEY (id_));")
+
