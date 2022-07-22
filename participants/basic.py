@@ -30,9 +30,13 @@ class BasicParticipant:
         self._data = pd.DataFrame(columns=['consumer_id', 'demand', 'residual_demand',
                                            'generation', 'residual_generation', 'pv_capacity',
                                            'car_capacity', 'total_radiation', 'tariff', 'grid_fee',
-                                           'car_demand', 'planed_grid_consumption',
-                                           'final_grid_consumption', 'planed_pv_consumption',
+                                           'car_demand', 'planned_grid_consumption',
+                                           'final_grid_consumption', 'planned_pv_consumption',
                                            'final_pv_consumption'], index=self.time_range)
+
+        for column in self._data.columns:
+            self._data[column] = np.zeros(len(self.time_range))
+
         # -> grid connection node
         self.grid_node = grid_node
         self.persons = []
@@ -45,8 +49,7 @@ class BasicParticipant:
 
         self._request = pd.Series(dtype=float)
 
-        self._finished = False
-        self._initial_plan = False
+        self._finished, self._initial_plan = False, False
         self._commit = self.time_range[0] - td(minutes=1)
         self._pv_systems = []
         self.cars = {}
@@ -58,6 +61,7 @@ class BasicParticipant:
         # -> calculate generation
         generation = np.zeros(self._steps)
         for system in self._pv_systems:
+            # pvlib.irradiance.dirint -> split in dni and dhi
             # -> irradiance unit [W/m²]
             rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
                                          dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
@@ -97,8 +101,10 @@ class BasicParticipant:
         self.prices = prices
         self._data.loc[self.time_range, 'total_radiation'] = self.weather['ghi'].values.flatten()
 
-    def simulate(self, d_time: datetime) -> None:
-        pass
+    def simulate(self, d_time):
+        for person in [p for p in self.persons if p.car.type == 'ev']:
+            person.car.charge(d_time)   # -> do charging
+            person.car.drive(d_time)    # -> do driving
 
     def get_request(self, d_time: datetime, strategy: str = None) -> pd.Series:
         if d_time > self._commit:
