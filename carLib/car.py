@@ -48,13 +48,13 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = np.random.randint(low=10, high=90)/100                       # -> state of charge [0,..., 1]
+        self.soc = np.random.randint(low=10, high=15)/100                       # -> state of charge [0,..., 1]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy
         self.daily_limit = {}                                                   # -> limit @ day
 
-        self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planed_charge', 'final_charge',
+        self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planned_charge', 'final_charge',
                                            'demand', 'usage', 'work', 'errand', 'hobby'])
         # -> simulation monitoring
         self.empty = False                                                      # -> True if car has not enough energy
@@ -182,8 +182,8 @@ class Car:
 
         return limit
 
-    def set_planed_charging(self, time_series: pd.Series) -> None:
-        self._data.loc[time_series.index, 'planed_charge'] = time_series.values
+    def set_planned_charging(self, time_series: pd.Series) -> None:
+        self._data.loc[time_series.index, 'planned_charge'] = time_series.values
 
     def set_final_charging(self, time_series: pd.Series) -> None:
         self._data.loc[time_series.index, 'final_charge'] = time_series.values
