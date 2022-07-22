@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, inspect
 import os
 
+# CREATE EXTENSION postgis;
+
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
 
 
@@ -55,9 +57,9 @@ class TableCreator:
                             "grid_fee double precision, "
                             "car_demand double precision, "
                             "car_capacity double precision, "
-                            "planed_grid_consumption double precision, "
+                            "planned_grid_consumption double precision, "
                             "final_grid_consumption double precision, "
-                            "planed_pv_consumption double precision, "
+                            "planned_pv_consumption double precision, "
                             "final_pv_consumption double precision, "
                             "PRIMARY KEY (time , consumer_id, iteration, scenario));")
 
@@ -65,6 +67,10 @@ class TableCreator:
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)
+
+        self.engine.execute("CREATE INDEX residential_id ON residential (consumer_id);")
+        self.engine.execute("CREATE INDEX residential_iteration ON residential (iteration);")
+        self.engine.execute("CREATE INDEX residential_scenario ON residential (scenario);")
 
         # -> car table
         self.engine.execute("CREATE TABLE IF NOT EXISTS cars( "
@@ -75,7 +81,7 @@ class TableCreator:
                             "scenario text, "
                             "distance double precision, "
                             "total_distance double precision, "
-                            "planed_charge double precision, "
+                            "planned_charge double precision, "
                             "final_charge double precision, "
                             "demand double precision, "
                             "soc double precision, "
@@ -85,13 +91,17 @@ class TableCreator:
                             "hobby integer, "
                             "PRIMARY KEY (time , car_id, iteration, scenario));")
 
+        self.engine.execute("CREATE INDEX car_id ON cars (car_id);")
+        self.engine.execute("CREATE INDEX car_iteration ON cars (iteration);")
+        self.engine.execute("CREATE INDEX car_scenario ON cars (scenario);")
+
         query_create_hypertable = "SELECT create_hypertable('cars', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)
 
         # -> geojson table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS edges_geo( "
+        self.engine.execute("CREATE TABLE IF NOT EXISTS info_geo( "
                             "name text, "
                             "geometry geometry(LineString, 4326), "
                             "asset text, "
