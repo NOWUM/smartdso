@@ -32,10 +32,11 @@ RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
 # -> default prices EPEX-SPOT 2015
-TARIFF = pd.read_csv(r'./participants/data/default_prices.csv', index_col=0)
+TARIFF = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0)
 TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]
-TARIFF.index = pd.to_datetime(TARIFF.index, format="%d.%m.%Y %H:%M")
-CHARGES = {'others': 2.9, 'taxes': 8.0, 'eeg': 6.5}
+# TARIFF.index = pd.to_datetime(TARIFF.index, format="%d.%m.%Y %H:%M")
+TARIFF.index = pd.to_datetime(TARIFF.index, format="%Y-%m-%d %H:%M:%S")
+CHARGES = {'others': 2.9, 'taxes': 8.0}
 for values in CHARGES.values():
     TARIFF += values
 
@@ -67,7 +68,7 @@ class HouseholdModel(BasicParticipant):
 
         # -> price limits from survey
         prc_level = round(np.random.normal(loc=MEAN_PRICE, scale=VAR_PRICE), 2)
-        self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51, 5)
+        self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51, 5) + 50
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
@@ -82,6 +83,7 @@ class HouseholdModel(BasicParticipant):
 
         self._max_requests = 5
         self._benefit_value = 0
+        self._simple_commit = None
         self.finished = False
 
         self._model = ConcreteModel()
@@ -90,7 +92,7 @@ class HouseholdModel(BasicParticipant):
 
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
-        self._data.loc[self.time_range, 'tariff'] = tariff.values.flatten()
+        self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
         self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
         self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
@@ -172,7 +174,7 @@ class HouseholdModel(BasicParticipant):
         # -> limit maximal charging power
         self._model.power_limit = ConstraintList()
         for key, car in self.cars.items():
-            usage = car.get_data('usage').loc[d_time:].resample(RESOLUTION[self.T]).last().values
+            usage = car.get_data('usage').loc[d_time:].values
             for t in steps:
                 self._model.power_limit.add(self._model.power[key, t] <= car.maximal_charging_power * (1 - usage[t]))
 
@@ -216,10 +218,10 @@ class HouseholdModel(BasicParticipant):
                 self._car_power[key].loc[time_range] = [self._model.power[key, t].value for t in steps]
             if not self._initial_plan:
                 self._initial_plan = True
-                self._data.loc[time_range, 'planed_grid_consumption'] = self._request.loc[time_range].values
-                self._data.loc[time_range, 'planed_pv_consumption'] = [self._model.pv[t].value for t in steps]
+                self._data.loc[time_range, 'planned_grid_consumption'] = self._request.loc[time_range].values
+                self._data.loc[time_range, 'planned_pv_consumption'] = [self._model.pv[t].value for t in steps]
                 for key, car in self.cars.items():
-                    car.set_planed_charging(self._car_power[key])
+                    car.set_planned_charging(self._car_power[key])
 
         except Exception as e:
             logger.warning(f' -> model infeasible {repr(e)}')
@@ -233,13 +235,67 @@ class HouseholdModel(BasicParticipant):
             self._max_requests = 5
             self._finished = True
 
-    def get_request(self, d_time: datetime, strategy: str = 'PV'):
+    def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
+        self._simple_commit = d_time
+        d_time += td(minutes=15 * int(sum(np.random.randint(low=1, high=3, size=(5-self._max_requests)))))
+        remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
+        generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps-1)*self.dt), 'residual_generation']
+        self._request = pd.Series(data=np.zeros(remaining_steps),
+                                  index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
+
+        for key, car in self.cars.items():
+            self._car_power[key] = pd.Series(data=np.zeros(remaining_steps),
+                                             index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
+                                                                 periods=remaining_steps))
+            usage = car.get_data('usage').loc[d_time:]
+            if car.soc < car.get_limit(d_time, strategy) and usage.at[d_time] == 0:
+                chargeable = usage.loc[usage == 0]
+                # -> get first time stamp of next charging block
+                if chargeable.empty:
+                    t1 = self.time_range[-1]
+                else:
+                    t1 = chargeable.index[0]
+                # -> get first time stamp of next using block
+                car_in_use = usage.loc[usage == 1]
+                if car_in_use.empty:
+                    t2 = self.time_range[-1]
+                else:
+                    t2 = car_in_use.index[0]
+
+                if t2 > t1:
+                    limit_by_capacity = (car.capacity * (1-car.soc)) / car.maximal_charging_power / self.dt
+                    limit_by_slot = len(self.time_range[(self.time_range >= t1) & (self.time_range < t2)])
+                    duration = int(min(limit_by_slot, limit_by_capacity))
+                    self._car_power[key] = pd.Series(data=car.maximal_charging_power * np.ones(duration),
+                                                     index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
+                                                                         periods=duration))
+
+                    self._request.loc[self._car_power[key].index] += self._car_power[key].values
+                    self._simple_commit = max(self._simple_commit, t2)
+
+            pv_usage = pd.Series(data=np.zeros(remaining_steps),
+                                 index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
+            pv_usage[self._request.values > 0] = generation.loc[self._request.values > 0]
+            pv_usage[max(self._request.values) < pv_usage] = max(self._request.values)
+
+            self._request -= generation.loc[self._request.index]
+            self._request.loc[self._request < 0] = 0
+
+            if not self._initial_plan:
+                self._initial_plan = True
+                self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
+                self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
+
+            self._benefit_value = self._total_benefit
+
+    def get_request(self, d_time: datetime, strategy: str = 'optimized'):
         if self._total_capacity > 0 and d_time > self._commit:
-            if strategy == 'PV':
+            if strategy == 'optimized':
                 self._optimize_photovoltaic_usage(d_time=d_time)
             elif strategy == 'simple':
-                pass
-                # self._plan_without_photovoltaic(d_time=d_time, strategy='required')
+                self.finished = False
+                self._initial_plan = False
+                self._plan_without_photovoltaic(d_time=d_time)
             else:
                 logger.error(f'invalid strategy {strategy}')
                 raise Exception(f'invalid strategy {strategy}')
@@ -256,9 +312,9 @@ class HouseholdModel(BasicParticipant):
         if self._benefit_value > total_price or self._max_requests == 0:
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
-            self._commit = price.index.max()
-            self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].values
-            self._data.loc[price.index, 'final_pv_consumption'] = [self._model.pv[t].value for t in self.t]
+            self._commit = self._simple_commit or price.index.max()
+            self._data.loc[price.index, 'final_grid_consumption'] = self._data.loc[price.index, 'planned_grid_consumption']
+            self._data.loc[price.index, 'final_pv_consumption'] = self._data.loc[price.index, 'planned_pv_consumption']
 
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
@@ -272,26 +328,21 @@ class HouseholdModel(BasicParticipant):
             self._max_requests -= 1
             return False
 
-    def simulate(self, d_time):
-        for person in [p for p in self.persons if p.car.type == 'ev']:
-            person.car.charge(d_time)  # -> do charging
-            person.car.drive(d_time)  # -> do driving
-
 
 if __name__ == "__main__":
     # -> testing class residential
-    from agents.utils import WeatherGenerator
+    from agents.utils import WeatherGeneratorFile
     from datetime import timedelta as td
 
     # -> testing horizon
-    start_date = pd.to_datetime('2022-08-01')
-    end_date = pd.to_datetime('2022-08-10')
+    start_date = pd.to_datetime('2022-01-01')
+    end_date = pd.to_datetime('2022-01-10')
     # -> default pv system
     pv_system = dict(pdc0=5, surface_tilt=35, surface_azimuth=180)
-    house_opt = HouseholdModel(residents=2, demandP=5000, pv_systems=[pv_system], start_date=start_date, end_date=end_date,
-                               ev_ratio=1, T=96)
+    house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system],
+                               start_date=start_date, end_date=end_date, ev_ratio=1, T=96)
     # # -> get weather data
-    weather_generator = WeatherGenerator()
+    weather_generator = WeatherGeneratorFile()
     weather = pd.concat([weather_generator.get_weather(area='DEA26', date=date)
                          for date in pd.date_range(start=start_date, end=end_date + td(days=1),
                                                    freq='d')])
@@ -302,19 +353,28 @@ if __name__ == "__main__":
     house_opt.initial_time_series()
     #opt_power = house_opt.get_request(house_opt.time_range[0], strategy='PV')
     time_range = house_opt.time_range
+    #t = time_range[0]
+    #r = house_opt.get_request(d_time=t, strategy='simple')
+    for t in time_range:
+        print(t)
+        house_opt.get_request(d_time=t, strategy='simple')
+        if house_opt._request.sum() > 0:
+           house_opt.commit(pd.Series(data=np.zeros(len(house_opt._request)), index=house_opt._request.index))
+        house_opt.simulate(t)
+    result = house_opt.get_result()
     # -> clone house_1
-   # house_simple = deepcopy(house_opt)
+    # house_simple = deepcopy(house_opt)
     # offset = [100] * 10
 
-    for t in time_range:
-        print(t, house_opt.has_commit(), house_opt._commit)
-        opt_power = house_opt.get_request(t, strategy='PV')
-        if sum(opt_power) > 0:
-            house_opt.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
-        house_opt.simulate(d_time=t)
-
-    plt.plot(house_opt._data['final_pv_consumption'])
-    plt.show()
+    # for t in time_range:
+    #     print(t, house_opt.has_commit(), house_opt._commit)
+    #     opt_power = house_opt.get_request(t, strategy='PV')
+    #     if sum(opt_power) > 0:
+    #         house_opt.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
+    #     house_opt.simulate(d_time=t)
+    #
+    # plt.plot(house_opt._data['final_pv_consumption'])
+    # plt.show()
     # plt.plot(house_opt.power)
     # plt.plot(house_opt.persons[0].car.charging + house_opt.persons[1].car.charging)
     # plt.show()
