@@ -25,12 +25,12 @@ except Exception as e:
     engine = None
     raise Exception("Bad simulation parameters, please check your input")
 
-start_date = pd.to_datetime(os.getenv('START_DATE', '2015-08-01'))              # -> default start date
-end_date = pd.to_datetime(os.getenv('END_DATE', '2015-08-31'))                  # -> default end date
+start_date = pd.to_datetime(os.getenv('START_DATE', '2022-03-01'))              # -> default start date
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-03-10'))                  # -> default end date
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'TEST105_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'TEST2022_0')
 sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
