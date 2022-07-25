@@ -92,13 +92,32 @@ class WeatherInterface:
 
 class WeatherGenerator:
 
-    def __init__(self):
-
-        weather_database_uri = 'postgresql://opendata:opendata@10.13.10.41:5432/weather'
-        self.weather = WeatherInterface('grid_simulation', weather_database_uri)
-        self.location = Location(longitude=6.4794, latitude=50.8037)
+    def __init__(self, lon: float = 6.4794, lat: float = 50.8037):
+        self.location = Location(longitude=lon, latitude=lat)
         self.sun_position = self.location.get_solarposition(pd.date_range(start='1972-01-01 00:00', periods=8684,
                                                             freq='h'))
+
+    def get_weather(self, date: pd.Timestamp, area: str):
+        pass
+
+
+class WeatherGeneratorFile(WeatherGenerator):
+
+    def __init__(self, lon: float = 6.4794, lat: float = 50.8037):
+        super().__init__(lon=lon, lat=lat)
+        self.weather = pd.read_csv(r'./weather.csv', index_col=0)
+        self.weather.index = pd.to_datetime(self.weather.index)
+
+    def get_weather(self, date: pd.Timestamp, area: str):
+        return self.weather.loc[self.weather.index.date == date]
+
+
+class WeatherGeneratorDB(WeatherGenerator):
+
+    def __init__(self, lon: float = 6.4794, lat: float = 50.8037,
+                 database_uri: str = 'postgresql://opendata:opendata@10.13.10.41:5432/weather' ):
+        super().__init__(lon, lat)
+        self.weather = WeatherInterface('grid_simulation', database_uri)
 
     def get_weather(self, date: pd.Timestamp, area: str):
         azimuth = self.sun_position.loc[self.sun_position.index.day_of_year == date.day_of_year, 'azimuth'].to_numpy()
@@ -119,3 +138,7 @@ class WeatherGenerator:
         df.index = map(lambda x: x.replace(year=year_), df.index)
 
         return df
+
+
+if __name__ == '__main__':
+    myGen = WeatherGeneratorFile()
