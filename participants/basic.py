@@ -62,11 +62,14 @@ class BasicParticipant:
         generation = np.zeros(self._steps)
         for system in self._pv_systems:
             # pvlib.irradiance.dirint -> split in dni and dhi
-            # -> irradiance unit [W/m²]
-            rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
-                                         dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
-            # -> get generation in [kW/m^2] * [m^2]
-            power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
+            if len(self.weather.columns) == 1 and ('ghi' in self.weather.columns):
+                power = self.weather['ghi'] / 1e3 * system.arrays[0].module_parameters['pdc0']
+            else:
+                # -> irradiance unit [W/m²]
+                rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
+                                             dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
+                # -> get generation in [kW/m^2] * [m^2]
+                power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
             generation += power.values
 
         if self.T == 1440:
@@ -99,7 +102,7 @@ class BasicParticipant:
     def set_parameter(self, weather: pd.DataFrame = None, prices: pd.DataFrame = None) -> None:
         self.weather = weather
         self.prices = prices
-        self._data.loc[self.time_range, 'total_radiation'] = self.weather['ghi'].values.flatten()
+        self._data.loc[self.time_range, 'total_radiation'] = weather['ghi'].values.flatten()
 
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == 'ev']:
