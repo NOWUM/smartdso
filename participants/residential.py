@@ -232,6 +232,7 @@ class HouseholdModel(BasicParticipant):
                 car.set_final_charging(self._car_power[key])
             self._data.loc[time_range, 'final_grid_consumption'] = self._request.loc[time_range].values
             self._data.loc[time_range, 'final_pv_consumption'] = [self._model.pv[t].value for t in steps]
+
             self._max_requests = 5
             self._finished = True
 
@@ -308,13 +309,15 @@ class HouseholdModel(BasicParticipant):
     def commit(self, price: pd.Series):
         tariff = self._data.loc[price.index, 'tariff'].values.flatten()
         grid_fee = price.values.flatten()
-        total_price = sum((tariff + grid_fee) * self._request.values)
+        total_price = sum((tariff + grid_fee) * self._request.values) * self.dt
         if self._benefit_value > total_price or self._max_requests == 0:
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
             self._commit = self._simple_commit or price.index.max()
-            self._data.loc[price.index, 'final_grid_consumption'] = self._data.loc[price.index, 'planned_grid_consumption']
-            self._data.loc[price.index, 'final_pv_consumption'] = self._data.loc[price.index, 'planned_pv_consumption']
+
+            self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].values
+            t1, t2 = price.index[0].date(), price.index[0].date() + pd.DateOffset(days=1)
+            self._data.loc[t1:t2, 'final_pv_consumption'] = self._data.loc[t1:t2, 'planned_pv_consumption']
 
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
@@ -323,6 +326,7 @@ class HouseholdModel(BasicParticipant):
             self._finished = True
             return True
         else:
+            print('zu teuer', self._benefit_value, total_price)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._max_requests -= 1
@@ -357,9 +361,9 @@ if __name__ == "__main__":
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
         print(t)
-        house_opt.get_request(d_time=t, strategy='simple')
+        x = house_opt.get_request(d_time=t)
         if house_opt._request.sum() > 0:
-           house_opt.commit(pd.Series(data=np.zeros(len(house_opt._request)), index=house_opt._request.index))
+            house_opt.commit(pd.Series(data=np.zeros(len(house_opt._request)), index=house_opt._request.index))
         house_opt.simulate(t)
     result = house_opt.get_result()
     # -> clone house_1
