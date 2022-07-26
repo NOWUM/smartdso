@@ -25,8 +25,8 @@ logger = logging.getLogger('residential')
 logger.setLevel(LOG_LEVEL)
 
 # -> price data from survey
-MEAN_PRICE = 28.01
-VAR_PRICE = 7.9
+# MEAN_PRICE = 28.01
+# VAR_PRICE = 7.9
 # -> steps and corresponding time resolution strings in pandas
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
@@ -67,8 +67,8 @@ class HouseholdModel(BasicParticipant):
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
-        prc_level = round(np.random.normal(loc=MEAN_PRICE, scale=VAR_PRICE), 2)
-        self.price_limit = max(1.1477 * (0.805 * prc_level + 17.45) + 1.51, 5) + 50
+        self.price_limit = np.random.randint(low=50, high=60)
+        self._slope = 1.3
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
@@ -102,7 +102,7 @@ class HouseholdModel(BasicParticipant):
     def _get_segments(self, steps: int = 20) -> dict:
 
         x_data = list(np.linspace(0, self._total_capacity, steps))
-        y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / 5))), x_data)]
+        y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / self._slope))), x_data)]
 
         logger.debug(f'build piecewise linear function with total-capacity: {self._total_capacity}, '
                      f'total-benefit: {round(self._total_benefit, 1)} divided into {steps} steps')
@@ -331,7 +331,7 @@ class HouseholdModel(BasicParticipant):
 
 if __name__ == "__main__":
     # -> testing class residential
-    from agents.utils import WeatherGeneratorFile
+    from agents.utils import WeatherGenerator
     from datetime import timedelta as td
 
     # -> testing horizon
@@ -342,8 +342,8 @@ if __name__ == "__main__":
     house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system],
                                start_date=start_date, end_date=end_date, ev_ratio=1, T=96)
     # # -> get weather data
-    weather_generator = WeatherGeneratorFile()
-    weather = pd.concat([weather_generator.get_weather(area='DEA26', date=date)
+    weather_generator = WeatherGenerator()
+    weather = pd.concat([weather_generator.get_weather(date=date)
                          for date in pd.date_range(start=start_date, end=end_date + td(days=1),
                                                    freq='d')])
     weather = weather.resample('15min').ffill()
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     house_opt.initial_time_series()
     #opt_power = house_opt.get_request(house_opt.time_range[0], strategy='PV')
     time_range = house_opt.time_range
-    #t = time_range[0]
+    t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
         print(t)
