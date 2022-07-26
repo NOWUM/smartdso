@@ -3,7 +3,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from collections import defaultdict
-from matplotlib import pyplot as plt
+
 
 SHAPE_PATH = r'../NUTS_RG_10M_2021_4326.shp'
 NUTS = 'DEA26'
@@ -38,12 +38,34 @@ if __name__ == '__main__':
                                data=[value for _, value in values])]
 
     data = pd.concat(data_, axis=1)
+    export_weather = pd.DataFrame(columns=['wind_speed', 'direction', 'ghi', 'pressure', 'temp_air', 'precipitation'],
+                                  index=data.index)
+    # -> get solar radiation
     solar_rad = np.ediff1d(data.loc[:, 'Surface solar radiation downwards'].values) / 3600
     solar_rad[solar_rad < 0] = 0
-    data.loc[:, 'Surface solar radiation downwards'] = [0] + list(solar_rad)
-    data = data.loc[:, 'Surface solar radiation downwards']
-    data.columns = ['ghi']
-    data.to_csv('weather.csv')
-    #plt.plot(solar_rad)
-    #plt.show()
+    export_weather.loc[:, 'ghi'] = [0] + list(solar_rad)
 
+    # -> get temperature in °C
+    export_weather.loc[:, 'temp_air'] = data.loc[:, '2 metre temperature'].values - 273.15
+
+    # -> set pressure
+    export_weather.loc[:, 'pressure'] = data.loc[:, 'Surface pressure'].values
+
+    # -> get precipitation
+    precipitation = np.ediff1d(data.loc[:, 'Total precipitation'].values)
+    precipitation[precipitation < 0] = 0
+    export_weather.loc[:, 'precipitation'] = [0] + list(precipitation)
+
+    # -> get wind_speed and direction
+    u_wind = data['10 metre U wind component'].values
+    v_wind = data['10 metre V wind component'].values
+    wind_speed = (u_wind**2 + v_wind**2)**0.5
+
+    direction = np.arctan2(u_wind / wind_speed, v_wind / wind_speed) * 180 / np.pi
+    direction += 180
+    direction = 90 - direction
+
+    export_weather.loc[:, 'wind_speed'] = wind_speed
+    export_weather.loc[:, 'direction'] = direction
+
+    export_weather.to_csv(r'weather.csv')

@@ -1,144 +1,46 @@
-import numpy as np
-from sqlalchemy import create_engine
 from pvlib.location import Location
 import pandas as pd
-import calendar
-
-
-DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/weather'
-
-
-class WeatherInterface:
-
-    def __init__(self, name, database_url):
-        self.engine = create_engine(database_url, connect_args={"application_name": name})
-
-    def get_param(self, param, date):
-        data_avg = []
-        with self.engine.begin() as connection:
-            for timestamp in pd.date_range(start=date, periods=24, freq='h'):
-                query = f"SELECT avg({param}) FROM cosmo WHERE time = '{timestamp.isoformat()}';"
-                res = connection.execute(query)
-                value = res.fetchall()[0][0]
-                data_avg.append({'time': timestamp, param: value})
-        return pd.DataFrame(data_avg).set_index('time', drop=True)
-
-    def get_param_in_area(self, param, area='DE111', date=pd.to_datetime('1995-1-1')):
-        data_avg = []
-        with self.engine.begin() as connection:
-            for timestamp in pd.date_range(start=date, periods=24, freq='h'):
-                query = f"SELECT {param} FROM cosmo WHERE time = '{timestamp.isoformat()}'" \
-                        f"AND nuts = \'{area.upper()}\' ;"
-                res = connection.execute(query)
-                try:
-                    value = res.fetchall()[0][0]
-                except:
-                    value = 0
-                data_avg.append({'time': timestamp, param: value})
-        return pd.DataFrame(data_avg).set_index('time', drop=True)
-
-    def get_temperature_in_area(self, area='DE111', date=pd.to_datetime('1995-1-1')):
-        return self.get_param_in_area('temp_air', area, date)
-
-    def get_wind_in_area(self, area='DE111', date=pd.to_datetime('1995-1-1')):
-        data_avg = []
-        with self.engine.begin() as connection:
-            for timestamp in pd.date_range(start=date, periods=24, freq='h'):
-                query = f"SELECT wind_meridional, wind_zonal FROM cosmo " \
-                        f"WHERE time = '{timestamp.isoformat()}'AND nuts = \'{area.upper()}\' ;"
-                res = connection.execute(query)
-
-                values = res.fetchall()[0]
-                wind_speed = (values[0] ** 2 + values[1] ** 2) ** 0.5
-                direction = np.arctan2(values[0] / wind_speed, values[1] / wind_speed) * 180 / np.pi
-                direction += 180
-                direction = 90 - direction
-                data_avg.append({'time': timestamp, 'wind_speed': wind_speed, 'direction': direction})
-
-        return pd.DataFrame(data_avg).set_index('time', drop=True)
-
-    def get_direct_radiation_in_area(self, area='DE111', date=pd.to_datetime('1995-1-1')):
-        return self.get_param_in_area('dhi', area, date)
-
-    def get_diffuse_radiation_in_area(self, area='DE111', date=pd.to_datetime('1995-1-1')):
-        return self.get_param_in_area('dni', area, date)
-
-    def get_wind(self, date=pd.to_datetime('1995-1-1')):
-        data_avg = []
-        with self.engine.begin() as connection:
-            for timestamp in pd.date_range(start=date, periods=24, freq='h'):
-                query = f"SELECT avg(wind_meridional), avg(wind_zonal) FROM cosmo " \
-                        f"WHERE time = '{timestamp.isoformat()}';"
-                res = connection.execute(query)
-
-                values = res.fetchall()[0]
-                wind_speed = (values[0] ** 2 + values[1] ** 2) ** 0.5
-                direction = np.arctan2(values[0] / wind_speed, values[1] / wind_speed) * 180 / np.pi
-                direction += 180
-                direction = 90 - direction
-                data_avg.append({'time': timestamp, 'wind_speed': wind_speed, 'direction': direction})
-
-        return pd.DataFrame(data_avg).set_index('time', drop=True)
-
-    def get_direct_radiation(self, date=pd.to_datetime('1995-1-1')):
-        return self.get_param('dhi', date)
-
-    def get_diffuse_radiation(self, date=pd.to_datetime('1995-1-1')):
-        return self.get_param('dni', date)
-
-    def get_temperature(self, date=pd.to_datetime('1995-1-1')):
-        return self.get_param('temp_air', date)
+import numpy as np
 
 
 class WeatherGenerator:
 
-    def __init__(self, lon: float = 6.4794, lat: float = 50.8037):
+    def __init__(self, lon: float = 6.4794, lat: float = 50.8037, path_to_weather_file: str = r'./weather.csv'):
         self.location = Location(longitude=lon, latitude=lat)
-        self.sun_position = self.location.get_solarposition(pd.date_range(start='1972-01-01 00:00', periods=8684,
-                                                            freq='h'))
+        self.weather = pd.read_csv(path_to_weather_file, index_col=0, parse_dates=True)
 
-    def get_weather(self, date: pd.Timestamp, area: str):
-        pass
+    def get_weather(self, date: pd.Timestamp):
+        solar_const = 1368
+        ghi = self.weather.loc[self.weather.index.date == date.date(), 'ghi']
+        # pressure = self.weather.loc[self.weather.index.date == date.date(), 'pressure']
+        sun_position = self.location.get_solarposition(ghi.index)
+        elevation = sun_position['elevation'].values
+        kt = ghi/(solar_const*np.sin(elevation/180 * np.pi))
+        kd = []
+        for k, gamma in zip(list(kt), list(elevation)):
+            if k <= 0.3:
+                kd += [1.02-0.254 * k + 0.0123 * np.sin(gamma/180 * np.pi)]
+            elif k < 0.78:
+                kd += [1.4 - 1.749 * k + 0.177 * np.sin(gamma/180 * np.pi)]
+            else:
+                kd += [0.486 * k - 0.182 * np.sin(gamma/180 * np.pi)]
 
+        dhi = np.array(kd) * ghi
+        dni = (ghi.values - dhi)
 
-class WeatherGeneratorFile(WeatherGenerator):
+        weather = dict(
+            dni=dni,
+            dhi=dhi,
+            ghi=ghi.values,
+            zenith=sun_position['zenith'].values,
+            azimuth=sun_position['azimuth'].values,
+            wind_speed=self.weather.loc[self.weather.index.date == date.date(), 'wind_speed'].values,
+            temp_air=self.weather.loc[self.weather.index.date == date.date(), 'temp_air'].values
+        )
 
-    def __init__(self, lon: float = 6.4794, lat: float = 50.8037):
-        super().__init__(lon=lon, lat=lat)
-        self.weather = pd.read_csv(r'./weather.csv', index_col=0)
-        self.weather.index = pd.to_datetime(self.weather.index)
-
-    def get_weather(self, date: pd.Timestamp, area: str):
-        return self.weather.loc[self.weather.index.date == date]
-
-
-class WeatherGeneratorDB(WeatherGenerator):
-
-    def __init__(self, lon: float = 6.4794, lat: float = 50.8037,
-                 database_uri: str = 'postgresql://opendata:opendata@10.13.10.41:5432/weather' ):
-        super().__init__(lon, lat)
-        self.weather = WeatherInterface('grid_simulation', database_uri)
-
-    def get_weather(self, date: pd.Timestamp, area: str):
-        azimuth = self.sun_position.loc[self.sun_position.index.day_of_year == date.day_of_year, 'azimuth'].to_numpy()
-        zenith = self.sun_position.loc[self.sun_position.index.day_of_year == date.day_of_year, 'zenith'].to_numpy()
-        year_ = date.year
-        if calendar.isleap(date.year):
-            date = date.replace(year=2016)
-        else:
-            date = date.replace(year=2015)
-        temp_air = self.weather.get_temperature_in_area(area, date)
-        wind_speed = self.weather.get_wind_in_area(area, date)
-        dhi = self.weather.get_direct_radiation_in_area(area, date)
-        dni = self.weather.get_diffuse_radiation_in_area(area, date)
-        df = pd.concat([temp_air, wind_speed, dhi, dni], axis=1)
-        df['ghi'] = df['dhi'] + df['dni']
-        df['azimuth'] = azimuth
-        df['zenith'] = zenith
-        df.index = map(lambda x: x.replace(year=year_), df.index)
-
-        return df
+        return pd.DataFrame.from_dict(weather)
 
 
 if __name__ == '__main__':
-    myGen = WeatherGeneratorFile()
+    myGen = WeatherGenerator()
+    df = myGen.get_weather(pd.to_datetime('2022-03-01'))

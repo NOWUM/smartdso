@@ -61,15 +61,11 @@ class BasicParticipant:
         # -> calculate generation
         generation = np.zeros(self._steps)
         for system in self._pv_systems:
-            # pvlib.irradiance.dirint -> split in dni and dhi
-            if len(self.weather.columns) == 1 and ('ghi' in self.weather.columns):
-                power = self.weather['ghi'] / 1e3 * system.arrays[0].module_parameters['pdc0']
-            else:
-                # -> irradiance unit [W/m²]
-                rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
-                                             dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
-                # -> get generation in [kW/m^2] * [m^2]
-                power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
+            # -> irradiance unit [W/m²]
+            rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
+                                         dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
+            # -> get generation in [kW/m^2] * [m^2]
+            power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
             generation += power.values
 
         if self.T == 1440:
