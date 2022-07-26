@@ -181,5 +181,5 @@ class CapacityProvider:
 
 if __name__ == "__main__":
     cp = CapacityProvider(**dict(start_date=datetime(2022, 1, 1), end_date=datetime(2022, 1, 2),
-                                 scenario=None, iteration=None, T=96))
+                                 scenario=None, iteration=None, T=96), write_geo=True)
 
