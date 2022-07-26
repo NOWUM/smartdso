@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
-from agents.utils import WeatherGeneratorFile, WeatherGeneratorDB
+from agents.utils import WeatherGenerator
 
 
 # -> read known consumers and nodes
@@ -41,7 +41,7 @@ class FlexibilityProvider:
         self.clients = {}
         # -> weather generator
         # self.weather_generator = WeatherGeneratorDB()
-        self.weather_generator = WeatherGeneratorFile()
+        self.weather_generator = WeatherGenerator()
         # -> time range
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T])[:-1]
 
@@ -94,7 +94,7 @@ class FlexibilityProvider:
             dataframe = dataframe.rename_axis('t')
             return dataframe
 
-        weather = pd.concat([self.weather_generator.get_weather(area='DEA26', date=date)
+        weather = pd.concat([self.weather_generator.get_weather(date=date)
                             for date in pd.date_range(start=self.time_range[0], end=self.time_range[-1] + td(days=1),
                                                       freq='d')])
         weather = weather.resample('15min').ffill()
