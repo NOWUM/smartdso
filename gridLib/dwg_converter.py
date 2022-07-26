@@ -5,28 +5,24 @@ import pandas as pd
 import uuid
 import logging
 from gridLib.plotting import get_plot
+from pyproj import Geod, Transformer
+import shapely.wkt as converter
 
 logger = logging.getLogger('dwg-converter')
+# https://de.wikipedia.org/wiki/European_Petroleum_Survey_Group_Geodesy#:~:text=Kartenanbieter%20im%20Netz.-,Deutschland,f%C3%BCr%20Gau%C3%9F%2DKr%C3%BCger%20(4.
+transformer = Transformer.from_crs("epsg:31466", "epsg:4326")
 
+geod = Geod(ellps="WGS84")
 
-max_lon, min_lon = 6.1805, 6.1664
-d_lon = max_lon-min_lon
-max_lat, min_lat = 51.0441379485292, 51.03408
-d_lat = max_lat-min_lat
-
-max_x, min_x = 2512700.75396262, 2511715.72460938
-dx = max_x-min_x
-max_y, min_y = 5656576.519166669, 5655451.43618056
-dy = max_y-min_y
+line_parameters = dict(Niederspannug={'r': 0.255, 'x': 0.08},
+                       Hausanschluss={'r': 0.225, 'x': 0.08})
 
 
 def get_coord(x_, y_):
-    x_ = (x_ - min_x) * d_lon/dx + min_lon
-    y_ = (y_ - min_y) * d_lat/dy + min_lat
-    return x_, y_
+    return transformer.transform(y_, x_)
 
 
-def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_2.dxf'):
+def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_new.dxf'):
     try:
         doc = ezdxf.readfile(path)
     except IOError:
@@ -46,7 +42,7 @@ def get_consumers(data):
     for consumer in msp.query('INSERT[layer=="Hausanschluss"]').entities:
         # print(consumer.dxf.color)
         x, y, _ = consumer.dxf.insert.xy
-        x, y = get_coord(x, y)
+        y, x = get_coord(x, y)
         shape = f'POINT ({x} {y})'
         if shape not in inserted.keys():
             id_ = uuid.uuid1()
@@ -60,7 +56,7 @@ def get_consumers(data):
 
     for station in msp.query('INSERT[layer=="Stationen" | layer =="KVS"]').entities:
         x, y, _ = station.dxf.insert
-        x, y = get_coord(x, y)
+        y, x = get_coord(x, y)
         shape = f'POINT ({x} {y})'
         id_ = uuid.uuid1()
         if station.dxf.layer == 'Stationen':
@@ -85,7 +81,7 @@ def get_lines(data, nodes: pd.DataFrame):
         line_string = 'LINESTRING '
         for i in [0, -1]:
             x, y, _ = line.vertices[i].dxf.location
-            x, y = get_coord(x, y)
+            y, x = get_coord(x, y)
             shape = f'POINT ({x} {y})'
             if shape in nodes['shape'].values:
                 bus = nodes.loc[nodes['shape'] == shape].index[0]
@@ -97,7 +93,7 @@ def get_lines(data, nodes: pd.DataFrame):
             buses += [bus]
 
         for x, y, _ in line.points():
-            x, y = get_coord(x, y)
+            y, x = get_coord(x, y)
             if '(' not in line_string:
                 line_string += f'({x} {y},'
             else:
@@ -106,10 +102,15 @@ def get_lines(data, nodes: pd.DataFrame):
             lat_coords += [y]
         shape = line_string[:-1] + ')'
 
+        technical_parameters = line_parameters[line.dxf.layer]
+        line_len = geod.geometry_length(converter.loads(shape))
+
         nodes = pd.concat([nodes, pd.DataFrame.from_dict(new_, orient='index')], axis=0)
 
         lines_[line.uuid] = {'bus0': buses[0], 'bus1': buses[-1], 'lon_coords': lon_coords,
-                             'lat_coords': lat_coords, 'v_nom': 0.4, 'shape': shape}
+                             'lat_coords': lat_coords, 'v_nom': 0.4, 'shape': shape,
+                             'length': line_len, 'r': line_len/1e3 * technical_parameters['r'],
+                             'x': line_len/1e3 * technical_parameters['x']}
 
     return pd.DataFrame.from_dict(lines_, orient='index'), nodes
 
@@ -123,13 +124,13 @@ if __name__ == "__main__":
 
     for name, line in lines.iterrows():
         plt.plot(line['lon_coords'], line['lat_coords'], 'b')
-    plt.scatter(consumers['lon'], consumers['lat'])
-    plt.scatter(n.loc[n['type'] == 'sleeve', 'lon'], n.loc[n['type'] == 'sleeve', 'lat'])
+    #plt.scatter(consumers['lon'], consumers['lat'])
+    #plt.scatter(n.loc[n['type'] == 'sleeve', 'lon'], n.loc[n['type'] == 'sleeve', 'lat'])
     # plt.show()
 
     # lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
     # n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
     # consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
     #
-    # fig = get_plot(nodes=n, consumers=consumers, edges=lines)
-    # fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
+    fig = get_plot(nodes=n, consumers=consumers, edges=lines)
+    fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
