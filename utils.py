@@ -101,7 +101,7 @@ class TableCreator:
                 connection.execute(query_create_hypertable)
 
         # -> geojson table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS info_geo( "
+        self.engine.execute("CREATE TABLE IF NOT EXISTS edges_geo( "
                             "name text, "
                             "geometry geometry(LineString, 4326), "
                             "asset text, "
