@@ -48,7 +48,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = np.random.randint(low=10, high=15)/100                       # -> state of charge [0,..., 1]
+        self.soc = np.random.randint(low=10, high=90)/100                       # -> state of charge [0,..., 1]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy
