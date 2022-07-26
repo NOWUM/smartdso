@@ -326,7 +326,7 @@ class HouseholdModel(BasicParticipant):
             self._finished = True
             return True
         else:
-            print('zu teuer', self._benefit_value, total_price)
+
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._max_requests -= 1
