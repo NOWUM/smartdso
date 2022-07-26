@@ -49,7 +49,7 @@ class BasicParticipant:
 
         self._request = pd.Series(dtype=float)
 
-        self._finished, self._initial_plan = False, False
+        self._finished, self._initial_plan = False, True
         self._commit = self.time_range[0] - td(minutes=1)
         self._pv_systems = []
         self.cars = {}

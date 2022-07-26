@@ -2,10 +2,11 @@ from math import exp
 import numpy as np
 import pandas as pd
 import os
-from datetime import datetime, timedelta as td
+from datetime import datetime
 import logging
 from pvlib.pvsystem import PVSystem
 from matplotlib import pyplot as plt
+
 import uuid
 from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
     Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
@@ -216,12 +217,14 @@ class HouseholdModel(BasicParticipant):
             self._request.loc[time_range] = np.round(np.asarray([self._model.grid[t].value for t in steps]), 2)
             for key in self.cars.keys():
                 self._car_power[key].loc[time_range] = [self._model.power[key, t].value for t in steps]
-            if not self._initial_plan:
-                self._initial_plan = True
-                self._data.loc[time_range, 'planned_grid_consumption'] = self._request.loc[time_range].values
+            if self._initial_plan:
+
+                self._data.loc[time_range, 'planned_grid_consumption'] = self._request.loc[time_range].copy()
                 self._data.loc[time_range, 'planned_pv_consumption'] = [self._model.pv[t].value for t in steps]
                 for key, car in self.cars.items():
                     car.set_planned_charging(self._car_power[key])
+
+                self._initial_plan = False
 
         except Exception as e:
             logger.warning(f' -> model infeasible {repr(e)}')
@@ -230,11 +233,11 @@ class HouseholdModel(BasicParticipant):
             self._commit = time_range[-1]
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
-            self._data.loc[time_range, 'final_grid_consumption'] = self._request.loc[time_range].values
             self._data.loc[time_range, 'final_pv_consumption'] = [self._model.pv[t].value for t in steps]
 
             self._max_requests = 5
             self._finished = True
+            self._initial_plan = True
 
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
         self._simple_commit = d_time
@@ -282,8 +285,8 @@ class HouseholdModel(BasicParticipant):
             self._request -= generation.loc[self._request.index]
             self._request.loc[self._request < 0] = 0
 
-            if not self._initial_plan:
-                self._initial_plan = True
+            if self._initial_plan:
+                self._initial_plan = False
                 self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
                 self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
@@ -294,12 +297,13 @@ class HouseholdModel(BasicParticipant):
             if strategy == 'optimized':
                 self._optimize_photovoltaic_usage(d_time=d_time)
             elif strategy == 'simple':
-                self.finished = False
-                self._initial_plan = False
+                # self.finished = True
+                # self._initial_plan = True
                 self._plan_without_photovoltaic(d_time=d_time)
             else:
                 logger.error(f'invalid strategy {strategy}')
                 raise Exception(f'invalid strategy {strategy}')
+
         elif self._total_capacity == 0:
             self._finished = True
             self._initial_plan = True
@@ -314,16 +318,13 @@ class HouseholdModel(BasicParticipant):
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
             self._commit = self._simple_commit or price.index.max()
-
-            self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].values
-            t1, t2 = price.index[0].date(), price.index[0].date() + pd.DateOffset(days=1)
-            self._data.loc[t1:t2, 'final_pv_consumption'] = self._data.loc[t1:t2, 'planned_pv_consumption']
-
+            self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].copy()
+            self._data.loc[:, 'final_pv_consumption'] = self._data.loc[:, 'planned_pv_consumption'].copy()
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
-
             self._max_requests = 5
             self._finished = True
+            self._initial_plan = True
             return True
         else:
 
@@ -363,7 +364,7 @@ if __name__ == "__main__":
         print(t)
         x = house_opt.get_request(d_time=t)
         if house_opt._request.sum() > 0:
-            house_opt.commit(pd.Series(data=np.zeros(len(house_opt._request)), index=house_opt._request.index))
+            house_opt.commit(pd.Series(data=5000*np.ones(len(house_opt._request)), index=house_opt._request.index))
         house_opt.simulate(t)
     result = house_opt.get_result()
     # -> clone house_1
