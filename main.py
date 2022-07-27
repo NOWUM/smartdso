@@ -30,8 +30,8 @@ end_date = pd.to_datetime(os.getenv('END_DATE', '2022-03-10'))                  
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'TEST2022_0')
-sim = os.getenv('RESULT_PATH', scenario_name.split('_')[-1])
+scenario_name = os.getenv('SCENARIO_NAME', 'NEW2022_0')
+sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 

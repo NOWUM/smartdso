@@ -93,7 +93,7 @@ class BasicParticipant:
 
     def reset_commit(self) -> None:
         self._finished = False
-        self._initial_plan = False
+        self._initial_plan = True
 
     def set_parameter(self, weather: pd.DataFrame = None, prices: pd.DataFrame = None) -> None:
         self.weather = weather

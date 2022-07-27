@@ -192,7 +192,7 @@ class HouseholdModel(BasicParticipant):
                                                                                       - demand[key][t]
                                                                                       for key in self.cars.keys()
                                                                                       for t in steps) * self.dt
-                                                     + quicksum(car.capacity * car.soc for car in self.cars.values()))
+                                                    + quicksum(car.capacity * car.soc for car in self.cars.values()))
         # -> balance charging, pv and grid consumption
         self._model.balance = ConstraintList()
         for t in steps:
@@ -218,12 +218,10 @@ class HouseholdModel(BasicParticipant):
             for key in self.cars.keys():
                 self._car_power[key].loc[time_range] = [self._model.power[key, t].value for t in steps]
             if self._initial_plan:
-
                 self._data.loc[time_range, 'planned_grid_consumption'] = self._request.loc[time_range].copy()
                 self._data.loc[time_range, 'planned_pv_consumption'] = [self._model.pv[t].value for t in steps]
                 for key, car in self.cars.items():
                     car.set_planned_charging(self._car_power[key])
-
                 self._initial_plan = False
 
         except Exception as e:
@@ -327,7 +325,6 @@ class HouseholdModel(BasicParticipant):
             self._initial_plan = True
             return True
         else:
-
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._max_requests -= 1
@@ -364,7 +361,9 @@ if __name__ == "__main__":
         print(t)
         x = house_opt.get_request(d_time=t)
         if house_opt._request.sum() > 0:
-            house_opt.commit(pd.Series(data=5000*np.ones(len(house_opt._request)), index=house_opt._request.index))
+            commit = False
+            while not commit:
+                commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
         house_opt.simulate(t)
     result = house_opt.get_result()
     # -> clone house_1
