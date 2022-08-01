@@ -32,7 +32,8 @@ class FlexibilityProvider:
     def __init__(self, scenario: str, iteration: int,
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
-                 database_uri: str = DATABASE_URI, *args, **kwargs):
+                 database_uri: str = DATABASE_URI,
+                 price_sensitivity: float = 1.3, *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
@@ -64,6 +65,7 @@ class FlexibilityProvider:
                                     residents=int(max(consumer['jeb'] / 1500, 1)), ev_ratio=ev_ratio,
                                     london_data=london_data, l_id=consumer['london_data'],
                                     pv_systems=pv_systems,
+                                    price_sensitivity=price_sensitivity,
                                     start_date=start_date, end_date=end_date, T=T,
                                     database_uri=database_uri, consumer_type='household')
 

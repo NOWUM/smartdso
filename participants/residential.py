@@ -54,6 +54,7 @@ class HouseholdModel(BasicParticipant):
                  T: int = 1440,
                  database_uri: str = DATABASE_URI,
                  consumer_id: str = 'nowum',
+                 price_sensitivity: float = 1.3,
                  *args, **kwargs):
 
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
@@ -69,7 +70,7 @@ class HouseholdModel(BasicParticipant):
 
         # -> price limits from survey
         self.price_limit = np.random.randint(low=50, high=60)
-        self._slope = 1.3
+        self._slope = price_sensitivity
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 

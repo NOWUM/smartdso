@@ -44,6 +44,7 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      #
              'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
              'pv_ratio': int(os.getenv('PV_RATIO', 80))/100,
+             'price_sensitivity': float(os.getenv('PRC_SENSE', 1.3)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
              'database_uri': DATABASE_URI}
