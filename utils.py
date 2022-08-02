@@ -120,3 +120,7 @@ class TableCreator:
                             "geometry geometry(Point, 4326), "
                             "asset text, "
                             "PRIMARY KEY (name));")
+
+
+if __name__ == "__main__":
+    TableCreator(create_tables=True)
