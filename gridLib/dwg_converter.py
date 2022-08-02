@@ -7,6 +7,8 @@ import logging
 from gridLib.plotting import get_plot
 from pyproj import Geod, Transformer
 import shapely.wkt as converter
+from shapely.ops import split, nearest_points
+from shapely.geometry import LineString
 
 logger = logging.getLogger('dwg-converter')
 # https://de.wikipedia.org/wiki/European_Petroleum_Survey_Group_Geodesy#:~:text=Kartenanbieter%20im%20Netz.-,Deutschland,f%C3%BCr%20Gau%C3%9F%2DKr%C3%BCger%20(4.
@@ -115,6 +117,49 @@ def get_lines(data, nodes: pd.DataFrame):
     return pd.DataFrame.from_dict(lines_, orient='index'), nodes
 
 
+def get_not_connected_nodes(nodes, lines):
+    not_con = []
+    for idx in nodes.index:
+        if (idx not in lines['bus0'].values) and (idx not in lines['bus1'].values):
+            not_con += [idx]
+    return not_con
+
+
+def split_lines_for_not_connected_nodes(idx, nodes, lines):
+
+    drop_idx = []
+    new_ = []
+
+    for node_id in idx:
+        lon, lat = nodes.loc[node_id, ['lon', 'lat']].values
+        for index, line_data in lines.iterrows():
+            if (lon in line_data.lon_coords) and (lat in line_data.lat_coords):
+                line_geom = converter.loads(line_data['shape'])
+                node_geom = converter.loads(nodes.loc[node_id, 'shape'])
+                new_lines = split(line_geom, node_geom)
+                drop_idx += [index]
+                # print(len(new_lines.geoms))
+                for geom in new_lines.geoms:
+                    lon_coords, lat_coords = geom.coords.xy
+                    lon_start, lon_end = lon_coords[0], lon_coords[-1]
+                    lat_start, lat_end = lat_coords[0], lat_coords[-1]
+                    line_length = geod.geometry_length(geom)/1e3
+                    rel = (line_length/line_data.length)
+                    bus0 = nodes.loc[(n['lon'] == lon_start) & (n['lat'] == lat_start)].index[0]
+                    bus1 = nodes.loc[(n['lon'] == lon_end) & (n['lat'] == lat_end)].index[0]
+                    data = dict(bus0=bus0, bus1=bus1, v_nom=line_data.v_nom,
+                                shape=str(geom), length=line_length,
+                                lon_coords=list(lon_coords), lat_coords=list(lat_coords),
+                                r=rel * line_data.r, x=rel * line_data.x)
+                    new_ += [data]
+    lines = lines.drop(index=drop_idx)
+    new_lines = pd.DataFrame(new_)
+    new_lines.index = map(uuid.uuid1, range(len(new_lines)))
+    lines = pd.concat([lines, new_lines])
+
+    return lines
+
+
 if __name__ == "__main__":
     d = read_file()
     for layer in d.layers:
@@ -122,15 +167,66 @@ if __name__ == "__main__":
     consumers, n = get_consumers(d)
     lines, n = get_lines(d, n)
 
+    not_connected = get_not_connected_nodes(n, lines)
+    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
+    not_connected = get_not_connected_nodes(n, lines)
+
+    for node_id in not_connected:
+        min_distance = 1e9
+        idx = None
+        for index, line_data in lines.iterrows():
+            geom = converter.loads(line_data['shape'])
+            point = converter.loads(n.loc[node_id, 'shape'])
+            points = nearest_points(geom, point)
+            distance = points[0].distance(point)
+            if distance < min_distance:
+                min_distance = distance
+                idx = index
+
+        lon_coords, lat_coords = lines.loc[idx, 'lon_coords'], lines.loc[idx, 'lat_coords']
+        lon, lat = n.loc[node_id, 'lon'], n.loc[node_id, 'lat']
+
+        min_distance = 1e9
+        counter = 0
+        i = 0
+        for x, y in zip(list(lon_coords), list(lat_coords)):
+            distance = ((x-lon)**2 + (y-lat)**2)**0.5
+            if distance < min_distance:
+                min_distance = distance
+                i = counter
+            counter += 1
+        print(i, counter)
+        lon_coords = list(lon_coords)
+        lon_coords.insert(i, lon)
+        lat_coords = list(lat_coords)
+        lat_coords.insert(i, lat)
+
+        lines.at[idx, 'lon_coords'] = lon_coords
+        lines.at[idx, 'lat_coords'] = lat_coords
+        geom = LineString([(x, y) for x, y in zip(lon_coords, lat_coords)])
+        lines.at[idx, 'shape'] = str(geom)
+
+    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
+    not_connected = get_not_connected_nodes(n, lines)
+
+    # lines = lines.drop(index=drop_idx)
+    # new_lines = pd.DataFrame(new_)
+    # new_lines.index = map(uuid.uuid1, range(len(new_lines)))
+    # lines = pd.concat([lines, new_lines])
+    #
+    #
+    # not_connected3 = get_not_connected_nodes(n, lines)
     for name, line in lines.iterrows():
         plt.plot(line['lon_coords'], line['lat_coords'], 'b')
+    plt.scatter(n.loc[not_connected, 'lon'], n.loc[not_connected, 'lat'])
+    plt.show()
     #plt.scatter(consumers['lon'], consumers['lat'])
     #plt.scatter(n.loc[n['type'] == 'sleeve', 'lon'], n.loc[n['type'] == 'sleeve', 'lat'])
     # plt.show()
 
-    # lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
-    # n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
-    # consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
+    lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
+    n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
+    consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
     #
     fig = get_plot(nodes=n, consumers=consumers, edges=lines)
     fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
