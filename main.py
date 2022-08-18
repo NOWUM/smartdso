@@ -30,13 +30,15 @@ end_date = pd.to_datetime(os.getenv('END_DATE', '2022-03-10'))                  
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'NEW2022_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'Simple2022_0')
 sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 
 save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
 plot = False
+
+strategy = os.getenv('STRATEGY', 'simple')
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      # -> Need london data set
              'start_date': start_date,                                         #    see: demLib.london_data.py
@@ -47,6 +49,7 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      #
              'price_sensitivity': float(os.getenv('PRC_SENSE', 1.3)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
+             'strategy': strategy,
              'database_uri': DATABASE_URI}
 
 try:
@@ -91,12 +94,17 @@ if __name__ == "__main__":
         logger.info(' -> consumers plan charging...')
         try:
             for d_time in tqdm(pd.date_range(start=day, periods=96, freq='15min')):
-                while FlexProvider.get_commits() < len(FlexProvider.keys):
+                number_commits = 0
+                while number_commits < len(FlexProvider.keys):
                     for request, node_id, consumer_id in FlexProvider.get_requests(d_time=d_time):
                         price = CapProvider.get_price(request=request, node_id=node_id)
                         if FlexProvider.commit(price, consumer_id):
                             CapProvider.commit(request=request, node_id=node_id)
-                    logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
+                    if strategy == 'optimized':
+                        number_commits = FlexProvider.get_commits()
+                        logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
+                    elif strategy == 'simple':
+                        number_commits = len(FlexProvider.keys)
                 FlexProvider.simulate(d_time)
             FlexProvider.save_results(day)
             CapProvider.save_results(day)
