@@ -2,7 +2,7 @@ from math import exp
 import numpy as np
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timedelta as td
 import logging
 from pvlib.pvsystem import PVSystem
 from matplotlib import pyplot as plt
@@ -85,6 +85,7 @@ class HouseholdModel(BasicParticipant):
 
         self._max_requests = 5
         self._benefit_value = 0
+        self._used_strategy = ''
         self._simple_commit = None
         self.finished = False
 
@@ -276,28 +277,36 @@ class HouseholdModel(BasicParticipant):
                     self._request.loc[self._car_power[key].index] += self._car_power[key].values
                     self._simple_commit = max(self._simple_commit, t2)
 
-            pv_usage = pd.Series(data=np.zeros(remaining_steps),
-                                 index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
-            pv_usage[self._request.values > 0] = generation.loc[self._request.values > 0]
-            pv_usage[max(self._request.values) < pv_usage] = max(self._request.values)
+                    for key, car in self.cars.items():
+                        car.set_planned_charging(self._car_power[key])
 
-            self._request -= generation.loc[self._request.index]
-            self._request.loc[self._request < 0] = 0
+            if self._request.sum() > 0:
+                pv_usage = pd.Series(data=np.zeros(remaining_steps),
+                                     index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
 
-            if self._initial_plan:
-                self._initial_plan = False
-                self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
-                self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
+                generation.loc[generation.values > max(self._request.values)] = max(self._request.values)
+                pv_usage.loc[self._request > 0] = generation.loc[self._request > 0].values
 
-            self._benefit_value = self._total_benefit
+                self._request -= generation.loc[self._request.index]
+
+                if self._initial_plan:
+                    self._initial_plan = False
+                    self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
+                    self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
+
+                self._benefit_value = self._total_benefit
+
+            else:
+                self._commit = generation.index[-1]
+                self._simple_commit = self._commit
+                print('commit till: (no charge required)', self._commit)
 
     def get_request(self, d_time: datetime, strategy: str = 'optimized'):
+        self._used_strategy = strategy
         if self._total_capacity > 0 and d_time > self._commit:
             if strategy == 'optimized':
                 self._optimize_photovoltaic_usage(d_time=d_time)
             elif strategy == 'simple':
-                # self.finished = True
-                # self._initial_plan = True
                 self._plan_without_photovoltaic(d_time=d_time)
             else:
                 logger.error(f'invalid strategy {strategy}')
@@ -324,6 +333,7 @@ class HouseholdModel(BasicParticipant):
             self._max_requests = 5
             self._finished = True
             self._initial_plan = True
+            print('commit till: (send request)', self._commit)
             return True
         else:
             self._data.loc[price.index, 'grid_fee'] = price.values
@@ -359,12 +369,14 @@ if __name__ == "__main__":
     t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
-        print(t)
-        x = house_opt.get_request(d_time=t)
+        x = house_opt.get_request(d_time=t, strategy='simple')
+        # print(t, x)
         if house_opt._request.sum() > 0:
-            commit = False
-            while not commit:
-                commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
+            print(f'send request at {t}')
+            house_opt.commit(pd.Series(data=2 * np.ones(len(house_opt._request)), index=house_opt._request.index))
+           #commit = False
+           # while not commit:
+           #    commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
         house_opt.simulate(t)
     result = house_opt.get_result()
     # -> clone house_1
