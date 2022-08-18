@@ -7,7 +7,7 @@ import pandas as pd
 from shapely.geometry import Point, LineString
 import pickle
 
-from gridLib.plotting import show_plot as show_figure
+from gridLib.plotting import get_plot as show_figure
 from gridLib.geo_information import GeoInformation
 
 
@@ -45,7 +45,10 @@ class CGMESConverter:
         # load data from source
         def flatten(t):
             return [item for sublist in t for item in sublist]
-        files_to_convert = flatten([gb.glob(self._sub_paths[str(level)]) for level in self._voltage_levels])
+        if len(levels) > 0:
+            files_to_convert = flatten([gb.glob(self._sub_paths[str(level)]) for level in self._voltage_levels])
+        else:
+            files_to_convert = [path]
         import_result = cimpy.cim_import(files_to_convert, "cgmes_v2_4_15")
         self.grid_data = import_result['topology']                      # total grid data resulting from xml files
 
@@ -332,13 +335,16 @@ class CGMESConverter:
         for mRID, consumer in self._components['energy_consumers'].items():
             container = consumer.EquipmentContainer
             nominal_voltage = container.BaseVoltage.nominalVoltage
+            num_ = consumer.description.split('_')[0]
+            print(num_)
             if isinstance(container.TopologicalNode, list):
                 node_id = container.TopologicalNode[0].mRID
                 if node_id in self.components['nodes'].index:
                     consumers[mRID] = {'bus0': node_id, 'v_nom': nominal_voltage,
-                                      'lat': self.components['nodes'].loc[node_id, 'lat'],
-                                      'lon': self.components['nodes'].loc[node_id, 'lon'],
-                                      'shape': self.components['nodes'].loc[node_id, 'shape']
+                                       'lat': self.components['nodes'].loc[node_id, 'lat'],
+                                       'lon': self.components['nodes'].loc[node_id, 'lon'],
+                                       'shape': self.components['nodes'].loc[node_id, 'shape'],
+                                       'id_': num_[14:]
                                       }
 
         self.components['consumers'] = pd.DataFrame.from_dict(consumers, orient='index')
@@ -421,18 +427,17 @@ class CGMESConverter:
         :return:
         """
         try:
-            show_figure(self.components['nodes'], self.components['edges'],
-                        self.components['transformers'],
-                        self.components['consumers'].loc[self.components['consumers']['v_nom']==0.4],
-                        layers=[])
+            fig = show_figure(self.components['nodes'], self.components['edges'],
+                              self.components['transformers'],
+                              self.components['consumers'].loc[self.components['consumers']['v_nom']==0.4])
+            return fig
         except Exception as e:
             self._logger.error('cant plot data')
             print(repr(e))
 
 if __name__ == "__main__":
-    converter = CGMESConverter(levels=(0.4,))
+    converter = CGMESConverter(path=r'./gridLib/data/import/dem/Export.xml', levels=())
     converter.convert()
-    converter.save(r'./data/export/new/')
-    # converter.plot()
-
-
+    converter.save(r'./gridLib/data/export/dem/')
+    # fig = converter.plot()
+    # fig.write_html('test_grid.html')
