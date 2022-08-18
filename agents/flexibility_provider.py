@@ -33,11 +33,12 @@ class FlexibilityProvider:
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
                  database_uri: str = DATABASE_URI,
-                 price_sensitivity: float = 1.3, *args, **kwargs):
+                 price_sensitivity: float = 1.3, strategy: str = 'optimized', *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
         self.iteration = iteration
+        self.strategy = strategy
         # -> total clients
         self.clients = {}
         # -> weather generator
@@ -121,7 +122,7 @@ class FlexibilityProvider:
         for id_ in self.keys:
             self._commits[id_] = self.clients[id_].has_commit()
             if not self._commits[id_]:
-                request = self.clients[id_].get_request(d_time)
+                request = self.clients[id_].get_request(d_time, strategy=self.strategy)
                 if sum(request.values) > 0:
                     yield request, self.clients[id_].grid_node, id_
 
