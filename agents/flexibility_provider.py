@@ -67,6 +67,7 @@ class FlexibilityProvider:
                                     london_data=london_data, l_id=consumer['london_data'],
                                     pv_systems=pv_systems,
                                     price_sensitivity=price_sensitivity,
+                                    strategy=self.strategy,
                                     start_date=start_date, end_date=end_date, T=T,
                                     database_uri=database_uri, consumer_type='household')
 
@@ -153,6 +154,7 @@ class FlexibilityProvider:
                 data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
                 try:
                     data.to_sql(name='residential', con=self._database, if_exists='append')
+                    logger.debug(f'write data in residential for consumer {id_}')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
                     data.to_sql(name='residential', con=self._database, if_exists='append')
