@@ -192,7 +192,31 @@ def create_shifted_charging(all: bool = False):
     fig.write_html(f'test.html')
 
 
+def get_price_sensitivities():
+    senses = []
+    for slope in [1, 1.7, 2.7, 4.0]:
+        X = 100/slope
+        sens = [50*np.exp(-x/X)/X for x in np.arange(0.1, 100.1, 0.1)]
+        # sens -= min(sens)
+        senses += [np.asarray(sens)]
+    return senses
+
+
 if __name__ == "__main__":
     pass
     # create_scatter_box_plot()
-    create_shifted_charging()
+    # create_shifted_charging()
+    price = get_prices()
+    price = price.sort_values('price', ascending=False).values.flatten() / 100 + 0.11
+    sens = get_price_sensitivities()
+    for s in sens:
+        plt.plot(np.arange(0.1, 100.1, 0.1), s)
+
+    plt.plot(np.linspace(0.1, 100, len(price)), price, 'black')
+
+    plt.ylabel('Marginal [d€/dSoC]')
+    plt.xlabel('SoC [%]')
+    plt.legend(['Sense 1', 'Sense 2', 'Sense 3', 'Sense 4',
+                'Sorted Price'])
+
+    plt.show()
