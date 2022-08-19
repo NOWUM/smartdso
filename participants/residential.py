@@ -55,6 +55,7 @@ class HouseholdModel(BasicParticipant):
                  database_uri: str = DATABASE_URI,
                  consumer_id: str = 'nowum',
                  price_sensitivity: float = 1.3,
+                 strategy: str = 'optimized',
                  *args, **kwargs):
 
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
@@ -69,8 +70,12 @@ class HouseholdModel(BasicParticipant):
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
-        self.price_limit = np.random.randint(low=50, high=60)
-        self._slope = price_sensitivity
+        if strategy == 'optimized':
+            self.price_limit = np.random.randint(low=50, high=60)
+            self._slope = price_sensitivity
+        else:
+            self.price_limit = price_sensitivity
+            self._slope = 0
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
@@ -85,7 +90,7 @@ class HouseholdModel(BasicParticipant):
 
         self._max_requests = 5
         self._benefit_value = 0
-        self._used_strategy = ''
+        self._used_strategy = strategy
         self._simple_commit = None
         self.finished = False
 
@@ -247,6 +252,8 @@ class HouseholdModel(BasicParticipant):
         self._request = pd.Series(data=np.zeros(remaining_steps),
                                   index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
 
+        t_next_request = d_time
+
         for key, car in self.cars.items():
             self._car_power[key] = pd.Series(data=np.zeros(remaining_steps),
                                              index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
@@ -275,31 +282,33 @@ class HouseholdModel(BasicParticipant):
                                                                          periods=duration))
 
                     self._request.loc[self._car_power[key].index] += self._car_power[key].values
-                    self._simple_commit = max(self._simple_commit, t2)
+                    if t_next_request == d_time:
+                        t_next_request = t2
+                    else:
+                        t_next_request = min(t_next_request, t2)
 
-                    for key, car in self.cars.items():
-                        car.set_planned_charging(self._car_power[key])
+        for key, car in self.cars.items():
+            car.set_planned_charging(self._car_power[key])
 
-            if self._request.sum() > 0:
-                pv_usage = pd.Series(data=np.zeros(remaining_steps),
-                                     index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
+        if self._request.sum() > 0:
+            pv_usage = pd.Series(data=np.zeros(remaining_steps),
+                                 index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
 
-                generation.loc[generation.values > max(self._request.values)] = max(self._request.values)
-                pv_usage.loc[self._request > 0] = generation.loc[self._request > 0].values
+            generation.loc[generation.values > max(self._request.values)] = max(self._request.values)
+            pv_usage.loc[self._request > 0] = generation.loc[self._request > 0].values
 
-                self._request -= generation.loc[self._request.index]
+            self._request.loc[self._request > 0] -= generation.loc[self._request > 0]
+            self._simple_commit = t_next_request
+            if self._initial_plan:
+                self._initial_plan = False
+                self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
+                self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
-                if self._initial_plan:
-                    self._initial_plan = False
-                    self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
-                    self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
+            self._benefit_value = self._total_benefit
 
-                self._benefit_value = self._total_benefit
-
-            else:
-                self._commit = generation.index[-1]
-                self._simple_commit = self._commit
-                print('commit till: (no charge required)', self._commit)
+        else:
+            self._commit = t_next_request
+            self._simple_commit = t_next_request
 
     def get_request(self, d_time: datetime, strategy: str = 'optimized'):
         self._used_strategy = strategy
@@ -333,7 +342,7 @@ class HouseholdModel(BasicParticipant):
             self._max_requests = 5
             self._finished = True
             self._initial_plan = True
-            print('commit till: (send request)', self._commit)
+            # print('commit till: (send request)', self._commit)
             return True
         else:
             self._data.loc[price.index, 'grid_fee'] = price.values
