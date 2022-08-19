@@ -104,6 +104,7 @@ if __name__ == "__main__":
                         number_commits = FlexProvider.get_commits()
                         logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
                     elif strategy == 'simple':
+                        logger.debug('set commit charging for clients')
                         number_commits = len(FlexProvider.keys)
                 FlexProvider.simulate(d_time)
             FlexProvider.save_results(day)
