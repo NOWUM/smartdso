@@ -16,7 +16,7 @@ class BasicParticipant:
 
     def __init__(self, T: int = 1440, grid_node: str = None,
                  start_date: datetime = None, end_date: datetime = None,
-                 database_uri: str = DATABASE_URI, consumer_type='household',
+                 database_uri: str = DATABASE_URI, consumer_type='household', strategy: str = 'optimized',
                  *args, **kwargs):
 
         # -> time resolution information
@@ -48,6 +48,7 @@ class BasicParticipant:
         self._database = create_engine(database_uri)
 
         self._request = pd.Series(dtype=float)
+        self._used_strategy = strategy
 
         self._finished, self._initial_plan = False, True
         self._commit = self.time_range[0] - td(minutes=1)
@@ -93,7 +94,8 @@ class BasicParticipant:
 
     def reset_commit(self) -> None:
         self._finished = False
-        self._initial_plan = True
+        if self._used_strategy == 'optimized':
+            self._initial_plan = True
 
     def set_parameter(self, weather: pd.DataFrame = None, prices: pd.DataFrame = None) -> None:
         self.weather = weather
