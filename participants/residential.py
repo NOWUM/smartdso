@@ -59,7 +59,7 @@ class HouseholdModel(BasicParticipant):
                  *args, **kwargs):
 
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
-                         database_uri=database_uri, consumer_type='household')
+                         database_uri=database_uri, consumer_type='household', strategy=strategy)
 
         # -> initialize profile generator
         self._profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data,
@@ -90,7 +90,7 @@ class HouseholdModel(BasicParticipant):
 
         self._max_requests = 5
         self._benefit_value = 0
-        self._used_strategy = strategy
+
         self._simple_commit = None
         self.finished = False
 
@@ -340,9 +340,9 @@ class HouseholdModel(BasicParticipant):
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._max_requests = 5
-            self._finished = True
+            if self._used_strategy == 'optimized':
+                self._finished = True
             self._initial_plan = True
-            # print('commit till: (send request)', self._commit)
             return True
         else:
             self._data.loc[price.index, 'grid_fee'] = price.values
