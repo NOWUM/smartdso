@@ -71,7 +71,7 @@ class HouseholdModel(BasicParticipant):
 
         # -> price limits from survey
         if strategy == 'optimized':
-            self.price_limit = np.random.randint(low=50, high=60)
+            self.price_limit = 40
             self._slope = price_sensitivity
         else:
             self.price_limit = price_sensitivity
@@ -100,7 +100,10 @@ class HouseholdModel(BasicParticipant):
 
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
-        self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
+        tariff = tariff.values.flatten()
+        self._data.loc[tariff.index, 'tariff'] = tariff
+        if self._used_strategy == 'simple':
+            self._data.loc[tariff.index, 'tariff'] = tariff[int(len(tariff)/2)]
         self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
         self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
