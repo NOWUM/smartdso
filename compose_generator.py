@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     output = ['version: "3.9"\n', 'services:\n']
 
-    strategy = 'o' if paras.strategy == 'optimized' else 's'
+    strategy = 'O' if paras.strategy == 'optimized' else 'S'
 
     for simulation in range(30):
         output.append(f'''
@@ -36,7 +36,8 @@ if __name__ == "__main__":
               START_DATE: {paras.start}
               END_DATE: {paras.end}
               PRC_SENSE: {paras.prc_sense}
-              SCENARIO_NAME: EV{paras.ev}PV{paras.pv}PRC{paras.prc_sense}STR{strategy}_{simulation}
+              STRATEGY: {paras.strategy}
+              SCENARIO_NAME: EV{paras.ev}PV{paras.pv}PRC{paras.prc_sense}STR-{strategy}_{simulation}
         ''')
 
     with open(f'docker-compose.yml', 'w') as f:
