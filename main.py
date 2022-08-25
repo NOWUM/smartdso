@@ -38,7 +38,7 @@ logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
 plot = False
 
-strategy = os.getenv('STRATEGY', 'simple')
+strategy = os.getenv('STRATEGY', 'simple_pv')
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      # -> Need london data set
              'start_date': start_date,                                         #    see: demLib.london_data.py
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                         price = CapProvider.get_price(request=request, node_id=node_id)
                         if FlexProvider.commit(price, consumer_id):
                             CapProvider.commit(request=request, node_id=node_id)
-                    if strategy == 'optimized':
+                    if strategy == 'optimized' or strategy == 'simple_pv':
                         number_commits = FlexProvider.get_commits()
                         logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
                     elif strategy == 'simple':
