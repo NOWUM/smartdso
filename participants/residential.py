@@ -70,7 +70,7 @@ class HouseholdModel(BasicParticipant):
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
-        if strategy == 'optimized':
+        if strategy == 'optimized' or strategy == 'simple_pv':
             self.price_limit = 40
             self._slope = price_sensitivity
         else:
@@ -364,7 +364,8 @@ if __name__ == "__main__":
     # -> default pv system
     pv_system = dict(pdc0=5, surface_tilt=35, surface_azimuth=180)
     house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system],
-                               start_date=start_date, end_date=end_date, ev_ratio=1, T=96)
+                               start_date=start_date, end_date=end_date, ev_ratio=1, T=96,
+                               strategy='simple_pv')
     # # -> get weather data
     weather_generator = WeatherGenerator()
     weather = pd.concat([weather_generator.get_weather(date=date)
@@ -380,7 +381,7 @@ if __name__ == "__main__":
     t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
-        x = house_opt.get_request(d_time=t, strategy='simple')
+        x = house_opt.get_request(d_time=t, strategy='simple_pv')
         # print(t, x)
         if house_opt._request.sum() > 0:
             print(f'send request at {t}')
