@@ -235,6 +235,7 @@ class HouseholdModel(BasicParticipant):
 
         except Exception as e:
             logger.warning(f' -> model infeasible {repr(e)}')
+            print(self._request.sum())
 
         if self._request.sum() == 0:
             self._commit = time_range[-1]
@@ -342,7 +343,7 @@ class HouseholdModel(BasicParticipant):
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._max_requests = 5
-            if self._used_strategy == 'optimized':
+            if self._used_strategy == 'optimized' or self._used_strategy == 'simple_pv':
                 self._finished = True
             self._initial_plan = True
             return True
