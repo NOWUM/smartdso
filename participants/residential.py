@@ -101,7 +101,7 @@ class HouseholdModel(BasicParticipant):
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
-        if self._used_strategy == 'simple':
+        if 'simple' in self._used_strategy:
             self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()[int(len(tariff)/2)]
         self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
@@ -315,7 +315,7 @@ class HouseholdModel(BasicParticipant):
     def get_request(self, d_time: datetime, strategy: str = 'optimized'):
         self._used_strategy = strategy
         if self._total_capacity > 0 and d_time > self._commit:
-            if strategy == 'optimized':
+            if strategy == 'optimized' or strategy == 'simple_pv':
                 self._optimize_photovoltaic_usage(d_time=d_time)
             elif strategy == 'simple':
                 self._plan_without_photovoltaic(d_time=d_time)
