@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine, inspect
 import os
@@ -10,11 +11,11 @@ DATABASE_HPFC = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.
 
 class PriceIT:
 
-    def __init__(self, table_name:str = 'price_simulation'):
+    def __init__(self, table_name: str = 'price_simulation', drop: bool = False):
         self.engine = create_engine(DATABASE_HPFC)
         self.price_data = pd.DataFrame()
         self.table_name = table_name
-        self.create_table(drop=True)
+        self.create_table(drop=drop)
 
     def create_table(self, drop: bool = False):
         if drop:
@@ -45,6 +46,13 @@ class PriceIT:
             df = df[~df.index.duplicated(keep='first')]
             df.to_sql(self.table_name, self.engine, if_exists='append')
             print(f'imported simulation {col}')
+
+    def get_simulation(self, simulation: int = 1):
+        query = f"select price from {self.table_name} where simulation={simulation} " \
+                f"and time >= '2023-01-01'  and time <= '2024-01-01'"
+        df = pd.read_sql(query, self.engine)
+        return df['price'].values.flatten()
+
 
 class TableCreator:
 
@@ -172,6 +180,16 @@ class TableCreator:
 
 if __name__ == "__main__":
     tb = TableCreator(create_tables=False)
-    tb.delete_scenario(scenario='Simple2022')
-    # pTb = PriceIT()
+    tb.delete_scenario(scenario='EV100PV100PRC40.0STR-SPV')
+    #tb.delete_scenario(scenario='EV100PV100PRC40.0STR-S')
+    #tb.delete_scenario(scenario='EV100PV80PRC40.0STR-S')
+    #tb.delete_scenario(scenario='EV100PV50PRC40.0STR-S')
+    #tb.delete_scenario(scenario='EV100PV80PRC4.0STR-O')
+
+
+    #price_it = PriceIT()
+    # price_it.export_price_simulation()
+    #num = 500
+    #sims = [price_it.get_simulation(simulation=sim+1) for sim in range(num)]
+    #sims = np.asarray(sims, dtype=float)
     # pTb.export_price_simulation()
