@@ -15,6 +15,9 @@ FONT = dict(family="Verdana", size=12, color="black")
 COLORS = {'EV100PV100PRC1.0': 'rgb(0,204,0)', 'EV100PV100PRC1.7': 'rgb(0,204,153)',
           'EV100PV100PRC2.7': 'rgb(0,102,153)', 'EV100PV100PRC4.0': 'rgb(0,0,153)'}
 
+COLORS_SENS = {1.0: 'rgb(0,204,0)', 1.7: 'rgb(0,204,153)',
+               2.7: 'rgb(0,102,153)', 4.0: 'rgb(0,0,153)'}
+
 
 def get_transformer_utilization(scenario):
     # -> get transformer utilization
@@ -44,6 +47,16 @@ def get_charging_at_quarters(scenario):
             f"group by inter"
     data = pd.read_sql(query, ENGINE)
     return data
+
+
+def get_car_charging_at_quarters(scenario):
+    query = f"select to_char(car.ti, 'hh24:mi') as inter, avg(car.final) as final " \
+            f"from (select  time as ti, sum(final_charge) as final " \
+            f"from cars where scenario='{scenario}' group by ti) as car " \
+            f"group by inter"
+    data = pd.read_sql(query, ENGINE)
+    return data
+
 
 
 def get_prices():
@@ -194,29 +207,87 @@ def create_shifted_charging(all: bool = False):
 
 def get_price_sensitivities():
     senses = []
-    for slope in [1, 1.7, 2.7, 4.0]:
+    for slope in [1.0, 1.7, 2.7, 4.0]:
         X = 100/slope
-        sens = [50*np.exp(-x/X)/X for x in np.arange(0.1, 100.1, 0.1)]
+        sens = [40*np.exp(-x/X)/X for x in np.arange(0.1, 100.1, 0.1)]
         # sens -= min(sens)
         senses += [np.asarray(sens)]
     return senses
+
+
+def create_price_sensitivity_plot():
+    price = get_prices()
+    prc = price.sort_values('price', ascending=False).values.flatten() + 0.11
+    sens = get_price_sensitivities()
+
+    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]], shared_xaxes=True)
+    for s, name in zip(sens, [1.0, 1.7, 2.7, 4.0]):
+        fig.add_trace(go.Scatter(
+            x=np.linspace(0, 100, len(s)),
+            y=100 * s,
+            mode='lines',
+            name=f'Sensitivity {name}',
+            line=dict(color=COLORS_SENS[name])
+        ), col=1, row=1, secondary_y=True)
+
+    fig.add_trace(go.Scatter(
+        x=np.linspace(0, 100, len(prc)),
+        y=prc,
+        mode='lines',
+        name=f'DayAhead Price',
+        line=dict(color='rgb(204,0,0)')
+    ), col=1, row=1, secondary_y=False)
+
+    # Here we modify the tickangle of the xaxis, resulting in rotated labels.
+    fig.update_yaxes(title_text="Price [ct/kWh]",
+                     showgrid=True,
+                     gridwidth=0.1,
+                     range=[0, 90],
+                     gridcolor='rgba(0, 0, 0, 0.5)')
+    fig.update_yaxes(title_text="Marginal utility [ct/dSoC]",
+                     showgrid=False,
+                     secondary_y=True,
+                     gridwidth=0.1,
+                     range=[0, 90],
+                     gridcolor='rgba(0, 0, 0, 0.5)')
+    fig.update_xaxes(title_text="SoC [%]",
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.5)')
+
+    # fig.update_layout(barmode='group', xaxis_tickangle=-45)
+
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="right", x=1))
+    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+
+    fig.write_html(f'sensitivities.html')
 
 
 if __name__ == "__main__":
     pass
     # create_scatter_box_plot()
     # create_shifted_charging()
-    price = get_prices()
-    price = price.sort_values('price', ascending=False).values.flatten() / 100 + 0.11
-    sens = get_price_sensitivities()
-    for s in sens:
-        plt.plot(np.arange(0.1, 100.1, 0.1), s)
+    # create_price_sensitivity_plot()
+    case_a = {
+        50: get_car_charging_at_quarters(scenario='EV100PV50PRC40.0STR-S'),
+        80: get_car_charging_at_quarters(scenario='EV100PV80PRC40.0STR-S'),
+        100: get_car_charging_at_quarters(scenario='EV100PV100PRC40.0STR-S')
+    }
+    legend = []
+    for key, value in case_a.items():
+        plt.plot(value['final'].values)
+        legend.append(key)
+    plt.legend = legend
+    plt.show()
 
-    plt.plot(np.linspace(0.1, 100, len(price)), price, 'black')
-
-    plt.ylabel('Marginal [d€/dSoC]')
-    plt.xlabel('SoC [%]')
-    plt.legend(['Sense 1', 'Sense 2', 'Sense 3', 'Sense 4',
-                'Sorted Price'])
-
+    case_b = {
+        50: get_car_charging_at_quarters(scenario='EV100PV50PRC40.0STR-SPV'),
+        80: get_car_charging_at_quarters(scenario='EV100PV80PRC40.0STR-SPV'),
+        100: get_car_charging_at_quarters(scenario='EV100PV100PRC40.0STR-SPV')
+    }
+    legend = []
+    for key, value in case_b.items():
+        plt.plot(value['final'].values)
+        legend.append(key)
+    plt.legend = legend
     plt.show()
