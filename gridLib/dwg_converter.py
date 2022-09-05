@@ -16,8 +16,8 @@ transformer = Transformer.from_crs("epsg:31466", "epsg:4326")
 
 geod = Geod(ellps="WGS84")
 
-line_parameters = dict(Niederspannug={'r': 0.255, 'x': 0.08},
-                       Hausanschluss={'r': 0.225, 'x': 0.08})
+line_parameters = dict(Niederspannug={'r': 0.255, 'x': 0.08, 's_nom':0.22},
+                       Hausanschluss={'r': 0.225, 'x': 0.08, 's_nom':0.22})
 
 
 def get_coord(x_, y_):
@@ -112,7 +112,8 @@ def get_lines(data, nodes: pd.DataFrame):
         lines_[line.uuid] = {'bus0': buses[0], 'bus1': buses[-1], 'lon_coords': lon_coords,
                              'lat_coords': lat_coords, 'v_nom': 0.4, 'shape': shape,
                              'length': line_len, 'r': line_len/1e3 * technical_parameters['r'],
-                             'x': line_len/1e3 * technical_parameters['x']}
+                             'x': line_len/1e3 * technical_parameters['x'],
+                             's_nom': technical_parameters['s_nom']}
 
     return pd.DataFrame.from_dict(lines_, orient='index'), nodes
 
@@ -209,24 +210,37 @@ if __name__ == "__main__":
     lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
     not_connected = get_not_connected_nodes(n, lines)
 
-    # lines = lines.drop(index=drop_idx)
-    # new_lines = pd.DataFrame(new_)
-    # new_lines.index = map(uuid.uuid1, range(len(new_lines)))
-    # lines = pd.concat([lines, new_lines])
-    #
-    #
-    # not_connected3 = get_not_connected_nodes(n, lines)
-    for name, line in lines.iterrows():
-        plt.plot(line['lon_coords'], line['lat_coords'], 'b')
-    plt.scatter(n.loc[not_connected, 'lon'], n.loc[not_connected, 'lat'])
-    plt.show()
-    #plt.scatter(consumers['lon'], consumers['lat'])
-    #plt.scatter(n.loc[n['type'] == 'sleeve', 'lon'], n.loc[n['type'] == 'sleeve', 'lat'])
-    # plt.show()
-
     lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
     n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
     consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
-    #
+
+    tech_paras = {
+        'POINT (6.175021933947305 51.042055589425004)': dict(r=1.7007936507936505, x=5.704221240422533, b=0, g=0,
+                                                            s_nom=0.4),
+        'POINT (6.172851373373173 51.03625077909204)': dict(r=2.891, x=5.704221240422533, b=0, g=0, s_nom=0.315),
+        'POINT (6.1720412245041985 51.03911540501609)': dict(r=1.7007936507936505, x=5.704221240422533, b=0, g=0,
+                                                            s_nom=0.25),
+        'POINT (6.168528186689798 51.04178758359878)': dict(r=2.891, x=5.704221240422533, b=0, g=0, s_nom=0.4),
+        'POINT (6.174942910499844 51.03671131402324)': dict(r=2.89154513, x=5.704221240422533, b=0, g=0, s_nom=0.63)
+    }
+
+    shapes = n.loc[n['type'] == 'transformer', 'shape']
+    index = n.loc[n['type'] == 'transformer'].index
+    len_ = len(n.loc[n['type'] == 'transformer'].index)
+    transformers = dict(bus0=index, v0=len_ * [0.4],
+                        bus1=[uuid.uuid1() for _ in range(len_)], v1=len_ * [10],
+                        voltage_id=[uuid.uuid1() for _ in range(len_)],
+                        lon=n.loc[n['type'] == 'transformer', 'lon'].values,
+                        lat=n.loc[n['type'] == 'transformer', 'lat'].values,
+                        shape=[shapes.loc[i] for i in index],
+                        r=[tech_paras[shape]['r'] for shape in [shapes.loc[i] for i in index]],
+                        x=[tech_paras[shape]['x'] for shape in [shapes.loc[i] for i in index]],
+                        g=[tech_paras[shape]['g'] for shape in [shapes.loc[i] for i in index]],
+                        b=[tech_paras[shape]['b'] for shape in [shapes.loc[i] for i in index]],
+                        s_nom=[tech_paras[shape]['s_nom'] for shape in [shapes.loc[i] for i in index]])
+    transformers = pd.DataFrame(transformers)
+    transformers.to_csv(r'./Gridlib/data/export/alliander/transformers.csv')
+
+
     fig = get_plot(nodes=n, consumers=consumers, edges=lines)
     fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
