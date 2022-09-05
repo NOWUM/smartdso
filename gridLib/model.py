@@ -120,3 +120,18 @@ class GridModel:
             self._logger.error(repr(e))
             self._logger.error('error during power flow calculation')
 
+
+if __name__ == "__main__":
+    import cartopy.crs as ccrs
+    from gridLib.plotting import get_plot
+    model = GridModel()
+    subs = [*model.sub_networks.values()]
+    sub = subs[10]
+    edges = total_edges.loc[sub.lines.index]
+    busses = list(edges['bus0'].values) + list(edges['bus1'].values)
+    nodes = total_nodes.loc[busses]
+    plt = get_plot(edges=edges,
+                   nodes=nodes)
+    plt.write_html('test.html')
+
+
