@@ -1,8 +1,11 @@
 import numpy as np
-import pandas as pd
 from mobLib.mobility_demand import MobilityDemand
 from carLib.car import Car
 from datetime import datetime
+import os
+
+SEED = int(os.getenv('RANDOM_SEED', 2022))
+random = np.random.default_rng(SEED)
 
 
 class Resident:
@@ -13,7 +16,7 @@ class Resident:
         self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)
 
         categories = ['hobby', 'errand']
-        if np.random.choice(a=[True, False], p=[0.7, 0.3]):
+        if random.choice(a=[True, False], p=[0.7, 0.3]):
             categories.insert(0, 'work')
 
         # -> create mobility pattern
@@ -23,7 +26,7 @@ class Resident:
             max_distance = self.mobility.maximal_distance
             car_type = 'fv'
             if max_distance < 600:
-                car_type = np.random.choice(a=['ev', 'fv'], p=[ev_ratio, 1 - ev_ratio])
+                car_type = random.choice(a=['ev', 'fv'], p=[ev_ratio, 1 - ev_ratio])
             self.car = Car(car_type=car_type, maximal_distance=max_distance, charging_limit=charging_limit, T=self.T)
             self.car.initialize_time_series(self.mobility, start_date, end_time)
         else:

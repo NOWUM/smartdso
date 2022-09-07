@@ -12,6 +12,9 @@ from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
 
+SEED = int(os.getenv('RANDOM_SEED', 2022))
+random = np.random.default_rng(SEED)
+
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
 h0_consumers = consumers.loc[consumers['profile'] == 'H0']                       # -> all h0 consumers
@@ -55,7 +58,7 @@ class FlexibilityProvider:
             # -> check pv potential and add system corresponding to the pv ratio
             if consumer['pv'] == 0:
                 pv_systems = []
-            elif np.random.choice(a=[True, False], p=[pv_ratio, 1-pv_ratio]):
+            elif random.choice(a=[True, False], p=[pv_ratio, 1-pv_ratio]):
                 pv_systems = eval(consumer['pv'])
             else:
                 pv_systems = []
@@ -119,7 +122,7 @@ class FlexibilityProvider:
         return sum([int(c) for c in self._commits.values()])
 
     def get_requests(self, d_time: datetime) -> (pd.Series, str):
-        np.random.shuffle(self.keys)
+        random.shuffle(self.keys)
         for id_ in self.keys:
             self._commits[id_] = self.clients[id_].has_commit()
             if not self._commits[id_]:

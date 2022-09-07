@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta as td
 import pandas as pd
 import numpy as np
+import os
 
 from mobLib.mobility_demand import MobilityDemand
+
+SEED = int(os.getenv('RANDOM_SEED', 2022))
+random = np.random.default_rng(SEED)
 
 # -> load electric vehicle data
 electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
@@ -16,7 +20,7 @@ def get_electric_vehicle(distance):
     possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] > distance]
     if len(possible_vehicles) > 0:
         probabilities = (1/possible_vehicles['weight'].sum() * possible_vehicles['weight']).values
-        index = np.random.choice(possible_vehicles.index, p=probabilities)
+        index = random.choice(possible_vehicles.index, p=probabilities)
         vehicle = possible_vehicles.loc[index].to_dict()
     else:
         vehicle = electric_vehicles.iloc[electric_vehicles['distance'].idxmax()].to_dict()
@@ -48,7 +52,7 @@ class Car:
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = np.random.randint(low=10, high=90)/100                       # -> state of charge [0,..., 1]
+        self.soc = random.randint(low=10, high=90)/100                          # -> state of charge [0,..., 1]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy

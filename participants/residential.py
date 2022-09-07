@@ -25,6 +25,10 @@ LOG_LEVEL = "INFO"
 logger = logging.getLogger('residential')
 logger.setLevel(LOG_LEVEL)
 
+
+SEED = int(os.getenv('RANDOM_SEED', 2022))
+random = np.random.default_rng(SEED)
+
 # -> price data from survey
 # MEAN_PRICE = 28.01
 # VAR_PRICE = 7.9
@@ -249,7 +253,7 @@ class HouseholdModel(BasicParticipant):
 
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
         self._simple_commit = d_time
-        d_time += td(minutes=15 * int(sum(np.random.randint(low=1, high=3, size=(5-self._max_requests)))))
+        d_time += td(minutes=15 * int(sum(random.randint(low=1, high=3, size=(5-self._max_requests)))))
         remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
         generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps-1)*self.dt), 'residual_generation']
         self._request = pd.Series(data=np.zeros(remaining_steps),
