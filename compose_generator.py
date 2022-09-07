@@ -21,7 +21,14 @@ if __name__ == "__main__":
 
     output = ['version: "3.9"\n', 'services:\n']
 
-    strategy = 'O' if paras.strategy == 'optimized' else 'S'
+    strategy = ''
+
+    if paras.strategy == 'simple':
+        strategy = 'S'
+    elif paras.strategy == 'simple_pv':
+        strategy = 'SPV'
+    elif paras.strategy == 'optimized':
+        strategy = 'O'
 
     for simulation in range(30):
         output.append(f'''
@@ -37,6 +44,7 @@ if __name__ == "__main__":
               END_DATE: {paras.end}
               PRC_SENSE: {paras.prc_sense}
               STRATEGY: {paras.strategy}
+              RANDOM_SEED: {simulation}
               SCENARIO_NAME: EV{paras.ev}PV{paras.pv}PRC{paras.prc_sense}STR-{strategy}_{simulation}
         ''')
 
