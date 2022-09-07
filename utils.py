@@ -5,7 +5,7 @@ import os
 
 # CREATE EXTENSION postgis;
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 DATABASE_HPFC = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/priceit')
 
 
@@ -62,7 +62,6 @@ class TableCreator:
         if create_tables:
             for table in self.tables:
                 if table != 'spatial_ref_sys':
-                    print(table)
                     self.engine.execute(f"DROP TABLE IF EXISTS {table}")
             self._create_tables()
             self.tables = inspect(self.engine).get_table_names()
@@ -96,17 +95,11 @@ class TableCreator:
                             "iteration integer, "
                             "scenario text, "
                             "demand double precision, "
-                            "residual_demand double precision, "
                             "generation double precision, "
-                            "residual_generation double precision, "
                             "pv_capacity double precision, "
-                            "total_radiation double precision, "
-                            "tariff double precision, "
                             "grid_fee double precision, "
                             "car_demand double precision, "
                             "car_capacity double precision, "
-                            "planned_grid_consumption double precision, "
-                            "final_grid_consumption double precision, "
                             "planned_pv_consumption double precision, "
                             "final_pv_consumption double precision, "
                             "PRIMARY KEY (time , consumer_id, iteration, scenario));")
@@ -134,9 +127,6 @@ class TableCreator:
                             "demand double precision, "
                             "soc double precision, "
                             "usage integer,"
-                            "work integer, "
-                            "errand integer, "
-                            "hobby integer, "
                             "PRIMARY KEY (time , car_id, iteration, scenario));")
 
         self.engine.execute("CREATE INDEX car_id ON cars (car_id);")

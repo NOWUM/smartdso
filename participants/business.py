@@ -4,7 +4,7 @@ import os
 from participants.basic import BasicParticipant
 from demLib.electric_profile import StandardLoadProfile
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
 
 class BusinessModel(BasicParticipant):

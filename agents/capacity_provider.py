@@ -12,7 +12,7 @@ logging.getLogger('pypsa').setLevel('ERROR')
 # -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> database uri to store the results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
 logger = logging.getLogger('CapacityProvider')
 
@@ -155,6 +155,9 @@ class CapacityProvider:
                                        scenario=self.T * [self.scenario], id_=self.T * [column],
                                        sub_grid=self.T * [int(sub_id)], asset=self.T * [asset],
                                        utilization=dataframe.loc[time_range, column].values))
+
+                df = df.loc[df['utilization'] == df['utilization'].max(), :]
+
                 try:
                     df.to_sql('grid', self._database, index=False, if_exists='append')
                 except Exception as e:

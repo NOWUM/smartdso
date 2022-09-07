@@ -14,7 +14,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('DEBUG')
 
 # -> timescaledb connection to store the simulation results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
 try:
     tables = TableCreator(create_tables=False, database_uri=DATABASE_URI)
@@ -30,7 +30,7 @@ end_date = pd.to_datetime(os.getenv('END_DATE', '2022-03-10'))                  
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'Simple2022_0')
+scenario_name = os.getenv('SCENARIO_NAME', 'Testing_0')
 sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')

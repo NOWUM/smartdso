@@ -35,7 +35,7 @@ random = np.random.default_rng(SEED)
 # -> steps and corresponding time resolution strings in pandas
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 # -> default prices EPEX-SPOT 2015
 TARIFF = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0)
 TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]

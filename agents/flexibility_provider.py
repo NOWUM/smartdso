@@ -25,7 +25,7 @@ rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']                    
 # -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> database uri to store the results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
 logger = logging.getLogger('FlexibilityProvider')
 
@@ -153,6 +153,10 @@ class FlexibilityProvider:
                 data['node_id'] = client.grid_node
                 data['iteration'] = self.iteration
                 data['scenario'] = self.scenario
+                data = data.drop(['total_radiation', 'tariff', 'car_demand',
+                                  'residual_generation', 'residual_demand', 'planned_grid_consumption',
+                                  'final_grid_consumption'])
+
                 data = data.rename_axis('time').reset_index()
                 data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
                 try:
@@ -170,6 +174,7 @@ class FlexibilityProvider:
                     data['iteration'] = self.iteration
                     data['scenario'] = self.scenario
                     data = data.rename_axis('time').reset_index()
+                    data = data.drop(['work', 'errand', 'hobby'])
                     data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
                     try:
                         data.to_sql(name='cars', con=self._database, if_exists='append')
