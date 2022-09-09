@@ -59,11 +59,13 @@ class HouseholdModel(BasicParticipant):
                  database_uri: str = DATABASE_URI,
                  consumer_id: str = 'nowum',
                  price_sensitivity: float = 1.3,
-                 strategy: str = 'optimized',
+                 strategy: str = 'MaxPvCap',
+                 random: np.random.default_rng = random,
                  *args, **kwargs):
 
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
-                         database_uri=database_uri, consumer_type='household', strategy=strategy)
+                         database_uri=database_uri, consumer_type='household', strategy=strategy,
+                         random=random)
 
         # -> initialize profile generator
         self._profile_generator = StandardLoadProfile(demandP=demandP, london_data=london_data,
@@ -74,11 +76,11 @@ class HouseholdModel(BasicParticipant):
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
-        if strategy == 'optimized' or strategy == 'simple_pv':
-            self.price_limit = 40
+        if 'MaxPv' in strategy:
+            self.price_limit = 45
             self._slope = price_sensitivity
         else:
-            self.price_limit = price_sensitivity
+            self.price_limit = 45
             self._slope = 0
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
@@ -105,8 +107,10 @@ class HouseholdModel(BasicParticipant):
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
-        if 'simple' in self._used_strategy:
-            self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()[int(len(tariff)/2)]
+        if 'Cap' in self._used_strategy:
+            # -> use median
+            median_value = np.sort(tariff.values.flatten())[int(len(tariff)/2)]
+            self._data.loc[tariff.index, 'tariff'] = median_value
         self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
         self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
@@ -154,36 +158,39 @@ class HouseholdModel(BasicParticipant):
         self._model.grid = Var(steps, within=Reals, bounds=(0, None))
         self._model.pv = Var(steps, within=Reals, bounds=(0, None))
         self._model.capacity = Var(within=Reals, bounds=(0, self._total_capacity))
+
         self._model.benefit = Var(within=Reals, bounds=(0, self._total_benefit))
+        if 'Soc' in self._used_strategy:
+            if self._solver_type == 'glpk':
+                segments = self._get_segments(steps=lin_steps)
+                s = len(segments['low'])
+                self._model.z = Var(range(s), within=Binary)
+                self._model.q = Var(range(s), within=Reals)
 
-        if self._solver_type == 'glpk':
-            segments = self._get_segments(steps=lin_steps)
-            s = len(segments['low'])
-            self._model.z = Var(range(s), within=Binary)
-            self._model.q = Var(range(s), within=Reals)
+                # -> segment selection
+                self._model.choose_segment = Constraint(expr=quicksum(self._model.z[k] for k in range(s)) == 1)
 
-            # -> segment selection
-            self._model.choose_segment = Constraint(expr=quicksum(self._model.z[k] for k in range(s)) == 1)
+                self._model.choose_segment_low = ConstraintList()
+                self._model.choose_segment_up = ConstraintList()
+                for k in range(s):
+                    self._model.choose_segment_low.add(expr=self._model.q[k] >= segments['low'][k] * self._model.z[k])
+                    self._model.choose_segment_up.add(expr=self._model.q[k] <= segments['up'][k] * self._model.z[k])
 
-            self._model.choose_segment_low = ConstraintList()
-            self._model.choose_segment_up = ConstraintList()
-            for k in range(s):
-                self._model.choose_segment_low.add(expr=self._model.q[k] >= segments['low'][k] * self._model.z[k])
-                self._model.choose_segment_up.add(expr=self._model.q[k] <= segments['up'][k] * self._model.z[k])
+                self._model.benefit_fct = Constraint(expr=quicksum(segments['low_'][k] * self._model.z[k]
+                                                                   + segments['coeff'][k]
+                                                                   * (self._model.q[k] - segments['low'][k] * self._model.z[k])
+                                                                   for k in range(s)) == self._model.benefit)
+                self._model.capacity_ct = Constraint(expr=quicksum(self._model.q[k] for k in range(s)) == self._model.capacity)
 
-            self._model.benefit_fct = Constraint(expr=quicksum(segments['low_'][k] * self._model.z[k]
-                                                               + segments['coeff'][k]
-                                                               * (self._model.q[k] - segments['low'][k] * self._model.z[k])
-                                                               for k in range(s)) == self._model.benefit)
-            self._model.capacity_ct = Constraint(expr=quicksum(self._model.q[k] for k in range(s)) == self._model.capacity)
-
-        elif self._solver_type == 'gurobi':
-            logger.debug(f'use gurobi solver to linearize function with total-capacity {self._total_capacity}, '
-                         f'total-benefit {round(self._total_benefit, 1)} in {lin_steps} steps')
-            x_data = list(np.linspace(0, self._total_capacity, lin_steps))
-            y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / 5))), x_data)]
-            self._model.n_soc = Piecewise(self._model.benefit, self._model.capacity,
-                                          pw_pts=x_data, f_rule=y_data, pw_constr_type='EQ', pw_repn='SOS2')
+            elif self._solver_type == 'gurobi':
+                logger.debug(f'use gurobi solver to linearize function with total-capacity {self._total_capacity}, '
+                             f'total-benefit {round(self._total_benefit, 1)} in {lin_steps} steps')
+                x_data = list(np.linspace(0, self._total_capacity, lin_steps))
+                y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / self._slope))), x_data)]
+                self._model.n_soc = Piecewise(self._model.benefit, self._model.capacity,
+                                              pw_pts=x_data, f_rule=y_data, pw_constr_type='EQ', pw_repn='SOS2')
+        else:
+            self._model.benefit_fct = Constraint(expr=self._model.benefit == self.price_limit * self._model.capacity)
 
         # -> limit maximal charging power
         self._model.power_limit = ConstraintList()
@@ -253,7 +260,7 @@ class HouseholdModel(BasicParticipant):
 
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
         self._simple_commit = d_time
-        d_time += td(minutes=15 * int(sum(random.randint(low=1, high=3, size=(5-self._max_requests)))))
+        d_time += td(minutes=15 * int(sum(self.random.integers(low=1, high=3, size=(5-self._max_requests)))))
         remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
         generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps-1)*self.dt), 'residual_generation']
         self._request = pd.Series(data=np.zeros(remaining_steps),
@@ -311,18 +318,19 @@ class HouseholdModel(BasicParticipant):
                 self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
                 self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
-            self._benefit_value = self._total_benefit
+            capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values * self.dt
+            self._benefit_value = 40 * capacity
 
         else:
             self._commit = t_next_request
             self._simple_commit = t_next_request
 
-    def get_request(self, d_time: datetime, strategy: str = 'optimized'):
+    def get_request(self, d_time: datetime, strategy: str = 'MaxPvCap'):
         self._used_strategy = strategy
         if self._total_capacity > 0 and d_time > self._commit:
-            if strategy == 'optimized' or strategy == 'simple_pv':
+            if 'MaxPv' in strategy:
                 self._optimize_photovoltaic_usage(d_time=d_time)
-            elif strategy == 'simple':
+            elif 'PlugIn' in strategy:
                 self._plan_without_photovoltaic(d_time=d_time)
             else:
                 logger.error(f'invalid strategy {strategy}')
@@ -347,7 +355,7 @@ class HouseholdModel(BasicParticipant):
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._max_requests = 5
-            if self._used_strategy == 'optimized' or self._used_strategy == 'simple_pv':
+            if 'MaxPv' in self._used_strategy:
                 self._finished = True
             self._initial_plan = True
             return True
@@ -370,7 +378,7 @@ if __name__ == "__main__":
     pv_system = dict(pdc0=5, surface_tilt=35, surface_azimuth=180)
     house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system],
                                start_date=start_date, end_date=end_date, ev_ratio=1, T=96,
-                               strategy='simple_pv')
+                               strategy='MaxPvCap')
     # # -> get weather data
     weather_generator = WeatherGenerator()
     weather = pd.concat([weather_generator.get_weather(date=date)
@@ -386,11 +394,11 @@ if __name__ == "__main__":
     t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
-        x = house_opt.get_request(d_time=t, strategy='simple_pv')
+        x = house_opt.get_request(d_time=t, strategy='MaxPvCap')
         # print(t, x)
         if house_opt._request.sum() > 0:
             print(f'send request at {t}')
-            house_opt.commit(pd.Series(data=2 * np.ones(len(house_opt._request)), index=house_opt._request.index))
+            house_opt.commit(pd.Series(data=0.5 * np.ones(len(house_opt._request)), index=house_opt._request.index))
            #commit = False
            # while not commit:
            #    commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
