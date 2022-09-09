@@ -38,10 +38,10 @@ logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
 plot = False
 
-strategy = os.getenv('STRATEGY', 'simple_pv')
+strategy = os.getenv('STRATEGY', 'MaxPvCap')                                    # -> PlugInCap, MaxPvCap, MaxPvSoc
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      # -> Need london data set
-             'start_date': start_date,                                         #    see: demLib.london_data.py
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
+             'start_date': start_date,                                          #    see: demLib.london_data.py
              'end_date': end_date,
              'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
@@ -53,9 +53,11 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      #
              'database_uri': DATABASE_URI}
 
 try:
+    logger.info(' -> starting Flexibility Provider')
     FlexProvider = FlexibilityProvider(**input_set)
     logger.info(' -> started Flexibility Provider')
     logging.getLogger('FlexibilityProvider').setLevel('WARNING')
+    logger.info(' -> starting Capacity Provider')
     CapProvider = CapacityProvider(**input_set, write_geo=False)
     logger.info(' -> started Capacity Provider')
     logging.getLogger('CapacityProvider').setLevel('WARNING')
@@ -102,7 +104,7 @@ if __name__ == "__main__":
                             CapProvider.commit(request=request, node_id=node_id)
                     if strategy == 'optimized' or strategy == 'simple_pv':
                         number_commits = FlexProvider.get_commits()
-                        logger.info(f' -> {FlexProvider.get_commits()} consumers commit charging')
+                        logger.debug(f' -> {FlexProvider.get_commits()} consumers commit charging')
                     elif strategy == 'simple':
                         logger.debug('set commit charging for clients')
                         number_commits = len(FlexProvider.keys)
