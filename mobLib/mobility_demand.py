@@ -21,7 +21,8 @@ def normalize_probabilities(probabilities: list):
 
 class MobilityDemand:
 
-    def __init__(self, demand_types: list = None):
+    def __init__(self, demand_types: list = None, random: np.random.default_rng = random):
+        self.random = random
         self.demand_types = demand_types  # ---> work, errand or hobby
         self.working_days = []  # ---> list of working days
         self.errand_days = []  # ---> list of errand days
@@ -51,64 +52,64 @@ class MobilityDemand:
 
     def _get_days(self, days: list, probabilities: list, size: int):
         probabilities = normalize_probabilities(probabilities)
-        return sorted(random.choice(a=days, p=probabilities, size=size, replace=False),
+        return sorted(self.random.choice(a=days, p=probabilities, size=size, replace=False),
                       key=self._day_map.get)
 
     def _get_start_time(self, time_intervals: list, probabilities: list):
         probabilities = normalize_probabilities(probabilities)
-        time_interval = random.choice(a=time_intervals, p=probabilities, replace=False)
+        time_interval = self.random.choice(a=time_intervals, p=probabilities, replace=False)
         t1 = datetime.strptime(time_interval.split('-')[0], '%H:%M')
         t2 = datetime.strptime(time_interval.split('-')[1], '%H:%M')
         time_interval = list(pd.date_range(start=t1, end=t2 if t2 > t1 else t2 + timedelta(days=1), freq='15min'))
 
-        start_time = random.choice(time_interval)
+        start_time = self.random.choice(time_interval)
 
         return start_time.time().isoformat()
 
     def _get_distance(self, distance_intervals: list, probabilities: list):
         probabilities = normalize_probabilities(probabilities)
-        distance_interval = random.choice(a=distance_intervals, p=probabilities, replace=False)
+        distance_interval = self.random.choice(a=distance_intervals, p=probabilities, replace=False)
 
         if '>' in distance_interval:
             d = distance_interval.split('>')[-1]
             d = float(d.replace(' ', ''))
-            distance = random.poisson(lam=0.01 * d) + d
+            distance = self.random.poisson(lam=0.01 * d) + d
         elif '<' in distance_interval:
             d = distance_interval.split('<')[-1]
             d = float(d.replace(' ', ''))
-            distance = random.poisson(lam=0.5 * d) + 0.1
+            distance = self.random.poisson(lam=0.5 * d) + 0.1
         else:
             distance = distance_interval.split('-')
-            distance = random.uniform(low=float(distance[0]), high=float(distance[-1]))
+            distance = self.random.uniform(low=float(distance[0]), high=float(distance[-1]))
 
         return round(distance, 1), distance_interval
 
     def _get_travel_time(self, time_intervals: list, probabilities: list):
         probabilities = normalize_probabilities(probabilities)
-        time_interval = random.choice(a=time_intervals, p=probabilities, replace=False)
+        time_interval = self.random.choice(a=time_intervals, p=probabilities, replace=False)
 
         if '>' in time_interval:
             time_interval = time_interval.split('>')[-1]
             time_interval = int(time_interval.replace(' ', ''))
-            duration = random.poisson(lam=0.1 * time_interval) + time_interval
+            duration = self.random.poisson(lam=0.1 * time_interval) + time_interval
         elif '<' in time_interval:
             time_interval = time_interval.split('<')[-1]
             time_interval = int(time_interval.replace(' ', ''))
-            duration = random.poisson(lam=0.5 * time_interval) + 2.5
+            duration = self.random.poisson(lam=0.5 * time_interval) + 2.5
         else:
             time_interval = time_interval.split('-')
-            duration = random.uniform(low=float(time_interval[0]), high=float(time_interval[-1]))
+            duration = self.random.uniform(low=float(time_interval[0]), high=float(time_interval[-1]))
 
         return round(duration, 0)
 
     def _get_job_type(self, job_types: list, probabilities: list):
         probabilities = normalize_probabilities(probabilities)
-        job_type = random.choice(a=job_types, p=probabilities, replace=False)
+        job_type = self.random.choice(a=job_types, p=probabilities, replace=False)
         return job_type
 
     def _get_means_of_transport(self, means_of_transports: list, probabilities: list):
         probabilities = normalize_probabilities(probabilities)
-        travel_by = random.choice(a=means_of_transports, p=probabilities, replace=False)
+        travel_by = self.random.choice(a=means_of_transports, p=probabilities, replace=False)
         return travel_by
 
     def _get_mobility_event(self, tables: dict, mobility_type: str = 'work', in_week: bool = True):
@@ -172,7 +173,7 @@ class MobilityDemand:
                     days.pop(0)
         else:
             if mobility_type == 'errand':
-                number = random.choice(a=tables['freq'].index, p=tables['freq'].loc[:, 'Probabilities'])
+                number = self.random.choice(a=tables['freq'].index, p=tables['freq'].loc[:, 'Probabilities'])
             else:
                 number = 2
             days = self._get_days(tables['days'].index, tables['days'].loc[:, 'Probabilities'], number)
