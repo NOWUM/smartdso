@@ -1,4 +1,4 @@
-from interfaces.results import Results
+from dev.interfaces.results import Results
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots

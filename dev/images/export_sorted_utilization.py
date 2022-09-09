@@ -1,4 +1,4 @@
-from interfaces.results import Results
+from dev.interfaces.results import Results
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go

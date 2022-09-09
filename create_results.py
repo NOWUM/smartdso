@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import numpy as np
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartgrid')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 ENGINE = create_engine(DATABASE_URI)
 
 SCENARIOS = ['EV100PV100PRC1.0', 'EV100PV100PRC1.7', 'EV100PV100PRC2.7', 'EV100PV100PRC4.0']
@@ -58,13 +58,6 @@ def get_car_charging_at_quarters(scenario):
     return data
 
 
-
-def get_prices():
-    prices = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0,
-                         parse_dates=True)
-    prices = prices.resample('15min').ffill()
-    prices['price'] /= 10
-    return prices
 
 
 def get_values_in_price_intervals(d: pd.DataFrame, parameter: str = 'utilization'):

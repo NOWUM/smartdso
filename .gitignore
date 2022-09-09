@@ -3,3 +3,4 @@
 *.db
 venv
 *.svg
+/agents/data/spotprice.csv
