@@ -318,7 +318,7 @@ class HouseholdModel(BasicParticipant):
                 self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
                 self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
-            capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values * self.dt
+            capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values.sum() * self.dt
             self._benefit_value = 40 * capacity
 
         else:
@@ -394,7 +394,7 @@ if __name__ == "__main__":
     t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
-        x = house_opt.get_request(d_time=t, strategy='MaxPvCap')
+        x = house_opt.get_request(d_time=t, strategy='PlugInCap')
         # print(t, x)
         if house_opt._request.sum() > 0:
             print(f'send request at {t}')
