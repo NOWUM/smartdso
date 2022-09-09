@@ -155,7 +155,7 @@ class FlexibilityProvider:
                 data['scenario'] = self.scenario
                 data = data.drop(['total_radiation', 'tariff', 'car_demand',
                                   'residual_generation', 'residual_demand', 'planned_grid_consumption',
-                                  'final_grid_consumption'])
+                                  'final_grid_consumption'], axis=1)
 
                 data = data.rename_axis('time').reset_index()
                 data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
@@ -174,7 +174,7 @@ class FlexibilityProvider:
                     data['iteration'] = self.iteration
                     data['scenario'] = self.scenario
                     data = data.rename_axis('time').reset_index()
-                    data = data.drop(['work', 'errand', 'hobby'])
+                    data = data.drop(['work', 'errand', 'hobby'], axis=1)
                     data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
                     try:
                         data.to_sql(name='cars', con=self._database, if_exists='append')
