@@ -160,7 +160,7 @@ class FlexibilityProvider:
                 data = data.rename_axis('time').reset_index()
                 data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
                 try:
-                    data.to_sql(name='residential', con=self._database, if_exists='append')
+                    data.to_sql(name='residential', con=self._database, if_exists='append', method='multi')
                     logger.debug(f'write data in residential for consumer {id_}')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
@@ -177,7 +177,7 @@ class FlexibilityProvider:
                     data = data.drop(['work', 'errand', 'hobby'], axis=1)
                     data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
                     try:
-                        data.to_sql(name='cars', con=self._database, if_exists='append')
+                        data.to_sql(name='cars', con=self._database, if_exists='append', method='multi')
                     except Exception as e:
                         logger.warning(f'server closed the connection {repr(e)}')
                         data.to_sql(name='cars', con=self._database, if_exists='append')

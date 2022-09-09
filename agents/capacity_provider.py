@@ -159,7 +159,7 @@ class CapacityProvider:
                 df = df.loc[df['utilization'] == df['utilization'].max(), :]
 
                 try:
-                    df.to_sql('grid', self._database, index=False, if_exists='append')
+                    df.to_sql('grid', self._database, index=False, if_exists='append', method='multi')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
                     df.to_sql('grid', self._database, index=False, if_exists='append')
@@ -175,7 +175,7 @@ class CapacityProvider:
                                    asset=self.T * ['transformer'],
                                    utilization=dataframe.loc[time_range, 'utilization'].values))
             try:
-                df.to_sql('grid', self._database, index=False, if_exists='append')
+                df.to_sql('grid', self._database, index=False, if_exists='append', method='multi')
             except Exception as e:
                 logger.warning(f'server closed the connection {repr(e)}')
                 df.to_sql('grid', self._database, index=False, if_exists='append')
