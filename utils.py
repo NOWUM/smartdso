@@ -32,7 +32,7 @@ class PriceIT:
                 connection.execute(query_create_hypertable)
 
     def read_csv_data(self):
-        self.price_data = pd.read_csv(r'./spotprice.csv', index_col=0, parse_dates=True)
+        self.price_data = pd.read_csv(r'agents/data/spotprice.csv', index_col=0, parse_dates=True)
 
     def export_price_simulation(self):
         if self.price_data.empty:
@@ -67,6 +67,9 @@ class TableCreator:
             self.tables = inspect(self.engine).get_table_names()
 
     def _create_tables(self):
+
+        self.engine.execute("CREATE EXTENSION postgis;")
+
         # -> grid table
         self.engine.execute("CREATE TABLE IF NOT EXISTS grid( "
                             "time timestamp without time zone NOT NULL, "
