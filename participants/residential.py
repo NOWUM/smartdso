@@ -319,7 +319,7 @@ class HouseholdModel(BasicParticipant):
                 self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
             capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values.sum() * self.dt
-            self._benefit_value = 40 * capacity
+            self._benefit_value = self.price_limit * capacity
 
         else:
             self._commit = t_next_request
