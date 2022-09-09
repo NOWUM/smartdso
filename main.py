@@ -102,10 +102,10 @@ if __name__ == "__main__":
                         price = CapProvider.get_price(request=request, node_id=node_id)
                         if FlexProvider.commit(price, consumer_id):
                             CapProvider.commit(request=request, node_id=node_id)
-                    if strategy == 'optimized' or strategy == 'simple_pv':
+                    if 'MaxPv' in strategy:
                         number_commits = FlexProvider.get_commits()
                         logger.debug(f' -> {FlexProvider.get_commits()} consumers commit charging')
-                    elif strategy == 'simple':
+                    elif 'PlugIn' in strategy:
                         logger.debug('set commit charging for clients')
                         number_commits = len(FlexProvider.keys)
                 FlexProvider.simulate(d_time)

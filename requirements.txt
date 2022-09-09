@@ -10,6 +10,7 @@ plotly
 pvlib
 sqlalchemy
 psycopg2-binary
+geoalchemy2
 names
 openpyxl
 seaborn
