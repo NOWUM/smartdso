@@ -197,7 +197,11 @@ class HouseholdModel(BasicParticipant):
         for key, car in self.cars.items():
             usage = car.get_data('usage').loc[d_time:].values
             for t in steps:
-                self._model.power_limit.add(self._model.power[key, t] <= car.maximal_charging_power * (1 - usage[t]))
+                if car.soc < car.get_limit(d_time, strategy):
+                    max_power = car.maximal_charging_power * (1 - usage[t])
+                else:
+                    max_power = 0
+                self._model.power_limit.add(self._model.power[key, t] <= max_power)
 
         # -> set range for soc
         self._model.soc_limit = ConstraintList()
@@ -394,7 +398,7 @@ if __name__ == "__main__":
     t = time_range[0]
     #r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
-        x = house_opt.get_request(d_time=t, strategy='PlugInCap')
+        x = house_opt.get_request(d_time=t, strategy='MaxPvCap')
         # print(t, x)
         if house_opt._request.sum() > 0:
             print(f'send request at {t}')
