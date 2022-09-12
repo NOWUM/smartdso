@@ -11,7 +11,7 @@ from utils import TableCreator
 logging.basicConfig()
 
 logger = logging.getLogger('Simulation')
-logger.setLevel('DEBUG')
+logger.setLevel('INFO')
 
 # -> timescaledb connection to store the simulation results
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')

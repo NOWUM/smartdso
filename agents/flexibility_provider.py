@@ -36,7 +36,7 @@ class FlexibilityProvider:
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
                  database_uri: str = DATABASE_URI,
-                 price_sensitivity: float = 1.3, strategy: str = 'optimized', *args, **kwargs):
+                 price_sensitivity: float = 1.3, strategy: str = 'MaxPvCap', *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
@@ -70,7 +70,7 @@ class FlexibilityProvider:
                                     london_data=london_data, l_id=consumer['london_data'],
                                     pv_systems=pv_systems,
                                     price_sensitivity=price_sensitivity,
-                                    strategy=self.strategy,
+                                    strategy=self.strategy, scenario=scenario,
                                     start_date=start_date, end_date=end_date, T=T,
                                     database_uri=database_uri, consumer_type='household')
 

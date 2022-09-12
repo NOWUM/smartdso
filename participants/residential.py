@@ -60,6 +60,7 @@ class HouseholdModel(BasicParticipant):
                  consumer_id: str = 'nowum',
                  price_sensitivity: float = 1.3,
                  strategy: str = 'MaxPvCap',
+                 scenario: str = 'Flat',
                  random: np.random.default_rng = random,
                  *args, **kwargs):
 
@@ -107,7 +108,7 @@ class HouseholdModel(BasicParticipant):
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
-        if 'Cap' in self._used_strategy:
+        if 'Flat' in strategy:
             # -> use median
             median_value = np.sort(tariff.values.flatten())[int(len(tariff)/2)]
             self._data.loc[tariff.index, 'tariff'] = median_value
