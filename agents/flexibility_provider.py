@@ -36,6 +36,7 @@ class FlexibilityProvider:
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
                  database_uri: str = DATABASE_URI,
+                 number_consumers: int = 0,
                  price_sensitivity: float = 1.3, strategy: str = 'MaxPvCap', *args, **kwargs):
 
         # -> scenario name and iteration number
@@ -52,6 +53,9 @@ class FlexibilityProvider:
 
         self._database = create_engine(database_uri)
         self.T = T
+
+        global h0_consumers
+        h0_consumers = h0_consumers.sample(number_consumers)
 
         # -> create household clients
         for _, consumer in h0_consumers.iterrows():
@@ -145,27 +149,41 @@ class FlexibilityProvider:
             self._commits[consumer_id] = self.clients[consumer_id].has_commit()
         return commit_
 
-    def save_results(self, d_time: datetime):
+    def save_results(self, d_time: datetime, result_sample: str = 'all') -> None:
+        total_charging = np.zeros(self.T)
+
+        time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+
         for id_, client in self.clients.items():
             if client.consumer_type == 'household':
-                time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+
+                client.reset_commit()
+                self._commits[id_] = False
                 data = client.get_result(time_range)
+                total_charging += data['final_grid_consumption'].values
+
                 data['node_id'] = client.grid_node
                 data['iteration'] = self.iteration
                 data['scenario'] = self.scenario
+
                 data = data.drop(['total_radiation', 'tariff', 'car_demand',
                                   'residual_generation', 'residual_demand', 'planned_grid_consumption',
                                   'final_grid_consumption'], axis=1)
 
                 data = data.rename_axis('time').reset_index()
                 data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
+
                 try:
-                    data.to_sql(name='residential', con=self._database, if_exists='append', method='multi')
-                    logger.debug(f'write data in residential for consumer {id_}')
+                    if result_sample == 'all':
+                        data.to_sql(name='residential', con=self._database, if_exists='append', method='multi')
+                        logger.debug(f'write data in residential for consumer {id_}')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
                     data.to_sql(name='residential', con=self._database, if_exists='append')
                     logger.error(f'data for residential {id_} are not stored in database')
+
+                if result_sample != 'all':
+                    continue
 
                 for key, car in client.cars.items():
                     data = car.get_result(time_range)
@@ -177,12 +195,21 @@ class FlexibilityProvider:
                     data = data.drop(['work', 'errand', 'hobby'], axis=1)
                     data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
                     try:
-                        data.to_sql(name='cars', con=self._database, if_exists='append', method='multi')
+                        if result_sample == 'all':
+                            data.to_sql(name='cars', con=self._database, if_exists='append', method='multi')
                     except Exception as e:
                         logger.warning(f'server closed the connection {repr(e)}')
                         data.to_sql(name='cars', con=self._database, if_exists='append')
                         logger.error(f'data for car {key} are not stored in database')
 
-                client.reset_commit()
-                self._commits[id_] = False
+        data = pd.DataFrame(data=dict(power=total_charging), index=time_range)
+        data.index.name = 'time'
+        data['iteration'] = self.iteration
+        data['scenario'] = self.scenario
 
+        try:
+            data.to_sql(name='charging', con=self._database, if_exists='append', method='multi')
+        except Exception as e:
+            logger.warning(f'server closed the connection {repr(e)}')
+            data.to_sql(name='charging', con=self._database, if_exists='append')
+            logger.error(f'data for charging are not stored in database')
