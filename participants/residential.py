@@ -80,6 +80,9 @@ class HouseholdModel(BasicParticipant):
         if 'MaxPv' in strategy:
             self.price_limit = 45
             self._slope = price_sensitivity
+        elif 'PlugInInf' in strategy:
+            self.price_limit = np.inf
+            self._slope = 0
         else:
             self.price_limit = 45
             self._slope = 0
@@ -108,7 +111,7 @@ class HouseholdModel(BasicParticipant):
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
-        if 'Flat' in strategy:
+        if 'Flat' in scenario:
             # -> use median
             median_value = np.sort(tariff.values.flatten())[int(len(tariff)/2)]
             self._data.loc[tariff.index, 'tariff'] = median_value
