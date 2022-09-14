@@ -68,7 +68,7 @@ class TableCreator:
 
     def _create_tables(self):
 
-        self.engine.execute("CREATE EXTENSION postgis;")
+        self.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
 
         # -> grid table
         self.engine.execute("CREATE TABLE IF NOT EXISTS grid( "
@@ -141,6 +141,19 @@ class TableCreator:
             with connection.begin():
                 connection.execute(query_create_hypertable)
 
+        # -> charging table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS charging( "
+                            "time timestamp without time zone NOT NULL, "
+                            "iteration integer, "
+                            "scenario text, "
+                            "power double precision, "
+                            "PRIMARY KEY (time, iteration, scenario));")
+
+        query_create_hypertable = "SELECT create_hypertable('charging', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(query_create_hypertable)
+
         # -> geojson table
         self.engine.execute("CREATE TABLE IF NOT EXISTS edges_geo( "
                             "name text, "
@@ -173,7 +186,7 @@ class TableCreator:
 
 if __name__ == "__main__":
     tb = TableCreator(create_tables=False)
-    tb.delete_scenario(scenario='EV100PV100PRC40.0STR-SPV')
+    tb.delete_scenario(scenario='EV100PV80PRCFlatSTRMaxPvCap')
     #tb.delete_scenario(scenario='EV100PV100PRC40.0STR-S')
     #tb.delete_scenario(scenario='EV100PV80PRC40.0STR-S')
     #tb.delete_scenario(scenario='EV100PV50PRC40.0STR-S')
