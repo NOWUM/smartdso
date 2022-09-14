@@ -17,7 +17,7 @@ logger.setLevel('INFO')
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
 try:
-    tables = TableCreator(create_tables=False, database_uri=DATABASE_URI)
+    tables = TableCreator(create_tables=True, database_uri=DATABASE_URI)
     logger.info(' -> connected to database')
 except Exception as e:
     logger.error(f" -> can't connect to {DATABASE_URI}")
@@ -35,10 +35,10 @@ sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 
-save_demand_as_csv = (os.getenv('SAVE_DEMAND', 'False') == 'True')
-plot = False
+strategy = os.getenv('STRATEGY', 'PlugInInf')                                    # -> PlugInCap, MaxPvCap, MaxPvSoc, PlugInInf
 
-strategy = os.getenv('STRATEGY', 'MaxPvCap')                                    # -> PlugInCap, MaxPvCap, MaxPvSoc
+result_sample = os.getenv('RESULT_SAMPLE', 'only_charging')
+analyse_grid = os.getenv('ANALYSE_GRID', 'False') == 'True'
 
 input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
              'start_date': start_date,                                          #    see: demLib.london_data.py
@@ -46,6 +46,7 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      
              'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
              'pv_ratio': int(os.getenv('PV_RATIO', 80))/100,
+             'number_consumers': int(os.getenv('NUMBER_CONSUMERS', 10)),
              'price_sensitivity': float(os.getenv('PRC_SENSE', 1.3)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
@@ -73,18 +74,10 @@ if __name__ == "__main__":
         # -> run SLPs for each day in simulation horizon
         logger.info(f' -> running photovoltaic and slp generation')
         fixed_demand, fixed_generation = FlexProvider.initialize_time_series()
-        # -> forward the slp data to the Capacity Provider
-        logger.info(f' -> running initial power flow calculation')
-        CapProvider.set_fixed_power(data=fixed_demand)
-        if save_demand_as_csv:
-            if input_set.get('london_data'):
-                fixed_demand.groupby('t').sum().to_csv('London.csv', sep=';', decimal=',')
-            else:
-                fixed_demand.groupby('t').sum().to_csv('SLP.csv', sep=';', decimal=',')
-        if plot:
-            fixed_demand.groupby('t').sum().plot()
-            fixed_generation.groupby('t').sum().plot()
-            plt.show()
+        if analyse_grid:
+            # -> forward the slp data to the Capacity Provider
+            logger.info(f' -> running initial power flow calculation')
+            CapProvider.set_fixed_power(data=fixed_demand)
     except Exception as e:
         print(repr(e))
         logger.error(f' -> error while slp or power flow calculation: {repr(e)}')
@@ -99,9 +92,14 @@ if __name__ == "__main__":
                 number_commits = 0
                 while number_commits < len(FlexProvider.keys):
                     for request, node_id, consumer_id in FlexProvider.get_requests(d_time=d_time):
-                        price = CapProvider.get_price(request=request, node_id=node_id)
-                        if FlexProvider.commit(price, consumer_id):
-                            CapProvider.commit(request=request, node_id=node_id)
+                        if analyse_grid:
+                            price = CapProvider.get_price(request=request, node_id=node_id)
+                            if FlexProvider.commit(price, consumer_id):
+                                CapProvider.commit(request=request, node_id=node_id)
+                        else:
+                            price = pd.Series(index=request.index, data=[0] * len(request))
+                            FlexProvider.commit(price, consumer_id)
+
                     if 'MaxPv' in strategy:
                         number_commits = FlexProvider.get_commits()
                         logger.debug(f' -> {FlexProvider.get_commits()} consumers commit charging')
@@ -109,8 +107,10 @@ if __name__ == "__main__":
                         logger.debug('set commit charging for clients')
                         number_commits = len(FlexProvider.keys)
                 FlexProvider.simulate(d_time)
-            FlexProvider.save_results(day)
-            CapProvider.save_results(day)
+            FlexProvider.save_results(day, result_sample)
+            if analyse_grid:
+                CapProvider.save_results(day, result_sample)
+
         except Exception as e:
             logger.error(f' -> error during simulation: {repr(e)}')
 
