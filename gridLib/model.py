@@ -8,7 +8,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
-data_path = r'./gridLib/data/export'
+data_path = r'./gridLib/data/export/dem'
 # -> read nodes
 total_nodes = pd.read_csv(fr'{data_path}/nodes.csv', index_col=0)
 total_nodes['geometry'] = total_nodes['shape'].apply(loads)
@@ -19,8 +19,8 @@ total_transformers['geometry'] = total_transformers['shape'].apply(loads)
 total_edges = pd.read_csv(fr'{data_path}/edges.csv', index_col=0)
 total_edges['geometry'] = total_edges['shape'].apply(loads)
 # -> read known consumers
-total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
-# total_consumers = pd.read_csv(fr'{data_path}/consumers.csv', index_col=0)
+# total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
+total_consumers = pd.read_csv(fr'{data_path}/consumers.csv', index_col=0)
 
 
 class GridModel:
@@ -125,13 +125,13 @@ if __name__ == "__main__":
     import cartopy.crs as ccrs
     from gridLib.plotting import get_plot
     model = GridModel()
-    subs = [*model.sub_networks.values()]
-    sub = subs[10]
-    edges = total_edges.loc[sub.lines.index]
-    busses = list(edges['bus0'].values) + list(edges['bus1'].values)
-    nodes = total_nodes.loc[busses]
-    plt = get_plot(edges=edges,
-                   nodes=nodes)
-    plt.write_html('test.html')
+    # subs = [*model.sub_networks.values()]
+    # sub = subs[10]
+    # edges = total_edges.loc[sub.lines.index]
+    # busses = list(edges['bus0'].values) + list(edges['bus1'].values)
+    # nodes = total_nodes.loc[busses]
+    # plt = get_plot(edges=edges,
+    #                nodes=nodes)
+    # plt.write_html('test.html')
 
 

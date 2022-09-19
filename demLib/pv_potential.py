@@ -12,9 +12,9 @@ tr = Transformer.from_crs('EPSG:4326', 'EPSG:25832')
 
 pv_potential = gpd.read_file(r'./demLib/data/pv_potential/dueren/Solarkataster-Potentiale_05358008_Dueren_EPSG25832_Shape.shp')
 
-df = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
+df = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
 df['pv'] = None
-total_nodes = pd.read_csv(r'./gridLib/data/export/nodes.csv', index_col=0)
+total_nodes = pd.read_csv(r'./gridLib/data/export/dem/nodes.csv', index_col=0)
 consumer_nodes = df.loc[df['profile'] == 'H0', 'bus0']
 nodes = total_nodes.loc[consumer_nodes]
 coords = nodes.loc[:, ['lon', 'lat']]
@@ -54,8 +54,8 @@ for id_, systems in buildings.items():
             pv_systems += [dict(pdc0=round(power, 1),
                                 surface_tilt=system['surface_tilt'],
                                 surface_azimuth=system['surface_azimuth'] if system['surface_azimuth'] != -1 else 0)]
-        df.at[index, 'pv'] = pv_systems
+        df.at[index, 'pv'] = str(pv_systems)
 
-df.to_csv(r'./gridLib/data/grid_allocations.csv')
+df.to_csv(r'./gridLib/data/export/dem/consumers.csv')
 
 
