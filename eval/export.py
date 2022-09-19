@@ -1,19 +1,54 @@
+import numpy as np
 import pandas as pd
 
-from eval.getter import get_mean_charging, get_prices
+from eval.getter import get_mean_charging, get_prices, get_mean_pv_consumption, get_mean_charging_iteration, get_charging_iteration
 from eval.plotter import plot_mean_charging
+from matplotlib import pyplot as plt
+
 
 if __name__ == "__main__":
-    cases = dict(A=['EV100PV50PRC40.0STR-S', 'EV100PV80PRC40.0STR-S', 'EV100PV100PRC40.0STR-S'],
-                 B=['EV100PV50PRC40.0STR-SPV', 'EV100PV80PRC40.0STR-SPV', 'EV100PV100PRC40.0STR-SPV'])
+    scenarios = ['EV100PV50PRCFlatSTRPlugInCap', 'EV100PV80PRCFlatSTRPlugInCap',
+                 'EV100PV100PRCFlatSTRPlugInCap']
+    scenario = 'EV100PV100PRCFlatSTRPlugInInf'
+    samples = [np.random.choice(range(1500), 100) for i in range(3)]
 
-    for case, scenarios in cases.items():
-        result = []
-        for scenario in scenarios:
-            data, energy = get_mean_charging(scenario)
-            data.columns = [scenario]
-            result.append(data.copy())
-        result = pd.concat(result, axis=1)
-        figure = plot_mean_charging(result)
-        figure.write_html(f'case_{case}.html')
+    result = dict()
+    for sample, index in zip(samples, range(3)):
+        print(index)
+        values = []
+        for iteration in sample:
+            power = get_charging_iteration(scenario=scenario, iteration=iteration)
+            values.append(power.values.flatten())
+        result[index] = values.copy()
 
+    # result = dict()
+    # for i in range(0, 1325, 25):
+    #     print(i)
+    #     power = get_mean_charging_iteration(scenario=scenario, num=i)
+    #
+    #     first_deviation = np.abs(np.diff(power.values.flatten()))
+    #     second_deviation = np.abs(np.diff(first_deviation))
+    #     result[i] = np.sum(second_deviation)
+    #
+    # plt.plot(result.keys(), result.values())
+    #
+    # values = []
+    # for scenario in scenarios:
+    #     data = get_mean_pv_consumption(scenario)
+    #     values.append(data.values)
+    #
+    # to_store = {}
+    # for scenario, value in zip(scenarios, values):
+    #     to_store[scenario] = value.flatten()
+    # to_store = pd.DataFrame(data=to_store, index=data.index)
+    #
+    # typ_days = {scenario: [] for scenario in scenarios}
+    # for scenario in scenarios:
+    #     values = []
+    #     for day in range(7):
+    #         day_data = to_store.loc[to_store.index.day_of_week == day, scenario]
+    #         value = day_data.groupby(day_data.index.hour).mean().values.flatten()
+    #         values += list(value)
+    #     typ_days[scenario] = values
+    #
+    # typ_days = pd.DataFrame(data=typ_days)
