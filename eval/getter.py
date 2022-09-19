@@ -23,7 +23,7 @@ def get_price_sensitivities(slopes: tuple = (1.0, 1.7, 2.7, 4.0), max_price: flo
     return senses
 
 
-def get_mean_charging(scenario):
+def get_mean_charging(scenario:str):
     query = f"select to_char(car.ti, 'hh24:mi') as inter, avg(car.final)/1000 as charging " \
             f"from (select  time as ti, sum(final_charge) as final " \
             f"from cars where scenario='{scenario}' group by ti) as car " \
@@ -39,3 +39,28 @@ def get_mean_charging(scenario):
     mean_charged = mean_charged.values[0][0]
 
     return data, mean_charged
+
+
+def get_mean_pv_consumption(scenario:str):
+    query = f"select iter.time as time, avg(iter.consumption) as consumption from (select time, sum(final_pv_consumption) as consumption " \
+            f"from residential where scenario='{scenario}' group by time, iteration) as iter group by iter.time order by time"
+    data = pd.read_sql(query, ENGINE)
+    data = data.set_index('time')
+
+    return data
+
+
+def get_mean_charging_iteration(scenario:str, num: int):
+    query = f"select time, avg(power) as power from charging where scenario='{scenario}' and iteration <= {num} group by time"
+    data = pd.read_sql(query, ENGINE)
+    data = data.set_index('time')
+
+    return data
+
+
+def get_charging_iteration(scenario:str, iteration: int):
+    query = f"select time, power as power from charging where scenario='{scenario}' and iteration = {iteration}"
+    data = pd.read_sql(query, ENGINE)
+    data = data.set_index('time')
+
+    return data
