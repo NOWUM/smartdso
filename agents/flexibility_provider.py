@@ -152,7 +152,7 @@ class FlexibilityProvider:
         return commit_
 
     def save_results(self, d_time: datetime,
-                     result_sample: tuple = ('planned_grid_consumption', 'final_grid_consumption',
+                     result_sample: tuple = ('planned_grid_consumption', 'final_grid_consumption', 'generation',
                                              'final_pv_consumption', 'demand', 'availability', 'grid_fee')) -> None:
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
@@ -170,18 +170,20 @@ class FlexibilityProvider:
                 # -> get results for current day
                 data = client.get_result(time_range)
                 # -> collect results
-                for sample in [consumption for consumption in result_sample if 'consumption' in result_sample]:
+                for sample in [consumption for consumption in result_sample if 'consumption' in consumption]:
                     results[sample].loc[time_range] += data.loc[time_range, sample]
                 if 'grid_fee' in result_sample:
                     results['grid_fee'].loc[time_range] += data.loc[time_range, 'grid_fee']
                 if 'demand' in result_sample:
                     results['demand'].loc[time_range] += data.loc[time_range, 'car_demand']
+                if 'generation' in result_sample:
+                    results['generation'] += data.loc[time_range, 'residual_generation']
 
                 for key, car in client.cars.items():
                     car_counter += 1
                     data = car.get_result(time_range)
                     if 'availability' in result_sample:
-                        results['availability'].loc[time_range] = data.loc[time_range, 'usage']
+                        results['availability'].loc[time_range] += data.loc[time_range, 'usage'].copy()
 
         if 'availability' in result_sample:
             results['availability'] /= car_counter
