@@ -139,7 +139,7 @@ class CapacityProvider:
         self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
         self.transformer_utilization[sub_id].fillna(method='ffill', inplace=True)
 
-    def save_results(self, d_time: datetime, result_sample: str = 'all') -> None:
+    def save_results(self, d_time: datetime) -> None:
 
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
