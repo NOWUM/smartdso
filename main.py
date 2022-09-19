@@ -2,14 +2,12 @@ import pandas as pd
 from tqdm import tqdm
 import logging
 import os
-from matplotlib import pyplot as plt
 
 from agents.flexibility_provider import FlexibilityProvider
 from agents.capacity_provider import CapacityProvider
 from utils import TableCreator
 
 logging.basicConfig()
-
 logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
@@ -35,18 +33,19 @@ sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
 
 logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 
-strategy = os.getenv('STRATEGY', 'PlugInInf')                                    # -> PlugInCap, MaxPvCap, MaxPvSoc, PlugInInf
+# -> PlugInCap, MaxPvCap, MaxPvSoc, PlugInInf
+strategy = os.getenv('STRATEGY', 'PlugInCap')
 
 result_sample = os.getenv('RESULT_SAMPLE', 'only_charging')
-analyse_grid = os.getenv('ANALYSE_GRID', 'False') == 'True'
+analyse_grid = os.getenv('ANALYSE_GRID', 'True') == 'True'
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),       # -> Need london data set
              'start_date': start_date,                                          #    see: demLib.london_data.py
              'end_date': end_date,
              'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
              'pv_ratio': int(os.getenv('PV_RATIO', 80))/100,
-             'number_consumers': int(os.getenv('NUMBER_CONSUMERS', 10)),
+             'number_consumers': int(os.getenv('NUMBER_CONSUMERS', 0)),
              'price_sensitivity': float(os.getenv('PRC_SENSE', 1.3)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
@@ -107,9 +106,9 @@ if __name__ == "__main__":
                         logger.debug('set commit charging for clients')
                         number_commits = len(FlexProvider.keys)
                 FlexProvider.simulate(d_time)
-            FlexProvider.save_results(day, result_sample)
+            FlexProvider.save_results(day)
             if analyse_grid:
-                CapProvider.save_results(day, result_sample)
+                CapProvider.save_results(day)
 
         except Exception as e:
             logger.error(f' -> error during simulation: {repr(e)}')
