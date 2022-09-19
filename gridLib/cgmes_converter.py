@@ -336,15 +336,15 @@ class CGMESConverter:
             container = consumer.EquipmentContainer
             nominal_voltage = container.BaseVoltage.nominalVoltage
             num_ = consumer.description.split('_')[0]
-            print(num_)
-            if isinstance(container.TopologicalNode, list):
+            profile = consumer.description.split('_')[-1]
+            if isinstance(container.TopologicalNode, list) and profile in ['G0', 'H0', 'RLM']:
                 node_id = container.TopologicalNode[0].mRID
                 if node_id in self.components['nodes'].index:
                     consumers[mRID] = {'bus0': node_id, 'v_nom': nominal_voltage,
                                        'lat': self.components['nodes'].loc[node_id, 'lat'],
                                        'lon': self.components['nodes'].loc[node_id, 'lon'],
                                        'shape': self.components['nodes'].loc[node_id, 'shape'],
-                                       'id_': num_[14:]
+                                       'id_': num_[14:], 'profile': profile
                                       }
 
         self.components['consumers'] = pd.DataFrame.from_dict(consumers, orient='index')
@@ -435,9 +435,17 @@ class CGMESConverter:
             self._logger.error('cant plot data')
             print(repr(e))
 
+
 if __name__ == "__main__":
     converter = CGMESConverter(path=r'./gridLib/data/import/dem/Export.xml', levels=())
     converter.convert()
+    demand = pd.read_excel(r'./gridLib/data/import/dem/JEB.xlsx')
+    demand = demand.set_index('id_')
+    demand.columns = ['jeb']
+    converter.components['consumers'] = converter.components['consumers'].join(demand, on='id_')
+    converter.components['consumers'] = converter.components['consumers'].dropna()
+    l_ids = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)['london_data'].values
+    converter.components['consumers']['london_data'] = np.random.choice(l_ids, len(converter.components['consumers']))
     converter.save(r'./gridLib/data/export/dem/')
     # fig = converter.plot()
     # fig.write_html('test_grid.html')
