@@ -16,7 +16,7 @@ SEED = int(os.getenv('RANDOM_SEED', 2022))
 random = np.random.default_rng(SEED)
 
 # -> read known consumers and nodes
-consumers = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)
+consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
 h0_consumers = consumers.loc[consumers['profile'] == 'H0']                       # -> all h0 consumers
 h0_consumers = h0_consumers.fillna(0)                                            # -> without pv = 0
 g0_consumers = consumers.loc[consumers['profile'] == 'G0']                       # -> all g0 consumers
@@ -55,7 +55,9 @@ class FlexibilityProvider:
         self.T = T
 
         global h0_consumers
-        h0_consumers = h0_consumers.sample(number_consumers)
+
+        if number_consumers > 0:
+            h0_consumers = h0_consumers.sample(number_consumers)
 
         # -> create household clients
         for _, consumer in h0_consumers.iterrows():
@@ -149,67 +151,55 @@ class FlexibilityProvider:
             self._commits[consumer_id] = self.clients[consumer_id].has_commit()
         return commit_
 
-    def save_results(self, d_time: datetime, result_sample: str = 'all') -> None:
-        total_charging = np.zeros(self.T)
-
+    def save_results(self, d_time: datetime,
+                     result_sample: tuple = ('planned_grid_consumption', 'final_grid_consumption',
+                                             'final_pv_consumption', 'demand', 'availability', 'grid_fee')) -> None:
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+
+        results = {sample: pd.Series(index=time_range, dtype=float, data=np.zeros(self.T))
+                   for sample in result_sample}
+
+        consumer_counter, car_counter = 0, 0
 
         for id_, client in self.clients.items():
             if client.consumer_type == 'household':
-
+                consumer_counter += 1
+                # -> reset parameter for optimization for the next day
                 client.reset_commit()
                 self._commits[id_] = False
+                # -> get results for current day
                 data = client.get_result(time_range)
-                total_charging += data['final_grid_consumption'].values
-
-                data['node_id'] = client.grid_node
-                data['iteration'] = self.iteration
-                data['scenario'] = self.scenario
-
-                data = data.drop(['total_radiation', 'tariff', 'car_demand',
-                                  'residual_generation', 'residual_demand', 'planned_grid_consumption',
-                                  'final_grid_consumption'], axis=1)
-
-                data = data.rename_axis('time').reset_index()
-                data = data.set_index(['time', 'consumer_id', 'iteration', 'scenario'])
-
-                try:
-                    if result_sample == 'all':
-                        data.to_sql(name='residential', con=self._database, if_exists='append', method='multi')
-                        logger.debug(f'write data in residential for consumer {id_}')
-                except Exception as e:
-                    logger.warning(f'server closed the connection {repr(e)}')
-                    data.to_sql(name='residential', con=self._database, if_exists='append')
-                    logger.error(f'data for residential {id_} are not stored in database')
-
-                if result_sample != 'all':
-                    continue
+                # -> collect results
+                for sample in [consumption for consumption in result_sample if 'consumption' in result_sample]:
+                    results[sample].loc[time_range] += data.loc[time_range, sample]
+                if 'grid_fee' in result_sample:
+                    results['grid_fee'].loc[time_range] += data.loc[time_range, 'grid_fee']
+                if 'demand' in result_sample:
+                    results['demand'].loc[time_range] += data.loc[time_range, 'car_demand']
 
                 for key, car in client.cars.items():
+                    car_counter += 1
                     data = car.get_result(time_range)
-                    data['car_id'] = key
-                    data['consumer_id'] = id_
-                    data['iteration'] = self.iteration
-                    data['scenario'] = self.scenario
-                    data = data.rename_axis('time').reset_index()
-                    data = data.drop(['work', 'errand', 'hobby'], axis=1)
-                    data = data.set_index(['time', 'car_id', 'iteration', 'scenario'])
-                    try:
-                        if result_sample == 'all':
-                            data.to_sql(name='cars', con=self._database, if_exists='append', method='multi')
-                    except Exception as e:
-                        logger.warning(f'server closed the connection {repr(e)}')
-                        data.to_sql(name='cars', con=self._database, if_exists='append')
-                        logger.error(f'data for car {key} are not stored in database')
+                    if 'availability' in result_sample:
+                        results['availability'].loc[time_range] = data.loc[time_range, 'usage']
 
-        data = pd.DataFrame(data=dict(power=total_charging), index=time_range)
-        data.index.name = 'time'
-        data['iteration'] = self.iteration
-        data['scenario'] = self.scenario
+        if 'availability' in result_sample:
+            results['availability'] /= car_counter
+        if 'grid_fee' in result_sample:
+            results['grid_fee'] /= consumer_counter
 
-        try:
-            data.to_sql(name='charging', con=self._database, if_exists='append', method='multi')
-        except Exception as e:
-            logger.warning(f'server closed the connection {repr(e)}')
-            data.to_sql(name='charging', con=self._database, if_exists='append')
-            logger.error(f'data for charging are not stored in database')
+        for sample in result_sample:
+            result = pd.DataFrame(results[sample])
+            result.columns = ['value']
+            result['scenario'] = self.scenario
+            result['iteration'] = self.iteration
+            result['type'] = sample
+            result.index.name = 'time'
+            result = result.reset_index()
+            result = result.set_index(['time', 'scenario', 'iteration', 'type'])
+
+            try:
+                result.to_sql(name='charging', con=self._database, if_exists='append', method='multi')
+            except Exception as e:
+                logger.warning(f'server closed the connection {repr(e)}')
+
