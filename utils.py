@@ -70,86 +70,32 @@ class TableCreator:
 
         self.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
 
-        # -> grid table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS grid( "
-                            "time timestamp without time zone NOT NULL, "
-                            "iteration integer, "
-                            "scenario text, "
-                            "id_ text, "
-                            "sub_grid integer , "
-                            "asset text, "
-                            "utilization double precision, "
-                            "PRIMARY KEY (time , id_, iteration, scenario));")
-
-        query_create_hypertable = "SELECT create_hypertable('grid', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
-        with self.engine.connect() as connection:
-            with connection.begin():
-                connection.execute(query_create_hypertable)
-
-        self.engine.execute("CREATE INDEX grid_id ON grid (id_);")
-        self.engine.execute("CREATE INDEX grid_iteration ON grid (iteration);")
-        self.engine.execute("CREATE INDEX grid_scenario ON grid (scenario);")
-
-        # -> residential table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS residential( "
-                            "time timestamp without time zone NOT NULL, "
-                            "consumer_id text, "
-                            "node_id text,"
-                            "iteration integer, "
-                            "scenario text, "
-                            "demand double precision, "
-                            "generation double precision, "
-                            "pv_capacity double precision, "
-                            "grid_fee double precision, "
-                            "car_demand double precision, "
-                            "car_capacity double precision, "
-                            "planned_pv_consumption double precision, "
-                            "final_pv_consumption double precision, "
-                            "PRIMARY KEY (time , consumer_id, iteration, scenario));")
-
-        query_create_hypertable = "SELECT create_hypertable('residential', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
-        with self.engine.connect() as connection:
-            with connection.begin():
-                connection.execute(query_create_hypertable)
-
-        self.engine.execute("CREATE INDEX residential_id ON residential (consumer_id);")
-        self.engine.execute("CREATE INDEX residential_iteration ON residential (iteration);")
-        self.engine.execute("CREATE INDEX residential_scenario ON residential (scenario);")
-
-        # -> car table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS cars( "
-                            "time timestamp without time zone NOT NULL, "
-                            "car_id text, "
-                            "consumer_id text, "
-                            "iteration integer, "
-                            "scenario text, "
-                            "distance double precision, "
-                            "total_distance double precision, "
-                            "planned_charge double precision, "
-                            "final_charge double precision, "
-                            "demand double precision, "
-                            "soc double precision, "
-                            "usage integer,"
-                            "PRIMARY KEY (time , car_id, iteration, scenario));")
-
-        self.engine.execute("CREATE INDEX car_id ON cars (car_id);")
-        self.engine.execute("CREATE INDEX car_iteration ON cars (iteration);")
-        self.engine.execute("CREATE INDEX car_scenario ON cars (scenario);")
-
-        query_create_hypertable = "SELECT create_hypertable('cars', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
-        with self.engine.connect() as connection:
-            with connection.begin():
-                connection.execute(query_create_hypertable)
-
         # -> charging table
         self.engine.execute("CREATE TABLE IF NOT EXISTS charging( "
                             "time timestamp without time zone NOT NULL, "
                             "iteration integer, "
                             "scenario text, "
-                            "power double precision, "
-                            "PRIMARY KEY (time, iteration, scenario));")
+                            "type text , "
+                            "value double precision, "
+                            "PRIMARY KEY (time , scenario, iteration, type));")
 
         query_create_hypertable = "SELECT create_hypertable('charging', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(query_create_hypertable)
+
+        # -> grid table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS grid( "
+                            "time timestamp without time zone NOT NULL, "
+                            "iteration integer, "
+                            "scenario text, "
+                            "asset text,"
+                            "type text , "
+                            "sub_id integer,"
+                            "value double precision, "
+                            "PRIMARY KEY (time , scenario, iteration, type, asset, sub_id));")
+
+        query_create_hypertable = "SELECT create_hypertable('grid', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)
@@ -185,8 +131,8 @@ class TableCreator:
 
 
 if __name__ == "__main__":
-    tb = TableCreator(create_tables=False)
-    tb.delete_scenario(scenario='EV100PV80PRCFlatSTRMaxPvCap')
+    tb = TableCreator(create_tables=True)
+    # tb.delete_scenario(scenario='EV100PV80PRCFlatSTRMaxPvCap')
     #tb.delete_scenario(scenario='EV100PV100PRC40.0STR-S')
     #tb.delete_scenario(scenario='EV100PV80PRC40.0STR-S')
     #tb.delete_scenario(scenario='EV100PV50PRC40.0STR-S')
