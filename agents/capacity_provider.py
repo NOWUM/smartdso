@@ -143,43 +143,42 @@ class CapacityProvider:
 
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
+        aggregate_functions = {'mean': lambda x: pd.DataFrame.mean(x, axis=1),
+                               'max': lambda x: pd.DataFrame.max(x, axis=1),
+                               'median': lambda x: pd.DataFrame.median(x, axis=1)}
+
+        def build_data(d: pd.DataFrame, asset: str = 'line', s_id: int = 0, tp: str = 'mean'):
+            d.columns = ['value']
+            d['type'] = tp
+            d['sub_id'] = s_id
+            d['asset'] = asset
+            d['scenario'] = self.scenario
+            d['iteration'] = self.iteration
+            d.index.name = 'time'
+
+            d = d.reset_index()
+            d = d.set_index(['time', 'scenario', 'iteration', 'type', 'asset', 'sub_id'])
+
+            return d
+
         for sub_id, dataframe in self.line_utilization.items():
-            for column in dataframe.columns:
-                if self.grid.model.lines.loc[column, 'bus0'] in self.grid.data['connected'].index \
-                        or self.grid.model.lines.loc[column, 'bus1'] in self.grid.data['connected'].index:
-                    asset = 'outlet'
-                else:
-                    asset = 'inlet'
-
-                df = pd.DataFrame(dict(time=time_range, iteration=self.T * [int(self.iteration)],
-                                       scenario=self.T * [self.scenario], id_=self.T * [column],
-                                       sub_grid=self.T * [int(sub_id)], asset=self.T * [asset],
-                                       utilization=dataframe.loc[time_range, column].values))
-
-                df = df.loc[df['utilization'] == df['utilization'].max(), :]
-
+            for key, function in aggregate_functions.items():
+                data = pd.DataFrame(function(dataframe.loc[time_range, :]))
+                data = build_data(data, asset='line', s_id=int(sub_id), tp=key)
                 try:
-                    df.to_sql('grid', self._database, index=False, if_exists='append', method='multi')
+                    data.to_sql('grid', self._database, if_exists='append', method='multi')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
-                    df.to_sql('grid', self._database, index=False, if_exists='append')
-                    logger.error(f'data for line {column} are not stored in database')
 
         for sub_id, dataframe in self.transformer_utilization.items():
-            id_ = int(sub_id)
-            df = pd.DataFrame(dict(time=time_range,
-                                   iteration=self.T * [int(self.iteration)],
-                                   scenario=self.T * [self.scenario],
-                                   id_=self.T * [self._geo_info['transformers'][id_]['name'].values[0]],
-                                   sub_grid=self.T * [int(sub_id)],
-                                   asset=self.T * ['transformer'],
-                                   utilization=dataframe.loc[time_range, 'utilization'].values))
-            try:
-                df.to_sql('grid', self._database, index=False, if_exists='append', method='multi')
-            except Exception as e:
-                logger.warning(f'server closed the connection {repr(e)}')
-                df.to_sql('grid', self._database, index=False, if_exists='append')
-                logger.error(f'data for transformer {sub_id} are not stored in database')
+            for key, function in aggregate_functions.items():
+                data = pd.DataFrame(function(dataframe.loc[time_range, :]))
+                data = build_data(data, asset='transformer', s_id=int(sub_id), tp=key)
+
+                try:
+                    data.to_sql('grid', self._database, if_exists='append', method='multi')
+                except Exception as e:
+                    logger.warning(f'server closed the connection {repr(e)}')
 
 
 if __name__ == "__main__":
