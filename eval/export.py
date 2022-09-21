@@ -10,17 +10,20 @@ if __name__ == "__main__":
     scenarios = ['EV100PV50PRCFlatSTRPlugInCap', 'EV100PV80PRCFlatSTRPlugInCap',
                  'EV100PV100PRCFlatSTRPlugInCap']
     scenario = 'EV100PV100PRCFlatSTRPlugInInf'
-    samples = [np.random.choice(range(1500), 100) for i in range(3)]
 
-    result = dict()
-    for sample, index in zip(samples, range(3)):
-        print(index)
-        values = []
-        for iteration in sample:
-            power = get_charging_iteration(scenario=scenario, iteration=iteration)
-            values.append(power.values.flatten())
-        result[index] = values.copy()
+    for size in range(50, 250):
+        samples = [np.random.choice(range(15000), size) for i in range(500)]
 
+        result = dict()
+        for sample, index in zip(samples, range(3)):
+            power = get_charging_iteration(scenario=scenario, iteration=tuple(sample))
+            result[index] = power.values.flatten()
+
+        # Var berechnen
+
+        for r in result.values():
+            plt.plot(r)
+        plt.show()
     # result = dict()
     # for i in range(0, 1325, 25):
     #     print(i)

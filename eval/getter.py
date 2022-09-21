@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/mobsim')
 ENGINE = create_engine(DATABASE_URI)
 
 
@@ -58,8 +58,8 @@ def get_mean_charging_iteration(scenario:str, num: int):
     return data
 
 
-def get_charging_iteration(scenario:str, iteration: int):
-    query = f"select time, power as power from charging where scenario='{scenario}' and iteration = {iteration}"
+def get_charging_iteration(scenario:str, iteration: tuple):
+    query = f"select time, avg(power) as power from charging where scenario='{scenario}' and iteration in {iteration} group by time order by time"
     data = pd.read_sql(query, ENGINE)
     data = data.set_index('time')
 
