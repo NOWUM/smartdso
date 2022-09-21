@@ -319,8 +319,7 @@ class CGMESConverter:
 
         self.components['transformers'] = pd.DataFrame.from_dict(transformers, orient='index')
 
-
-    def _build_consumers(self):
+    def _build_consumers(self, from_nodes: bool = True):
         """
         Convert energy consumer in cgmes format to pandas dataframe
         with the columns: []
@@ -332,20 +331,37 @@ class CGMESConverter:
         :return:
         """
         consumers = {}
-        for mRID, consumer in self._components['energy_consumers'].items():
-            container = consumer.EquipmentContainer
-            nominal_voltage = container.BaseVoltage.nominalVoltage
-            num_ = consumer.description.split('_')[0]
-            profile = consumer.description.split('_')[-1]
-            if isinstance(container.TopologicalNode, list) and profile in ['G0', 'H0', 'RLM']:
-                node_id = container.TopologicalNode[0].mRID
-                if node_id in self.components['nodes'].index:
-                    consumers[mRID] = {'bus0': node_id, 'v_nom': nominal_voltage,
-                                       'lat': self.components['nodes'].loc[node_id, 'lat'],
-                                       'lon': self.components['nodes'].loc[node_id, 'lon'],
-                                       'shape': self.components['nodes'].loc[node_id, 'shape'],
-                                       'id_': num_[14:], 'profile': profile
-                                      }
+        if from_nodes:
+            for key, node in self._components['nodes'].items():
+                if key in self.components['nodes'].index:
+                    node_id = key
+                    nominal_voltage = node.BaseVoltage.nominalVoltage
+                    for terminal in node.Terminal:
+                        if isinstance(terminal.ConductingEquipment, cimpy.cgmes_v2_4_15.EnergyConsumer.EnergyConsumer):
+                            consumer = terminal.ConductingEquipment
+                            num_ = consumer.description.split('_')[0]
+                            profile = consumer.description.split('_')[-1]
+                            consumers[consumer.mRID] = {'bus0': node_id, 'v_nom': nominal_voltage,
+                                                        'lat': self.components['nodes'].loc[node_id, 'lat'],
+                                                        'lon': self.components['nodes'].loc[node_id, 'lon'],
+                                                        'shape': self.components['nodes'].loc[node_id, 'shape'],
+                                                        'id_': num_[14:], 'profile': profile
+                                                        }
+        else:
+            for mRID, consumer in self._components['energy_consumers'].items():
+                container = consumer.EquipmentContainer
+                nominal_voltage = container.BaseVoltage.nominalVoltage
+                num_ = consumer.description.split('_')[0]
+                profile = consumer.description.split('_')[-1]
+                if isinstance(container.TopologicalNode, list) and profile in ['G0', 'H0', 'RLM']:
+                    node_id = container.TopologicalNode[0].mRID
+                    if node_id in self.components['nodes'].index:
+                        consumers[mRID] = {'bus0': node_id, 'v_nom': nominal_voltage,
+                                           'lat': self.components['nodes'].loc[node_id, 'lat'],
+                                           'lon': self.components['nodes'].loc[node_id, 'lon'],
+                                           'shape': self.components['nodes'].loc[node_id, 'shape'],
+                                           'id_': num_[14:], 'profile': profile
+                                          }
 
         self.components['consumers'] = pd.DataFrame.from_dict(consumers, orient='index')
 
@@ -447,5 +463,5 @@ if __name__ == "__main__":
     l_ids = pd.read_csv(r'./gridLib/data/grid_allocations.csv', index_col=0)['london_data'].values
     converter.components['consumers']['london_data'] = np.random.choice(l_ids, len(converter.components['consumers']))
     converter.save(r'./gridLib/data/export/dem/')
-    # fig = converter.plot()
-    # fig.write_html('test_grid.html')
+    fig = converter.plot()
+    fig.write_html(r'./gridLib/data/export/dem/grid.html')
