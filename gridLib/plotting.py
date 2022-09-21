@@ -20,7 +20,7 @@ def get_plot(nodes: pd.DataFrame = pd.DataFrame(),
 
         for name, attributes in lines.iterrows():
             shape = attributes['shape']
-            x, y = loads(shape).xy
+            x, y = shape.xy
             lat_coords, lon_coords = np.append(lat_coords, y), np.append(lon_coords, x)
             names = np.append(names, [f'<b>Name:</b> {name} <br />'])
             lat_coords, lon_coords = np.append(lat_coords, [None]), np.append(lon_coords, [None])
