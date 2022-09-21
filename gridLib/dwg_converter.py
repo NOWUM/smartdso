@@ -24,7 +24,7 @@ def get_coord(x_, y_):
     return transformer.transform(y_, x_)
 
 
-def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_new.dxf'):
+def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_sub.dxf'):
     try:
         doc = ezdxf.readfile(path)
     except IOError:
@@ -151,7 +151,7 @@ def split_lines_for_not_connected_nodes(idx, nodes, lines):
                     data = dict(bus0=bus0, bus1=bus1, v_nom=line_data.v_nom,
                                 shape=str(geom), length=line_length,
                                 lon_coords=list(lon_coords), lat_coords=list(lat_coords),
-                                r=rel * line_data.r, x=rel * line_data.x)
+                                r=rel * line_data.r, x=rel * line_data.x, s_nom=line_data.s_nom)
                     new_ += [data]
     lines = lines.drop(index=drop_idx)
     new_lines = pd.DataFrame(new_)
@@ -241,6 +241,18 @@ if __name__ == "__main__":
     transformers = pd.DataFrame(transformers)
     transformers.to_csv(r'./Gridlib/data/export/alliander/transformers.csv')
 
-
     fig = get_plot(nodes=n, consumers=consumers, edges=lines)
     fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
+
+    index = (lines['bus0'].isin(consumers['bus0'].values)) | (lines['bus1'].isin(consumers['bus0'].values))
+    consumer_lines = lines.loc[index]
+    not_connected_c = []
+    for index, data in consumer_lines.iterrows():
+        if data.bus0 not in consumers['bus0'].values:
+            if data.bus1 in consumers['bus0'].values:
+                not_connected_c.append(data.bus0)
+        if data.bus1 not in consumers['bus0'].values:
+            if data.bus0 in consumers['bus0'].values:
+                not_connected_c.append(data.bus1)
+    lines = split_lines_for_not_connected_nodes(not_connected_c, n, lines)
+    lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
