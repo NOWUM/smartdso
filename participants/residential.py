@@ -32,7 +32,7 @@ random = np.random.default_rng(SEED)
 
 letters = list(string.ascii_uppercase)
 letters = [f'{a}{b}{c}' for a, b, c in itertools.product(letters, letters, letters)]
-numbers = [f"{number:05d}" for number in range(10_000)]
+numbers = [f"{number:04d}" for number in range(1_000)]
 KEYS = [f'{a}{b}' for a, b in itertools.product(letters, numbers)]
 
 
@@ -96,7 +96,15 @@ class HouseholdModel(BasicParticipant):
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
-        self.cars = {random.choice(KEYS): person.car for person in self.persons if person.car.type == 'ev'}
+        self.cars = dict()
+
+        for person in self.persons:
+            if person.car.type == 'ev':
+                key = list(random.choice(KEYS))
+                random.shuffle(key)
+                key = ''.join(key)
+                self.cars[key] = person.car
+
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
             self._total_benefit = self._total_capacity * self.price_limit
