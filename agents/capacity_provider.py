@@ -139,7 +139,7 @@ class CapacityProvider:
         self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
         self.transformer_utilization[sub_id].fillna(method='ffill', inplace=True)
 
-    def save_results(self, d_time: datetime) -> None:
+    def _save_summary(self, d_time: datetime) -> None:
 
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
@@ -166,7 +166,7 @@ class CapacityProvider:
                 data = pd.DataFrame(function(dataframe.loc[time_range, :]))
                 data = build_data(data, asset='line', s_id=int(sub_id), tp=key)
                 try:
-                    data.to_sql('grid', self._database, if_exists='append', method='multi')
+                    data.to_sql('grid_summary', self._database, if_exists='append', method='multi')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
 
@@ -176,9 +176,50 @@ class CapacityProvider:
                 data = build_data(data, asset='transformer', s_id=int(sub_id), tp=key)
 
                 try:
-                    data.to_sql('grid', self._database, if_exists='append', method='multi')
+                    data.to_sql('grid_summary', self._database, if_exists='append', method='multi')
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
+
+    def _save_grid_asset(self, d_time: datetime) -> None:
+
+        time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+
+        for sub_id, dataframe in self.line_utilization.items():
+            for line in dataframe.columns:
+                result = dataframe.loc[time_range, [line]]
+                result.columns = ['utilization']
+                result['id_'] = line
+                result['asset'] = 'line'
+                result['scenario'] = self.scenario
+                result['iteration'] = self.iteration
+                result['sub_id'] = int(sub_id)
+                result.index.name = 'time'
+                result = result.reset_index()
+                result = result.set_index(['time', 'scenario', 'iteration', 'id_'])
+                try:
+                    result.to_sql('grid_asset', self._database, if_exists='append', method='multi')
+                except Exception as e:
+                    logger.warning(f'server closed the connection {repr(e)}')
+
+        for sub_id, dataframe in self.transformer_utilization.items():
+            result = dataframe.loc[time_range, ['utilization']]
+            result['id_'] = f'transformer_{sub_id}'
+            result['asset'] = 'transformer'
+            result['scenario'] = self.scenario
+            result['iteration'] = self.iteration
+            result['sub_id'] = int(sub_id)
+            result.index.name = 'time'
+            result = result.reset_index()
+            result = result.set_index(['time', 'scenario', 'iteration', 'id_'])
+            try:
+                result.to_sql('grid_asset', self._database, if_exists='append', method='multi')
+            except Exception as e:
+                logger.warning(f'server closed the connection {repr(e)}')
+
+    def save_results(self, d_time: datetime) -> None:
+        self._save_summary(d_time)
+        if self.iteration == 0:
+            self._save_grid_asset(d_time)
 
 
 if __name__ == "__main__":

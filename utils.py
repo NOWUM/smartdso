@@ -70,22 +70,62 @@ class TableCreator:
 
         self.engine.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
 
-        # -> charging table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS charging( "
+        # -> electric vehicle table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS electric_vehicle( "
                             "time timestamp without time zone NOT NULL, "
                             "iteration integer, "
                             "scenario text, "
-                            "type text , "
-                            "value double precision, "
-                            "PRIMARY KEY (time , scenario, iteration, type));")
+                            "id_ text, "
+                            "soc double precision, "
+                            "usage integer, "
+                            "initial_charging double precision, "
+                            "final_charging double precision, "
+                            "demand double precision, "
+                            "distance double precision, "
+                            "PRIMARY KEY (time , scenario, iteration, id_));")
 
-        query_create_hypertable = "SELECT create_hypertable('charging', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(query_create_hypertable)
+
+        # -> grid asset table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS grid_asset( "
+                            "time timestamp without time zone NOT NULL, "
+                            "iteration integer, "
+                            "scenario text, "
+                            "utilization double precision, "
+                            "id_ text, "
+                            "sub_id integer, "
+                            "asset text, "
+                            "PRIMARY KEY (time , scenario, iteration, id_));")
+
+        query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(query_create_hypertable)
+
+        # -> charging table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS charging_summary( "
+                            "time timestamp without time zone NOT NULL, "
+                            "iteration integer, "
+                            "scenario text, "
+                            "initial_grid double precision, "
+                            "final_grid double precision, "
+                            "final_pv double precision, "
+                            "demand double precision, "
+                            "residual_generation double precision, "
+                            "availability double precision, "
+                            "grid_fee double precision, "
+                            "PRIMARY KEY (time , scenario, iteration));")
+
+        query_create_hypertable = "SELECT create_hypertable('charging_summary', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)
 
         # -> grid table
-        self.engine.execute("CREATE TABLE IF NOT EXISTS grid( "
+        self.engine.execute("CREATE TABLE IF NOT EXISTS grid_summary( "
                             "time timestamp without time zone NOT NULL, "
                             "iteration integer, "
                             "scenario text, "
@@ -95,7 +135,7 @@ class TableCreator:
                             "value double precision, "
                             "PRIMARY KEY (time , scenario, iteration, type, asset, sub_id));")
 
-        query_create_hypertable = "SELECT create_hypertable('grid', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        query_create_hypertable = "SELECT create_hypertable('grid_summary', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)

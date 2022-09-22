@@ -5,22 +5,23 @@ import numpy as np
 import logging
 from datetime import datetime, timedelta as td
 from sqlalchemy import create_engine
+from collections import defaultdict
+
 
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
-
 SEED = int(os.getenv('RANDOM_SEED', 2022))
 random = np.random.default_rng(SEED)
 
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
-h0_consumers = consumers.loc[consumers['profile'] == 'H0']                       # -> all h0 consumers
-h0_consumers = h0_consumers.fillna(0)                                            # -> without pv = 0
-g0_consumers = consumers.loc[consumers['profile'] == 'G0']                       # -> all g0 consumers
-rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']                     # -> all rlm consumers
+h0_consumers = consumers.loc[consumers['profile'] == 'H0']  # -> all h0 consumers
+h0_consumers = h0_consumers.fillna(0)  # -> without pv = 0
+g0_consumers = consumers.loc[consumers['profile'] == 'G0']  # -> all g0 consumers
+rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']  # -> all rlm consumers
 
 # -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
@@ -52,7 +53,10 @@ class FlexibilityProvider:
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T])[:-1]
 
         self._database = create_engine(database_uri)
+
         self.T = T
+
+        self.random = np.random.default_rng(iteration)
 
         global h0_consumers
 
@@ -64,7 +68,7 @@ class FlexibilityProvider:
             # -> check pv potential and add system corresponding to the pv ratio
             if consumer['pv'] == 0:
                 pv_systems = []
-            elif random.choice(a=[True, False], p=[pv_ratio, 1-pv_ratio]):
+            elif self.random.choice(a=[True, False], p=[pv_ratio, 1 - pv_ratio]):
                 pv_systems = eval(consumer['pv'])
             else:
                 pv_systems = []
@@ -74,7 +78,7 @@ class FlexibilityProvider:
             client = HouseholdModel(demandP=consumer['jeb'], consumer_id=str(id_), grid_node=consumer['bus0'],
                                     residents=int(max(consumer['jeb'] / 1500, 1)), ev_ratio=ev_ratio,
                                     london_data=london_data, l_id=consumer['london_data'],
-                                    pv_systems=pv_systems,
+                                    pv_systems=pv_systems, random=random,
                                     price_sensitivity=price_sensitivity,
                                     strategy=self.strategy, scenario=scenario,
                                     start_date=start_date, end_date=end_date, T=T,
@@ -108,8 +112,8 @@ class FlexibilityProvider:
             return dataframe
 
         weather = pd.concat([self.weather_generator.get_weather(date=date)
-                            for date in pd.date_range(start=self.time_range[0], end=self.time_range[-1] + td(days=1),
-                                                      freq='d')])
+                             for date in pd.date_range(start=self.time_range[0], end=self.time_range[-1] + td(days=1),
+                                                       freq='d')])
         weather = weather.resample('15min').ffill()
         weather = weather.loc[weather.index.isin(self.time_range)]
 
@@ -151,13 +155,14 @@ class FlexibilityProvider:
             self._commits[consumer_id] = self.clients[consumer_id].has_commit()
         return commit_
 
-    def save_results(self, d_time: datetime,
-                     result_sample: tuple = ('planned_grid_consumption', 'final_grid_consumption', 'generation',
-                                             'final_pv_consumption', 'demand', 'availability', 'grid_fee')) -> None:
+    def _save_summary(self, d_time: datetime) -> None:
+
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
-        results = {sample: pd.Series(index=time_range, dtype=float, data=np.zeros(self.T))
-                   for sample in result_sample}
+        result = pd.DataFrame(index=time_range, columns=['initial_grid', 'final_grid', 'final_pv',
+                                                         'demand', 'residual_generation', 'availability',
+                                                         'grid_fee'])
+        result = result.fillna(0)
 
         consumer_counter, car_counter = 0, 0
 
@@ -170,38 +175,54 @@ class FlexibilityProvider:
                 # -> get results for current day
                 data = client.get_result(time_range)
                 # -> collect results
-                for sample in [consumption for consumption in result_sample if 'consumption' in consumption]:
-                    results[sample].loc[time_range] += data.loc[time_range, sample]
-                if 'grid_fee' in result_sample:
-                    results['grid_fee'].loc[time_range] += data.loc[time_range, 'grid_fee']
-                if 'demand' in result_sample:
-                    results['demand'].loc[time_range] += data.loc[time_range, 'car_demand']
-                if 'generation' in result_sample:
-                    results['generation'] += data.loc[time_range, 'residual_generation']
+                result.loc[time_range, 'initial_grid'] += data.loc[time_range, 'planned_grid_consumption']
+                result.loc[time_range, 'final_grid'] += data.loc[time_range, 'final_grid_consumption']
+                result.loc[time_range, 'final_pv'] += data.loc[time_range, 'final_pv_consumption']
+                result.loc[time_range, 'demand'] += data.loc[time_range, 'demand']
+                result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
+                result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
 
                 for key, car in client.cars.items():
                     car_counter += 1
                     data = car.get_result(time_range)
-                    if 'availability' in result_sample:
-                        results['availability'].loc[time_range] += data.loc[time_range, 'usage'].copy()
+                    result['availability'].loc[time_range] += (1-data.loc[time_range, 'usage'])
 
-        if 'availability' in result_sample:
-            results['availability'] /= car_counter
-        if 'grid_fee' in result_sample:
-            results['grid_fee'] /= consumer_counter
+        result['availability'] /= car_counter
+        result['grid_fee'] /= consumer_counter
 
-        for sample in result_sample:
-            result = pd.DataFrame(results[sample])
-            result.columns = ['value']
-            result['scenario'] = self.scenario
-            result['iteration'] = self.iteration
-            result['type'] = sample
-            result.index.name = 'time'
-            result = result.reset_index()
-            result = result.set_index(['time', 'scenario', 'iteration', 'type'])
+        result['scenario'] = self.scenario
+        result['iteration'] = self.iteration
 
-            try:
-                result.to_sql(name='charging', con=self._database, if_exists='append', method='multi')
-            except Exception as e:
-                logger.warning(f'server closed the connection {repr(e)}')
+        result.index.name = 'time'
+        result = result.reset_index()
+        result = result.set_index(['time', 'scenario', 'iteration'])
 
+        try:
+            result.to_sql(name='charging_summary', con=self._database, if_exists='append', method='multi')
+        except Exception as e:
+            logger.warning(f'server closed the connection {repr(e)}')
+
+    def _save_electric_vehicles(self, d_time: datetime):
+        time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
+
+        for id_, client in self.clients.items():
+            for key, car in client.cars.items():
+                data = car.get_result(time_range)
+                data = data.loc[:, ['soc', 'usage', 'planned_charge', 'final_charge', 'demand', 'distance']]
+                data.columns = ['soc', 'usage', 'initial_charging', 'final_charging', 'demand', 'distance']
+                data['scenario'] = self.scenario
+                data['iteration'] = self.iteration
+                data['id_'] = key
+                data.index.name = 'time'
+                data = data.reset_index()
+                data = data.set_index(['time', 'scenario', 'iteration', 'id_'])
+
+                try:
+                    data.to_sql(name='electric_vehicle', con=self._database, if_exists='append', method='multi')
+                except Exception as e:
+                    logger.warning(f'server closed the connection {repr(e)}')
+
+    def save_results(self, d_time: datetime) -> None:
+        self._save_summary(d_time)
+        if self.iteration == 0:
+            self._save_electric_vehicles(d_time)
