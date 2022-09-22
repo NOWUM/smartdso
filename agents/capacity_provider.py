@@ -203,7 +203,7 @@ class CapacityProvider:
 
         for sub_id, dataframe in self.transformer_utilization.items():
             result = dataframe.loc[time_range, ['utilization']]
-            result['id_'] = f'transformer_{sub_id}'
+            result['id_'] = cp.grid.get_components('transformers', sub_id).name.values[0]
             result['asset'] = 'transformer'
             result['scenario'] = self.scenario
             result['iteration'] = self.iteration
