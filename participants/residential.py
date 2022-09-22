@@ -5,8 +5,8 @@ import os
 from datetime import datetime, timedelta as td
 import logging
 from pvlib.pvsystem import PVSystem
-from matplotlib import pyplot as plt
-
+import string
+import itertools
 import uuid
 from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
     Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
@@ -28,6 +28,13 @@ logger.setLevel(LOG_LEVEL)
 
 SEED = int(os.getenv('RANDOM_SEED', 2022))
 random = np.random.default_rng(SEED)
+
+
+letters = list(string.ascii_uppercase)
+letters = [f'{a}{b}{c}' for a, b, c in itertools.product(letters, letters, letters)]
+numbers = [f"{number:03d}" for number in range(100)]
+KEYS = [f'{a}{b}' for a, b in itertools.product(letters, numbers)]
+
 
 # -> price data from survey
 # MEAN_PRICE = 28.01
@@ -89,7 +96,7 @@ class HouseholdModel(BasicParticipant):
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
-        self.cars = {uuid.uuid1(): person.car for person in self.persons if person.car.type == 'ev'}
+        self.cars = {random.choice(KEYS): person.car for person in self.persons if person.car.type == 'ev'}
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
             self._total_benefit = self._total_capacity * self.price_limit
