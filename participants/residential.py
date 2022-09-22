@@ -32,7 +32,7 @@ random = np.random.default_rng(SEED)
 
 letters = list(string.ascii_uppercase)
 letters = [f'{a}{b}{c}' for a, b, c in itertools.product(letters, letters, letters)]
-numbers = [f"{number:03d}" for number in range(100)]
+numbers = [f"{number:05d}" for number in range(10_000)]
 KEYS = [f'{a}{b}' for a, b in itertools.product(letters, numbers)]
 
 
