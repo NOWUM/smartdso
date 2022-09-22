@@ -179,7 +179,7 @@ class FlexibilityProvider:
                 result.loc[time_range, 'final_grid'] += data.loc[time_range, 'final_grid_consumption']
                 result.loc[time_range, 'final_pv'] += data.loc[time_range, 'final_pv_consumption']
                 result.loc[time_range, 'car_demand'] += data.loc[time_range, 'car_demand']
-                result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'residential_demand']
+                result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'demand']
                 result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
                 result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
 
