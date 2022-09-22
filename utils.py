@@ -113,8 +113,9 @@ class TableCreator:
                             "initial_grid double precision, "
                             "final_grid double precision, "
                             "final_pv double precision, "
-                            "demand double precision, "
+                            "car_demand double precision, "
                             "residual_generation double precision, "
+                            "residential_demand double precision, "
                             "availability double precision, "
                             "grid_fee double precision, "
                             "PRIMARY KEY (time , scenario, iteration));")

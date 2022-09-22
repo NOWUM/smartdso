@@ -160,8 +160,8 @@ class FlexibilityProvider:
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
         result = pd.DataFrame(index=time_range, columns=['initial_grid', 'final_grid', 'final_pv',
-                                                         'demand', 'residual_generation', 'availability',
-                                                         'grid_fee'])
+                                                         'residential_demand', 'car_demand',
+                                                         'residual_generation', 'availability', 'grid_fee'])
         result = result.fillna(0)
 
         consumer_counter, car_counter = 0, 0
@@ -178,7 +178,8 @@ class FlexibilityProvider:
                 result.loc[time_range, 'initial_grid'] += data.loc[time_range, 'planned_grid_consumption']
                 result.loc[time_range, 'final_grid'] += data.loc[time_range, 'final_grid_consumption']
                 result.loc[time_range, 'final_pv'] += data.loc[time_range, 'final_pv_consumption']
-                result.loc[time_range, 'demand'] += data.loc[time_range, 'demand']
+                result.loc[time_range, 'car_demand'] += data.loc[time_range, 'car_demand']
+                result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'residential_demand']
                 result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
                 result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
 
