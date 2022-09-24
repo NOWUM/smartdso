@@ -84,7 +84,7 @@ class CapacityProvider:
         else:
             demand_unique = demand_data.drop_duplicates(subset=['node_id', 'power'])
             snapshots = list(demand_unique['t'].unique())
- 
+
         self.grid.sub_networks[sub_id]['model'].set_snapshots(snapshots)
         for node in demand_data['node_id'].unique():
             # -> demand time series in [kW] to [MW]
