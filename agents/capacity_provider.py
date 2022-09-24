@@ -5,8 +5,8 @@ import numpy as np
 from datetime import timedelta as td, datetime
 from sqlalchemy import create_engine
 
-
 from gridLib.model import GridModel
+
 logging.getLogger('pypsa').setLevel('ERROR')
 
 # -> pandas frequency names
@@ -72,10 +72,11 @@ class CapacityProvider:
     def _transformer_utilization(self, sub_id: str) -> pd.DataFrame:
         transformer = self.grid.sub_networks[sub_id]['model'].generators_t.p
         s_max = self.grid.sub_networks[sub_id]['s_max']
-        transformer = transformer/s_max * 100
+        transformer = transformer / s_max * 100
         return transformer
 
-    def run_power_flow(self, data: pd.DataFrame, sub_id: str, end_of_day: bool = False, d_time: datetime = None) -> None:
+    def run_power_flow(self, data: pd.DataFrame, sub_id: str, end_of_day: bool = False,
+                       d_time: datetime = None) -> None:
         nodes_in_grid = self.mapper[self.mapper.values == sub_id].index
         demand_data = data.loc[data.index.get_level_values('node_id').isin(nodes_in_grid)]
         demand_data = demand_data.reset_index()
@@ -114,6 +115,7 @@ class CapacityProvider:
                 return 9_999
             else:
                 return ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
+
         # -> set current demand at each node
         data = self.demand.copy()
         data = data.loc[data.index.get_level_values(level='t').isin(request[request.values > 0].index)]
@@ -170,7 +172,8 @@ class CapacityProvider:
 
             return d
 
-        for sub_id, dataframe in self.line_utilization.items():
+        for sub_id in self.sub_ids:
+            dataframe = self.line_utilization[sub_id]
             for key, function in aggregate_functions.items():
                 data = pd.DataFrame(function(dataframe.loc[time_range, :]))
                 data = build_data(data, asset='line', s_id=int(sub_id), tp=key)
@@ -179,7 +182,8 @@ class CapacityProvider:
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
 
-        for sub_id, dataframe in self.transformer_utilization.items():
+        for sub_id in self.sub_ids:
+            dataframe = self.transformer_utilization[sub_id]
             for key, function in aggregate_functions.items():
                 data = pd.DataFrame(function(dataframe.loc[time_range, :]))
                 data = build_data(data, asset='transformer', s_id=int(sub_id), tp=key)
@@ -193,7 +197,8 @@ class CapacityProvider:
 
         time_range = pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=self.T)
 
-        for sub_id, dataframe in self.line_utilization.items():
+        for sub_id in self.sub_ids:
+            dataframe = self.line_utilization[sub_id]
             for line in dataframe.columns:
                 result = dataframe.loc[time_range, [line]]
                 result.columns = ['utilization']
@@ -210,8 +215,8 @@ class CapacityProvider:
                 except Exception as e:
                     logger.warning(f'server closed the connection {repr(e)}')
 
-        for sub_id, dataframe in self.transformer_utilization.items():
-            result = dataframe.loc[time_range, ['utilization']]
+        for sub_id in self.sub_ids:
+            result = self.transformer_utilization[sub_id]
             result['id_'] = self.grid.get_components('transformers', sub_id).name.values[0]
             result['asset'] = 'transformer'
             result['scenario'] = self.scenario
@@ -230,7 +235,7 @@ class CapacityProvider:
             self.run_power_flow(data=self.demand.copy(), sub_id=sub_id, end_of_day=True, d_time=d_time)
             self._rq_l_util = self._line_utilization(sub_id=sub_id)
             self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
-            time_range = pd.date_range(start=d_time,  periods=self.T, freq=RESOLUTION[self.T])
+            time_range = pd.date_range(start=d_time, periods=self.T, freq=RESOLUTION[self.T])
             self.line_utilization[sub_id].loc[time_range, self._rq_l_util.columns] = self._rq_l_util.values
             self.transformer_utilization[sub_id].loc[time_range, 'utilization'] = self._rq_t_util.values.flatten()
 
@@ -244,4 +249,3 @@ class CapacityProvider:
 if __name__ == "__main__":
     cp = CapacityProvider(**dict(start_date=datetime(2022, 1, 1), end_date=datetime(2022, 1, 2),
                                  scenario=None, iteration=None, T=96), write_geo=False)
-
