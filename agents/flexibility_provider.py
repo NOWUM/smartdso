@@ -18,10 +18,6 @@ random = np.random.default_rng(SEED)
 
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
-h0_consumers = consumers.loc[consumers['profile'] == 'H0']  # -> all h0 consumers
-h0_consumers = h0_consumers.fillna(0)  # -> without pv = 0
-g0_consumers = consumers.loc[consumers['profile'] == 'G0']  # -> all g0 consumers
-rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']  # -> all rlm consumers
 
 # -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
@@ -33,12 +29,11 @@ logger = logging.getLogger('FlexibilityProvider')
 
 class FlexibilityProvider:
 
-    def __init__(self, scenario: str, iteration: int,
+    def __init__(self, scenario: str, iteration: int, grid_series: pd.Series,
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
-                 database_uri: str = DATABASE_URI,
-                 number_consumers: int = 0,
-                 price_sensitivity: float = 1.3, strategy: str = 'MaxPvCap', *args, **kwargs):
+                 database_uri: str = DATABASE_URI, sub_grid: int = -1,
+                 number_consumers: int = 0, price_sensitivity: float = 1.3, strategy: str = 'MaxPvCap', *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
@@ -56,9 +51,18 @@ class FlexibilityProvider:
 
         self.T = T
 
-        self.random = np.random.default_rng(iteration)
+        self.random = np.random.default_rng(iteration + sub_grid)
 
-        global h0_consumers
+        global consumers
+
+        consumers['sub_grid'] = [grid_series.loc[node] for node in consumers['bus0'].values]
+        if sub_grid != -1:
+            consumers = consumers.loc[consumers['sub_grid'] == str(sub_grid)]
+
+        h0_consumers = consumers.loc[consumers['profile'] == 'H0']      # -> all h0 consumers
+        h0_consumers = h0_consumers.fillna(0)                           # -> without pv = 0
+        g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
+        rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
 
         if number_consumers > 0:
             h0_consumers = h0_consumers.sample(number_consumers)
@@ -78,7 +82,7 @@ class FlexibilityProvider:
             client = HouseholdModel(demandP=consumer['jeb'], consumer_id=str(id_), grid_node=consumer['bus0'],
                                     residents=int(max(consumer['jeb'] / 1500, 1)), ev_ratio=ev_ratio,
                                     london_data=london_data, l_id=consumer['london_data'],
-                                    pv_systems=pv_systems, random=random,
+                                    pv_systems=pv_systems, random=self.random,
                                     price_sensitivity=price_sensitivity,
                                     strategy=self.strategy, scenario=scenario,
                                     start_date=start_date, end_date=end_date, T=T,
