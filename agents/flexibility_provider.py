@@ -51,7 +51,7 @@ class FlexibilityProvider:
 
         self.T = T
 
-        self.random = np.random.default_rng(iteration + sub_grid)
+        self.random = np.random.default_rng(iteration)
 
         global consumers
 
@@ -59,10 +59,14 @@ class FlexibilityProvider:
         if sub_grid != -1:
             consumers = consumers.loc[consumers['sub_grid'] == str(sub_grid)]
 
+        self.sub_grid = sub_grid
+
         h0_consumers = consumers.loc[consumers['profile'] == 'H0']      # -> all h0 consumers
         h0_consumers = h0_consumers.fillna(0)                           # -> without pv = 0
         g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
         rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
+
+        logger.info(f'found {len(consumers)} in sub grid {sub_grid}')
 
         if number_consumers > 0:
             h0_consumers = h0_consumers.sample(number_consumers)
@@ -197,10 +201,11 @@ class FlexibilityProvider:
 
         result['scenario'] = self.scenario
         result['iteration'] = self.iteration
+        result['sub_id'] = self.sub_grid
 
         result.index.name = 'time'
         result = result.reset_index()
-        result = result.set_index(['time', 'scenario', 'iteration'])
+        result = result.set_index(['time', 'scenario', 'iteration', 'sub_id'])
 
         try:
             result.to_sql(name='charging_summary', con=self._database, if_exists='append', method='multi')
@@ -217,10 +222,11 @@ class FlexibilityProvider:
                 data.columns = ['soc', 'usage', 'initial_charging', 'final_charging', 'demand', 'distance']
                 data['scenario'] = self.scenario
                 data['iteration'] = self.iteration
+                data['sub_id'] = self.sub_grid
                 data['id_'] = key
                 data.index.name = 'time'
                 data = data.reset_index()
-                data = data.set_index(['time', 'scenario', 'iteration', 'id_'])
+                data = data.set_index(['time', 'scenario', 'iteration', 'sub_id', 'id_'])
 
                 try:
                     data.to_sql(name='electric_vehicle', con=self._database, if_exists='append', method='multi')

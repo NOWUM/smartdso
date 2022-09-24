@@ -75,6 +75,7 @@ class TableCreator:
                             "time timestamp without time zone NOT NULL, "
                             "iteration integer, "
                             "scenario text, "
+                            "sub_id integer, "
                             "id_ text, "
                             "soc double precision, "
                             "usage integer, "
@@ -82,7 +83,7 @@ class TableCreator:
                             "final_charging double precision, "
                             "demand double precision, "
                             "distance double precision, "
-                            "PRIMARY KEY (time , scenario, iteration, id_));")
+                            "PRIMARY KEY (time , scenario, iteration, sub_id, id_));")
 
         query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
@@ -110,6 +111,7 @@ class TableCreator:
                             "time timestamp without time zone NOT NULL, "
                             "iteration integer, "
                             "scenario text, "
+                            "sub_id integer, "
                             "initial_grid double precision, "
                             "final_grid double precision, "
                             "final_pv double precision, "
@@ -118,7 +120,7 @@ class TableCreator:
                             "residential_demand double precision, "
                             "availability double precision, "
                             "grid_fee double precision, "
-                            "PRIMARY KEY (time , scenario, iteration));")
+                            "PRIMARY KEY (time , scenario, iteration, sub_id));")
 
         query_create_hypertable = "SELECT create_hypertable('charging_summary', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
