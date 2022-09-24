@@ -343,7 +343,7 @@ class HouseholdModel(BasicParticipant):
 
             capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values.sum() * self.dt
             self._benefit_value = self.price_limit * capacity
-
+            self._request = self._request.loc[self._request.values > 0]
         else:
             self._commit = t_next_request
             self._simple_commit = t_next_request
@@ -375,7 +375,7 @@ class HouseholdModel(BasicParticipant):
             self._commit = self._simple_commit or price.index.max()
             self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].copy()
             self._data.loc[:, 'final_pv_consumption'] = self._data.loc[:, 'planned_pv_consumption'].copy()
-            self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
+            # self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._max_requests = 5
             if 'MaxPv' in self._used_strategy:
