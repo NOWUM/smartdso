@@ -105,7 +105,7 @@ class GridModel:
         df = data.reset_index()
         return gpd.GeoDataFrame(df.loc[:, ['name', 'geometry']], geometry='geometry')
 
-    def run_power_flow(self, sub_id: int):
+    def run_power_flow(self, sub_id: str):
 
         try:
             result_summary = self.sub_networks[sub_id]['model'].pf()
