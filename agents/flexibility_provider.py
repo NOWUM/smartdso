@@ -5,7 +5,6 @@ import numpy as np
 import logging
 from datetime import datetime, timedelta as td
 from sqlalchemy import create_engine
-from collections import defaultdict
 
 
 from participants.residential import HouseholdModel
@@ -66,7 +65,8 @@ class FlexibilityProvider:
         g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
         rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
 
-        logger.info(f'found {len(consumers)} in sub grid {sub_grid}')
+        # logger.info(f'found {len(consumers)} in sub grid {sub_grid}')
+        print(f'found {len(consumers)} in sub grid {sub_grid}')
 
         if number_consumers > 0:
             h0_consumers = h0_consumers.sample(number_consumers)

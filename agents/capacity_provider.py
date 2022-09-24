@@ -216,7 +216,7 @@ class CapacityProvider:
                     logger.warning(f'server closed the connection {repr(e)}')
 
         for sub_id in self.sub_ids:
-            result = self.transformer_utilization[sub_id]
+            result = self.transformer_utilization[sub_id].loc[time_range, ['utilization']]
             result['id_'] = self.grid.get_components('transformers', sub_id).name.values[0]
             result['asset'] = 'transformer'
             result['scenario'] = self.scenario
