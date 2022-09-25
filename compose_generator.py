@@ -16,7 +16,6 @@ def parse_args():
     parser.add_argument('--end', type=str, required=False, default='2022-03-31', help='End Date')
     parser.add_argument('--strategy', type=str, required=False, default='PlugInCap', help='charging strategy')
     parser.add_argument('--consumers', type=int, required=False, default=0, help='number of sample')
-    parser.add_argument('--result', type=str, required=False, default='charging', help='which results stored in db')
 
     return parser.parse_args()
 
@@ -32,25 +31,26 @@ if __name__ == "__main__":
         strategy = paras.strategy
 
     for simulation in range(paras.num_offset, paras.num_offset + paras.num):
-        output.append(f'''
-          scenario_{paras.ev}_{paras.pv}_{simulation}:
-            container_name: s{paras.ev}{paras.pv}_{simulation}
-            image: {IMAGE_REPO}smartdso:latest
-            build: .
-            environment:
-              LONDON_DATA: "{paras.london}"
-              EV_RATIO: {paras.ev}
-              PV_RATIO: {paras.pv}
-              START_DATE: {paras.start}
-              END_DATE: {paras.end}
-              PRC_SENSE: {paras.prc_sense}
-              STRATEGY: {paras.strategy}
-              RANDOM_SEED: {simulation}
-              RESULT_SAMPLE: {paras.result}
-              ANALYSE_GRID: "True"
-              NUMBER_CONSUMERS: {paras.consumers}
-              SCENARIO_NAME: EV{paras.ev}PV{paras.pv}PRC{paras.tariff}STR{strategy}_{simulation}
-        ''')
+        for sub_gird in range(10):
+            output.append(f'''
+              scenario_{paras.ev}{paras.pv}_{sub_gird}_{simulation}:
+                container_name: s{paras.ev}{paras.pv}_{sub_gird}_{simulation}
+                image: {IMAGE_REPO}smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "{paras.london}"
+                  EV_RATIO: {paras.ev}
+                  PV_RATIO: {paras.pv}
+                  START_DATE: {paras.start}
+                  END_DATE: {paras.end}
+                  PRC_SENSE: {paras.prc_sense}
+                  STRATEGY: {paras.strategy}
+                  RANDOM_SEED: {simulation + sub_gird}
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: {sub_gird}
+                  NUMBER_CONSUMERS: {paras.consumers}
+                  SCENARIO_NAME: EV{paras.ev}PV{paras.pv}PRC{paras.tariff}STR{strategy}_{simulation}
+            ''')
 
     with open(f'docker-compose.yml', 'w') as f:
         f.writelines(output)

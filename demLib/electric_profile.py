@@ -41,13 +41,13 @@ class StandardLoadProfile:
         self.profile = profiles[type]       # -> load profile data
         self.resolution = resolution        # -> set resolution
         self.london_data = london_data      # -> use smart meter data
+        self._use_data_base = use_data_base
+
         if london_data:
             self.data = self._get_london_data(l_id)
 
         self.winter = winter
         self.summer = summer
-
-        self._use_data_base = use_data_base
 
     def _get_london_data(self, l_id):
         try:
