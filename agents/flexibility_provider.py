@@ -139,7 +139,7 @@ class FlexibilityProvider:
         return sum([int(c) for c in self._commits.values()])
 
     def get_requests(self, d_time: datetime) -> (pd.Series, str):
-        random.shuffle(self.keys)
+        self.random.shuffle(self.keys)
         for id_ in self.keys:
             self._commits[id_] = self.clients[id_].has_commit()
             if not self._commits[id_]:
