@@ -13,7 +13,6 @@ from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
 SEED = int(os.getenv('RANDOM_SEED', 2022))
-random = np.random.default_rng(SEED)
 
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
@@ -50,7 +49,7 @@ class FlexibilityProvider:
 
         self.T = T
 
-        self.random = np.random.default_rng(iteration)
+        self.random = np.random.default_rng(SEED)
 
         global consumers
 
@@ -65,8 +64,8 @@ class FlexibilityProvider:
         g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
         rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
 
-        # logger.info(f'found {len(consumers)} in sub grid {sub_grid}')
-        print(f'found {len(consumers)} in sub grid {sub_grid}')
+        logger.info(f'found {len(consumers)} consumers in sub grid {sub_grid} '
+                    f'start building...')
 
         if number_consumers > 0:
             h0_consumers = h0_consumers.sample(number_consumers)
