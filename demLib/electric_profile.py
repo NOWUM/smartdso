@@ -6,6 +6,9 @@ import logging
 from demLib.utils import get_holidays
 
 DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
+DATA_PATH = r'./demLib/data/load_profiles/london_data.pkl'
+LONDON_DATA = pd.read_pickle(DATA_PATH)
+
 engine = create_engine(DATABASE_URI)
 path = r'./demLib/data/load_profiles/'
 
@@ -22,6 +25,7 @@ summer = np.load(open(fr'{path}summer.pkl', 'rb'))
 
 logger = logging.getLogger('StandardLoadProfile-Generator')
 
+
 class StandardLoadProfile:
 
     def __init__(self,
@@ -29,6 +33,7 @@ class StandardLoadProfile:
                  type: str = 'household',
                  resolution: int = 96,
                  london_data: bool = False,
+                 use_data_base: bool = False,
                  l_id: str = None):
 
         self.type = type                    # -> profile typ ['household', 'business', ...]
@@ -42,15 +47,24 @@ class StandardLoadProfile:
         self.winter = winter
         self.summer = summer
 
+        self._use_data_base = use_data_base
+
     def _get_london_data(self, l_id):
         try:
-            query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{l_id}\' and' \
-                    f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
-            data = pd.read_sql(query, engine)
+            if self._use_data_base:
+                query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{l_id}\' and' \
+                        f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
+                data = pd.read_sql(query, engine)
+            else:
+                data = LONDON_DATA.loc[LONDON_DATA.index.get_level_values('LCLid') == l_id]
+                data = data.reset_index()
+                data = data.drop(labels=['LCLid'], axis=1)
+
             data = data.set_index('time')
             consumption = data['power'].sum() * 0.5
             data['power'] /= consumption
             data['power'] *= self.demandP
+
             return data
         except Exception as e:
             logger.error(f'no smart meter data found - {repr(e)}')
