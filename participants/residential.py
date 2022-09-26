@@ -284,6 +284,8 @@ class HouseholdModel(BasicParticipant):
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
         self._simple_commit = d_time
         d_time += td(minutes=15 * int(sum(self.random.integers(low=1, high=3, size=(5-self._max_requests)))))
+        if d_time > self.time_range[-1]:
+            d_time = self.time_range[-1]
         remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
         generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps-1)*self.dt), 'residual_generation']
         self._request = pd.Series(data=np.zeros(remaining_steps),
