@@ -33,7 +33,7 @@ if __name__ == "__main__":
     for simulation in range(paras.num_offset, paras.num_offset + paras.num):
         for sub_gird in range(10):
             output.append(f'''
-              scenario_{paras.ev}{paras.pv}_{sub_gird}_{simulation}:
+              s_{paras.ev}{paras.pv}_{sub_gird}_{simulation}:
                 container_name: s{paras.ev}{paras.pv}_{sub_gird}_{simulation}
                 image: {IMAGE_REPO}smartdso:latest
                 build: .
