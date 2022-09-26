@@ -44,10 +44,8 @@ RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 # -> default prices EPEX-SPOT 2015
-TARIFF = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0)
+TARIFF = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_dates=True)
 TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]
-# TARIFF.index = pd.to_datetime(TARIFF.index, format="%d.%m.%Y %H:%M")
-TARIFF.index = pd.to_datetime(TARIFF.index, format="%Y-%m-%d %H:%M:%S")
 CHARGES = {'others': 2.9, 'taxes': 8.0}
 for values in CHARGES.values():
     TARIFF += values
