@@ -17,6 +17,15 @@ SEED = int(os.getenv('RANDOM_SEED', 2022))
 # -> read known consumers and nodes
 consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
 
+if 'profile' not in consumers.columns:
+    consumers['profile'] = 'H0'
+if 'pv' not in consumers.columns:
+    consumers['pv'] = 0
+if 'jeb' not in consumers.columns:
+    consumers['jeb'] = 4500
+if 'london_data' not in consumers.columns:
+    consumers['london_data'] = 'MAC001844'
+
 # -> pandas frequency names
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> database uri to store the results
@@ -53,7 +62,10 @@ class FlexibilityProvider:
 
         global consumers
 
-        consumers['sub_grid'] = [grid_series.loc[node] for node in consumers['bus0'].values]
+        consumers['sub_grid'] = [grid_series.loc[node] if node in grid_series.index else -1
+                                 for node in consumers['bus0'].values]
+        consumers = consumers.loc[consumers['sub_grid'] != -1]
+
         if sub_grid != -1:
             consumers = consumers.loc[consumers['sub_grid'] == str(sub_grid)]
 
