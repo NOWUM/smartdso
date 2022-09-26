@@ -28,6 +28,9 @@ class CapacityProvider:
         self.grid = GridModel()
         self.mapper = self.grid.model.buses['sub_network']
         self.mapper = self.mapper[self.mapper.index.isin(self.grid.data['connected'].index)]
+        # -> get valid sub grid, which are build successfully
+        valid_sub_grid = [value in self.grid.sub_networks.keys() for value in self.mapper.values]
+        self.mapper = self.mapper.loc[valid_sub_grid]
         self.sub_grid = sub_grid
         if self.sub_grid != -1:
             self.sub_ids = [str(self.sub_grid)]
