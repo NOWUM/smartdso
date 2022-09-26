@@ -5,7 +5,7 @@ import numpy as np
 
 class WeatherGenerator:
 
-    def __init__(self, lon: float = 6.4794, lat: float = 50.8037, path_to_weather_file: str = r'./weather.csv'):
+    def __init__(self, lon: float = 6.4794, lat: float = 50.8037, path_to_weather_file: str = r'./weather_2022.csv'):
         self.location = Location(longitude=lon, latitude=lat)
         self.weather = pd.read_csv(path_to_weather_file, index_col=0, parse_dates=True)
 
