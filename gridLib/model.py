@@ -67,26 +67,31 @@ class GridModel:
         self.model.consistency_check()
 
         for index in self.model.sub_networks.index:
-            model = pypsa.Network()
-            nodes = self.model.buses.loc[self.model.buses['sub_network'] == index]
-            model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y)
-            lines = self.model.lines.loc[self.model.lines['sub_network'] == index]
-            model.madd('Line', names=lines.index, bus0=lines.bus0, bus1=lines.bus1, x=lines.x, r=lines.r,
-                       s_nom=lines.s_nom)
+            try:
+                model = pypsa.Network()
+                nodes = self.model.buses.loc[self.model.buses['sub_network'] == index]
+                model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y)
+                lines = self.model.lines.loc[self.model.lines['sub_network'] == index]
+                model.madd('Line', names=lines.index, bus0=lines.bus0, bus1=lines.bus1, x=lines.x, r=lines.r,
+                           s_nom=lines.s_nom)
 
-            generators = nodes['generator'].dropna()
-            name = generators.values[0]
-            generator = self.model.generators.loc[name]
-            model.add('Generator', name=name, bus=generator.bus, control='Slack')
-            consumers = self.model.loads.loc[self.model.loads['bus'].isin(nodes.index)]
-            model.madd('Load', names=consumers.index, bus=consumers.bus)
+                generators = nodes['generator'].dropna()
+                name = generators.values[0]
+                generator = self.model.generators.loc[name]
+                model.add('Generator', name=name, bus=generator.bus, control='Slack')
+                consumers = self.model.loads.loc[self.model.loads['bus'].isin(nodes.index)]
+                model.madd('Load', names=consumers.index, bus=consumers.bus)
 
-            model.determine_network_topology()
-            model.consistency_check()
+                model.determine_network_topology()
+                model.consistency_check()
 
-            transformer = transformers.loc[transformers['bus0'].isin(model.buses.index), 's_nom']
+                transformer = transformers.loc[transformers['bus0'].isin(model.buses.index), 's_nom']
 
-            self.sub_networks[index] = {'model': model, 's_max': transformer.values[0]}
+                self.sub_networks[index] = {'model': model, 's_max': transformer.values[0]}
+
+            except Exception as e:
+                self._logger.info(f'no valid sub grid '
+                                  f'{repr(e)}')
 
     def get_components(self, type_: str = 'edges', grid: str = 'total') -> gpd.GeoDataFrame:
         if grid == 'total':
@@ -125,13 +130,12 @@ if __name__ == "__main__":
     import cartopy.crs as ccrs
     from gridLib.plotting import get_plot
     model = GridModel()
-    # subs = [*model.sub_networks.values()]
-    # sub = subs[10]
-    # edges = total_edges.loc[sub.lines.index]
-    # busses = list(edges['bus0'].values) + list(edges['bus1'].values)
-    # nodes = total_nodes.loc[busses]
-    # plt = get_plot(edges=edges,
-    #                nodes=nodes)
-    # plt.write_html('test.html')
+    subs = [*model.sub_networks.values()]
+    sub = subs[0]['model']
+    edges = total_edges.loc[sub.lines.index]
+    busses = list(edges['bus0'].values) + list(edges['bus1'].values)
+    nodes = total_nodes.loc[busses]
+    plt = get_plot(edges=edges, nodes=nodes)
+    plt.write_html('test.html')
 
 
