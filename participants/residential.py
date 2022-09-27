@@ -10,13 +10,12 @@ import itertools
 import uuid
 from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
     Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
-
 # example to Piecewise:
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
 # http://yetanothermathprogrammingconsultant.blogspot.com/2015/10/piecewise-linear-functions-in-mip-models.html
 
 from participants.basic import BasicParticipant
-from participants.utils import Resident
+from participants.utils import Resident, key_generator
 from demLib.electric_profile import StandardLoadProfile
 
 # -> set logging options
@@ -24,17 +23,6 @@ logging.basicConfig()
 LOG_LEVEL = "INFO"
 logger = logging.getLogger('residential')
 logger.setLevel(LOG_LEVEL)
-
-
-SEED = int(os.getenv('RANDOM_SEED', 2022))
-random = np.random.default_rng(SEED)
-
-
-letters = list(string.ascii_uppercase)
-letters = [f'{a}{b}{c}' for a, b, c in itertools.product(letters, letters, letters)]
-numbers = [f"{number:04d}" for number in range(1_000)]
-KEYS = [f'{a}{b}' for a, b in itertools.product(letters, numbers)]
-
 
 # -> price data from survey
 # MEAN_PRICE = 28.01
@@ -54,7 +42,9 @@ for values in CHARGES.values():
 class HouseholdModel(BasicParticipant):
 
     def __init__(self, residents: int,
-                 demandP: float, london_data: bool = True, l_id: str = 'MAC002957',
+                 demandP: float, 
+                 random: np.random.default_rng,
+                 london_data: bool = True, l_id: str = 'MAC002957',
                  ev_ratio: float = 0.5,
                  pv_systems: list = None,
                  grid_node: str = None,
@@ -66,7 +56,6 @@ class HouseholdModel(BasicParticipant):
                  price_sensitivity: float = 1.3,
                  strategy: str = 'MaxPvCap',
                  scenario: str = 'Flat',
-                 random: np.random.default_rng = random,
                  *args, **kwargs):
 
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
@@ -78,7 +67,7 @@ class HouseholdModel(BasicParticipant):
                                                       l_id=l_id, resolution=self.T)
         # -> create residents with cars
         self.persons = [Resident(ev_ratio=ev_ratio, charging_limit='required',
-                                 start_date=start_date, end_time=end_date, T=self.T)
+                                 start_date=start_date, end_time=end_date, T=self.T, random=random)
                         for _ in range(min(2, residents))]
 
         # -> price limits from survey
@@ -98,9 +87,7 @@ class HouseholdModel(BasicParticipant):
 
         for person in self.persons:
             if person.car.type == 'ev':
-                key = list(random.choice(KEYS))
-                random.shuffle(key)
-                key = ''.join(key)
+                key = key_generator()
                 self.cars[key] = person.car
 
         if len(self.cars) > 0:

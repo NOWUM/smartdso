@@ -6,9 +6,6 @@ import os
 
 pd.options.mode.chained_assignment = None
 
-SEED = int(os.getenv('RANDOM_SEED', 2022))
-random = np.random.default_rng(SEED)
-
 MIT_path = r'./mobLib/data/'
 work, errand, hobby = read_MIT_data(MIT_path)
 
@@ -21,7 +18,7 @@ def normalize_probabilities(probabilities: list):
 
 class MobilityDemand:
 
-    def __init__(self, demand_types: list = None, random: np.random.default_rng = random):
+    def __init__(self, random: np.random.default_rng, demand_types: list = None):
         self.random = random
         self.demand_types = demand_types  # ---> work, errand or hobby
         self.working_days = []  # ---> list of working days

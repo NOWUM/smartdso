@@ -16,5 +16,5 @@ class IndustryModel(BasicParticipant):
                  T: int = 1440, database_uri: str = DATABASE_URI,
                  *args, **kwargs):
         super().__init__(T=T, grid_node=grid_node, start_date=start_date, end_date=end_date,
-                         database_uri=database_uri, consumer_type='industry')
+                         database_uri=database_uri, consumer_type='industry', random=None)
         self.profile_generator = StandardLoadProfile(demandP=demandP, type='industry', resolution=self.T)

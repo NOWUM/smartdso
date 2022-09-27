@@ -5,64 +5,57 @@ import os
 
 from mobLib.mobility_demand import MobilityDemand
 
-SEED = int(os.getenv('RANDOM_SEED', 2022))
-random = np.random.default_rng(SEED)
-
 # -> load electric vehicle data
 electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
 electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
 
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
-
-# -> function to get the EV for the corresponding distance
-def get_electric_vehicle(distance):
-    possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] > distance]
-    if len(possible_vehicles) > 0:
-        probabilities = (1/possible_vehicles['weight'].sum() * possible_vehicles['weight']).values
-        index = random.choice(possible_vehicles.index, p=probabilities)
-        vehicle = possible_vehicles.loc[index].to_dict()
-    else:
-        vehicle = electric_vehicles.iloc[electric_vehicles['distance'].idxmax()].to_dict()
-
-    return vehicle
-
-
-def get_fossil_vehicle():
-    return dict(model='Nowum Car', capacity=40, consumption=7, distance=40/7 * 100,
-                maximal_charging_power=None)
-
-
 class Car:
 
-    def __init__(self, car_type: str = 'ev', maximal_distance: float = 350, charging_limit: str = 'required',
+    def __init__(self, random: np.random.default_rng, car_type: str = 'ev', maximal_distance: float = 350, charging_limit: str = 'required',
                  T: int = 1440):
         self.type = car_type
+        self.random = random
         # -> select car depending on type and distance
         if self.type == 'ev':
-            properties = get_electric_vehicle(maximal_distance)
+            properties = self.get_electric_vehicle(maximal_distance)
         else:
-            properties = get_fossil_vehicle()
+            properties = dict(model='Nowum Car', capacity=40, consumption=7, distance=40/7 * 100,
+                maximal_charging_power=None)
 
         # -> time resolution information
-        self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)
+        self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)        
         # -> technical parameters
         self.model = properties['model']                                        # -> model type
         self.capacity = properties['capacity']                                  # -> capacity [kWh]
         self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
         self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
         self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = random.integers(low=10, high=90)/100                         # -> state of charge [0,..., 1]
+        self.soc = self.random.integers(low=10, high=90)/100                         # -> state of charge [0,..., 1]
         self.odometer = 0                                                       # -> distance counter
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy
         self.daily_limit = {}                                                   # -> limit @ day
+        
 
         self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planned_charge', 'final_charge',
                                            'demand', 'usage', 'work', 'errand', 'hobby'])
         # -> simulation monitoring
         self.empty = False                                                      # -> True if car has not enough energy
         self.virtual_source = 0                                                 # -> used energy if car is empty
+
+    # -> function to get the EV for the corresponding distance
+    def get_electric_vehicle(self, distance):
+        possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] > distance]
+        if len(possible_vehicles) > 0:
+            probabilities = (1/possible_vehicles['weight'].sum() * possible_vehicles['weight']).values
+            index = self.random.choice(possible_vehicles.index, p=probabilities)
+            vehicle = possible_vehicles.loc[index].to_dict()
+        else:
+            vehicle = electric_vehicles.iloc[electric_vehicles['distance'].idxmax()].to_dict()
+
+        return vehicle
 
     def initialize_time_series(self, mobility: MobilityDemand, start_date: datetime, end_date: datetime):
 
