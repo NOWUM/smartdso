@@ -12,10 +12,11 @@ from participants.business import BusinessModel
 from participants.industry import IndustryModel
 from agents.utils import WeatherGenerator
 
+GRID_DATA = os.getenv('GRID_DATA', 'dem')
 SEED = int(os.getenv('RANDOM_SEED', 2022))
 
 # -> read known consumers and nodes
-consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
+consumers = pd.read_csv(fr'./gridLib/data/export/{GRID_DATA}/consumers.csv', index_col=0)
 
 if 'profile' not in consumers.columns:
     consumers['profile'] = 'H0'

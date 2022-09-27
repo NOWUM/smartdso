@@ -3,12 +3,15 @@ import pypsa
 import logging
 from shapely.wkt import loads
 import geopandas as gpd
+import os
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
-data_path = r'./gridLib/data/export/dem'
+GRID_DATA = os.getenv('GRID_DATA', 'dem')
+
+data_path = fr'./gridLib/data/export/{GRID_DATA}'
 # -> read nodes
 total_nodes = pd.read_csv(fr'{data_path}/nodes.csv', index_col=0)
 total_nodes['geometry'] = total_nodes['shape'].apply(loads)
@@ -66,6 +69,8 @@ class GridModel:
         self.model.determine_network_topology()
         self.model.consistency_check()
 
+        self._invalid_sub_grids = dict()
+
         for index in self.model.sub_networks.index:
             try:
                 model = pypsa.Network()
@@ -92,6 +97,15 @@ class GridModel:
             except Exception as e:
                 self._logger.info(f'no valid sub grid '
                                   f'{repr(e)}')
+
+                model = pypsa.Network()
+                nodes = self.model.buses.loc[self.model.buses['sub_network'] == index]
+                model.madd('Bus', names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y)
+                lines = self.model.lines.loc[self.model.lines['sub_network'] == index]
+                model.madd('Line', names=lines.index, bus0=lines.bus0, bus1=lines.bus1, x=lines.x, r=lines.r,
+                           s_nom=lines.s_nom)
+
+                self._invalid_sub_grids[index] = model
 
     def get_components(self, type_: str = 'edges', grid: str = 'total') -> gpd.GeoDataFrame:
         if grid == 'total':
@@ -129,13 +143,20 @@ class GridModel:
 if __name__ == "__main__":
     import cartopy.crs as ccrs
     from gridLib.plotting import get_plot
+    from shapely import wkt
     model = GridModel()
-    subs = [*model.sub_networks.values()]
-    sub = subs[0]['model']
-    edges = total_edges.loc[sub.lines.index]
-    busses = list(edges['bus0'].values) + list(edges['bus1'].values)
-    nodes = total_nodes.loc[busses]
+    subs = [*model._invalid_sub_grids.values()]
+    edges = []
+    nodes = []
+    for sub in subs:
+        e = total_edges.loc[sub.lines.index]
+        e['shape'] = [wkt.loads(val) for val in e['shape'].values]
+        busses = list(e['bus0'].values) + list(e['bus1'].values)
+        n = total_nodes.loc[busses]
+        edges.append(e)
+        nodes.append(n)
+    edges = pd.concat(edges)
+    nodes = pd.concat(nodes)
+
     plt = get_plot(edges=edges, nodes=nodes)
     plt.write_html('test.html')
-
-
