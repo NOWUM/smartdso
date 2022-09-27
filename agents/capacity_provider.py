@@ -121,7 +121,7 @@ class CapacityProvider:
 
         # -> set current demand at each node
         data = self.demand.copy()
-        data = data.loc[data.index.get_level_values(level='t').isin(request[request.values > 0].index)]
+        data = data.loc[data.index.get_level_values(level='t').isin(request.index)]
         request_ = pd.DataFrame(request)
         request_.columns = ['power']
         request_ = request_.rename_axis('t').reset_index()
