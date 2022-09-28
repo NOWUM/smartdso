@@ -36,9 +36,8 @@ numbers = [f"{number:04d}" for number in range(1_000)]
 KEYS = [f'{a}{b}' for a, b in itertools.product(letters, numbers)]
 
 
-# -> price data from survey
-# MEAN_PRICE = 28.01
-# VAR_PRICE = 7.9
+# -> benefit functions from survey
+BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
 # -> steps and corresponding time resolution strings in pandas
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
