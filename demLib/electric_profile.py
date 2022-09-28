@@ -9,6 +9,7 @@ DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
 DATA_PATH = r'./demLib/data/load_profiles/london_data.pkl'
 LONDON_DATA = pd.read_pickle(DATA_PATH)
 
+LONDON_LEVELS = LONDON_DATA.index.get_level_values('LCLid')
 engine = create_engine(DATABASE_URI)
 path = r'./demLib/data/load_profiles/'
 
@@ -56,7 +57,7 @@ class StandardLoadProfile:
                         f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
                 data = pd.read_sql(query, engine)
             else:
-                data = LONDON_DATA.loc[LONDON_DATA.index.get_level_values('LCLid') == l_id]
+                data = LONDON_DATA.loc[LONDON_LEVELS == l_id]
                 data = data.reset_index()
                 data = data.drop(labels=['LCLid'], axis=1)
 

@@ -63,7 +63,7 @@ try:
 except Exception as e:
     logger.error(f" -> can't initialize agents")
     logger.error(repr(e))
-    raise Exception("Bad simulation parameters, please check your input")
+    raise Exception(f"Bad simulation parameters, please check your input {repr(e)}")
 
 
 if __name__ == "__main__":

@@ -8,20 +8,16 @@ from sqlalchemy import create_engine
 
 from demLib.electric_profile import StandardLoadProfile
 
-
-SEED = int(os.getenv('RANDOM_SEED', 2022))
-random = np.random.default_rng(SEED)
-
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
 
 class BasicParticipant:
 
-    def __init__(self, T: int = 1440, grid_node: str = None,
+    def __init__(self, random: np.random.default_rng,
+                 T: int = 1440, grid_node: str = None,
                  start_date: datetime = None, end_date: datetime = None,
                  database_uri: str = DATABASE_URI, consumer_type='household', strategy: str = 'optimized',
-                 random: np.random.default_rng = random,
                  *args, **kwargs):
 
         # -> time resolution information
