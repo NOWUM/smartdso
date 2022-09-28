@@ -4,12 +4,14 @@ from carLib.car import Car
 from datetime import datetime
 import os
 
-i = 0
-def key_generator():
-    global i 
-    i += 1
-    return i 
+SUB_GRID = int(os.getenv('SUB_GRID', 5))
 
+KEY = 0
+
+def key_generator():
+    global KEY
+    KEY += 1
+    return f'S{SUB_GRID}C{KEY}'
 
 class Resident:
 
