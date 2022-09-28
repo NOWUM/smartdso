@@ -42,7 +42,6 @@ class StandardLoadProfile:
         self.profile = profiles[type]       # -> load profile data
         self.resolution = resolution        # -> set resolution
         self.london_data = london_data      # -> use smart meter data
-        self._use_data_base = use_data_base
 
         if london_data:
             self.data = self._get_london_data(l_id)
@@ -52,19 +51,8 @@ class StandardLoadProfile:
 
     def _get_london_data(self, l_id):
         try:
-            if self._use_data_base:
-                query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{l_id}\' and' \
-                        f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
-                data = pd.read_sql(query, engine)
-                data = data.set_index('time')
-                consumption = data['power'].sum() * 0.5
-                data['power'] /= consumption
-
-            else:
-                data = LONDON_DATA[l_id].copy()
-
+            data = LONDON_DATA[l_id].copy()
             data['power'] *= self.demandP
-
             return data
 
         except Exception as e:
