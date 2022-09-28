@@ -2,27 +2,27 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 import logging
+import pickle
 
 from demLib.utils import get_holidays
 
 DATABASE_URI = 'postgresql://opendata:opendata@10.13.10.41:5432/londondatastore'
 DATA_PATH = r'./demLib/data/load_profiles/london_data.pkl'
-LONDON_DATA = pd.read_pickle(DATA_PATH)
+LONDON_DATA = pickle.load(open(DATA_PATH, 'rb'))
 
-LONDON_LEVELS = LONDON_DATA.index.get_level_values('LCLid')
 engine = create_engine(DATABASE_URI)
 path = r'./demLib/data/load_profiles/'
 
 profiles = {
-    'household': np.load(open(fr'{path}household.pkl', 'rb')),
-    'business': np.load(open(fr'{path}business.pkl', 'rb')),
-    'industry': np.load(open(fr'{path}industry.pkl', 'rb')),
-    'agriculture':  np.load(open(fr'{path}agriculture.pkl', 'rb')),
+    'household': np.load(fr'{path}household.pkl'),
+    'business': np.load(fr'{path}business.pkl'),
+    'industry': np.load(fr'{path}industry.pkl'),
+    'agriculture':  np.load(fr'{path}agriculture.pkl'),
     # 'light': pd.read_csv(fr'{path}light.csv')
 }
 
-winter = np.load(open(fr'{path}winter.pkl', 'rb'))
-summer = np.load(open(fr'{path}summer.pkl', 'rb'))
+winter = np.load(fr'{path}winter.pkl')
+summer = np.load(fr'{path}summer.pkl')
 
 logger = logging.getLogger('StandardLoadProfile-Generator')
 
@@ -56,17 +56,17 @@ class StandardLoadProfile:
                 query = f'SELECT "DateTime" as time, power from consumption where "LCLid" = \'{l_id}\' and' \
                         f'"DateTime" >= \'2013-01-01 00:00\' and "DateTime" < \'2014-01-01 00:00\''
                 data = pd.read_sql(query, engine)
-            else:
-                data = LONDON_DATA.loc[LONDON_LEVELS == l_id]
-                data = data.reset_index()
-                data = data.drop(labels=['LCLid'], axis=1)
+                data = data.set_index('time')
+                consumption = data['power'].sum() * 0.5
+                data['power'] /= consumption
 
-            data = data.set_index('time')
-            consumption = data['power'].sum() * 0.5
-            data['power'] /= consumption
+            else:
+                data = LONDON_DATA[l_id].copy()
+
             data['power'] *= self.demandP
 
             return data
+
         except Exception as e:
             logger.error(f'no smart meter data found - {repr(e)}')
             self.profile = profiles['household']
