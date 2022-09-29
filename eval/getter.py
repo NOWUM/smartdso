@@ -3,64 +3,44 @@ import pandas as pd
 import numpy as np
 import os
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/mobsim')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 ENGINE = create_engine(DATABASE_URI)
 
-
-def get_prices():
-    prices = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_dates=True)
-    prices = prices.resample('15min').ffill()
-    prices['price'] /= 10
-    return prices
+PRICES = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_dates=True)
+PRICES = PRICES.resample('15min').ffill()
+PRICES['price'] /= 10
 
 
-def get_price_sensitivities(slopes: tuple = (1.0, 1.7, 2.7, 4.0), max_price: float = 40.0):
-    senses = []
-    for slope in slopes:
-        X = 100/slope
-        sens = [max_price * np.exp(-x/X)/X for x in np.arange(0.1, 100.1, 0.1)]
-        senses += [np.asarray(sens)]
-    return senses
+def get_typ_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
 
+    if parameter == 'market_prices':
+        prices = PRICES.loc[date_range]
+        return prices.groupby(prices.index.time)['price'].mean()
+    elif parameter == 'charging':
+        insert = "avg(final_grid) + avg(final_grid) as charging "
+    else:
+        insert = f"avg({parameter}) as {parameter} "
 
-def get_mean_charging(scenario:str):
-    query = f"select to_char(car.ti, 'hh24:mi') as inter, avg(car.final)/1000 as charging " \
-            f"from (select  time as ti, sum(final_charge) as final " \
-            f"from cars where scenario='{scenario}' group by ti) as car " \
-            f"group by inter"
+    query = f"select to_char(time, 'hh24:mi') as interval, {insert}" \
+            f"from charging_summary where scenario = '{scenario}' group by interval"
+
     data = pd.read_sql(query, ENGINE)
-    data = data.set_index('inter')
-
-    query = f"select avg(result.charging) as mean_charged " \
-            f"from (select iteration, 0.25 * sum(final_charge)/1000 as charging " \
-            f"from cars where scenario='{scenario}' group by iteration) as result"
-
-    mean_charged = pd.read_sql(query, ENGINE)
-    mean_charged = mean_charged.values[0][0]
-
-    return data, mean_charged
-
-
-def get_mean_pv_consumption(scenario:str):
-    query = f"select iter.time as time, avg(iter.consumption) as consumption from (select time, sum(final_pv_consumption) as consumption " \
-            f"from residential where scenario='{scenario}' group by time, iteration) as iter group by iter.time order by time"
-    data = pd.read_sql(query, ENGINE)
-    data = data.set_index('time')
+    data = data.set_index('interval')
 
     return data
 
 
-def get_mean_charging_iteration(scenario:str, num: int):
-    query = f"select time, avg(power) as power from charging where scenario='{scenario}' and iteration <= {num} group by time"
+def get_sorted_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
+    if parameter == 'market_prices':
+        prices = PRICES.loc[date_range]
+        return prices.sort_values('price')
+    elif parameter == 'charging':
+        insert = "final_grid + final_grid as charging"
+    else:
+        insert = f"{parameter} as {parameter}"
+
+    query = f"select {insert} from charging_summary where scenario = '{scenario}' order by {parameter} desc"
     data = pd.read_sql(query, ENGINE)
-    data = data.set_index('time')
 
     return data
 
-
-def get_charging_iteration(scenario:str, iteration: tuple):
-    query = f"select time, avg(power) as power from charging where scenario='{scenario}' and iteration in {iteration} group by time order by time"
-    data = pd.read_sql(query, ENGINE)
-    data = data.set_index('time')
-
-    return data
