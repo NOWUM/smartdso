@@ -41,7 +41,7 @@ class FlexibilityProvider:
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
                  database_uri: str = DATABASE_URI, sub_grid: int = -1,
-                 number_consumers: int = 0, price_sensitivity: float = 1.3, strategy: str = 'MaxPvCap', *args, **kwargs):
+                 number_consumers: int = 0, strategy: str = 'MaxPvCap', *args, **kwargs):
 
         # -> scenario name and iteration number
         self.scenario = scenario
@@ -50,7 +50,6 @@ class FlexibilityProvider:
         # -> total clients
         self.clients = {}
         # -> weather generator
-        # self.weather_generator = WeatherGeneratorDB()
         self.weather_generator = WeatherGenerator()
         # -> time range
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T])[:-1]
@@ -99,7 +98,6 @@ class FlexibilityProvider:
                                     residents=int(max(consumer['jeb'] / 1500, 1)), ev_ratio=ev_ratio,
                                     london_data=london_data, l_id=consumer['london_data'],
                                     pv_systems=pv_systems, random=self.random,
-                                    price_sensitivity=price_sensitivity,
                                     strategy=self.strategy, scenario=scenario,
                                     start_date=start_date, end_date=end_date, T=T,
                                     database_uri=database_uri, consumer_type='household')
