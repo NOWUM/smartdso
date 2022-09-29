@@ -1,13 +1,14 @@
 from demLib.electric_profile import StandardLoadProfile
 import pandas as pd
 from matplotlib import pyplot as plt
+import numpy as np
 
 DEMAND_DATA = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
 DATE_RANGE = pd.date_range(start='2022-01-01', periods=365, freq='d')
 profile_types = {'H0': 'household', 'G0': 'business', 'RLM': 'industry'}
 
 
-def test_profile(t: str):
+def run_profile(t: str):
     data = DEMAND_DATA.loc[DEMAND_DATA['profile'] == t]  # -> all h0 df
     print(f'Total Demand in CSV: {round(data["jeb"].sum() / 1e3, 2)} MWh')
     model = StandardLoadProfile(demandP=data["jeb"].sum(), type=profile_types[t])
@@ -25,9 +26,9 @@ def test_profile(t: str):
     return delta
 
 
-if __name__ == "__main__":
+def test_profile():
     for t_ in ['H0', 'G0', 'RLM']:
         print(f'checking {t_}')
-        d = test_profile(t_)
-        assert d > 5
+        d = run_profile(t_)
         print('----------------------------')
+        assert np.abs(d) < 5, 'profile energy is to low, to high'
