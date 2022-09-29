@@ -187,26 +187,26 @@ class FlexibilityProvider:
         consumer_counter, car_counter = 0, 0
 
         for id_, client in self.clients.items():
-            if client.consumer_type == 'household':
-                consumer_counter += 1
-                # -> reset parameter for optimization for the next day
-                client.reset_commit()
-                self._commits[id_] = False
-                # -> get results for current day
-                data = client.get_result(time_range)
-                # -> collect results
-                result.loc[time_range, 'initial_grid'] += data.loc[time_range, 'planned_grid_consumption']
-                result.loc[time_range, 'final_grid'] += data.loc[time_range, 'final_grid_consumption']
-                result.loc[time_range, 'final_pv'] += data.loc[time_range, 'final_pv_consumption']
-                result.loc[time_range, 'car_demand'] += data.loc[time_range, 'car_demand']
-                result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'demand']
-                result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
-                result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
+            # if client.consumer_type == 'household':
+            consumer_counter += 1
+            # -> reset parameter for optimization for the next day
+            client.reset_commit()
+            self._commits[id_] = False
+            # -> get results for current day
+            data = client.get_result(time_range)
+            # -> collect results
+            result.loc[time_range, 'initial_grid'] += data.loc[time_range, 'planned_grid_consumption']
+            result.loc[time_range, 'final_grid'] += data.loc[time_range, 'final_grid_consumption']
+            result.loc[time_range, 'final_pv'] += data.loc[time_range, 'final_pv_consumption']
+            result.loc[time_range, 'car_demand'] += data.loc[time_range, 'car_demand']
+            result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'demand']
+            result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
+            result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
 
-                for key, car in client.cars.items():
-                    car_counter += 1
-                    data = car.get_result(time_range)
-                    result['availability'].loc[time_range] += (1-data.loc[time_range, 'usage'])
+            for key, car in client.cars.items():
+                car_counter += 1
+                data = car.get_result(time_range)
+                result['availability'].loc[time_range] += (1-data.loc[time_range, 'usage'])
 
         result['availability'] /= car_counter
         result['grid_fee'] /= consumer_counter
