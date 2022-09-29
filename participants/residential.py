@@ -26,6 +26,7 @@ logger.setLevel(LOG_LEVEL)
 
 # -> benefit functions from survey
 BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
+CUM_PROB = np.cumsum([float(x) for x in BENEFIT_FUNCTIONS.columns])
 # -> steps and corresponding time resolution strings in pandas
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 # -> timescaledb connection to store the simulation results
@@ -52,7 +53,6 @@ class HouseholdModel(BasicParticipant):
                  T: int = 1440,
                  database_uri: str = DATABASE_URI,
                  consumer_id: str = 'nowum',
-                 price_sensitivity: float = 1.3,
                  strategy: str = 'MaxPvCap',
                  scenario: str = 'Flat',
                  *args, **kwargs):
@@ -69,37 +69,30 @@ class HouseholdModel(BasicParticipant):
                                  start_date=start_date, end_time=end_date, T=self.T, random=random)
                         for _ in range(min(2, residents))]
 
-        # -> price limits from survey
-        if 'MaxPv' in strategy:
-            self.price_limit = 45
-            self._slope = price_sensitivity
-        elif 'PlugInInf' in strategy:
+        if 'PlugInInf' in strategy:
             self.price_limit = np.inf
-            self._slope = 0
         else:
             self.price_limit = 45
-            self._slope = 0
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
-        self.cars = dict()
-
-        for person in self.persons:
-            if person.car.type == 'ev':
-                key = key_generator()
-                self.cars[key] = person.car
+        self.cars = {key_generator(): person.car for person in self.persons if person.car.type == 'ev'}
 
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
-            self._total_benefit = self._total_capacity * self.price_limit
             self._car_power = {c: pd.Series(dtype=float) for c in self.cars.keys()}
         else:
             self._total_capacity = 0
-            self._total_benefit = 0
+
+        col = np.argwhere(np.random.uniform() * 100 > CUM_PROB).flatten()
+        col = col[-1] if len(col) > 0 else 0
+        self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
+
+        self._benefit_value = 0
+        self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
+        self._y_data = list(self.b_fnc.values)
 
         self._max_requests = 5
-        self._benefit_value = 0
-
         self._simple_commit = None
         self.finished = False
 
@@ -110,9 +103,8 @@ class HouseholdModel(BasicParticipant):
         tariff.index = pd.date_range(start=datetime(start_date.year, 1, 1), freq='h', periods=len(tariff))
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
-        if 'Flat' in scenario:
-            # -> use median
-            median_value = np.sort(tariff.values.flatten())[int(len(tariff)/2)]
+        if 'Flat' in scenario:  # -> use median
+            median_value = np.sort(tariff.values.flatten())[int(len(tariff) / 2)]
             self._data.loc[tariff.index, 'tariff'] = median_value
         self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
@@ -120,29 +112,10 @@ class HouseholdModel(BasicParticipant):
         self._data.loc[self.time_range, 'consumer_id'] = [consumer_id] * self._steps
         self._data.loc[self.time_range, 'car_capacity'] = self._total_capacity * np.ones(self._steps)
 
-    def _get_segments(self, steps: int = 20) -> dict:
-
-        x_data = list(np.linspace(0, self._total_capacity, steps))
-        y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / self._slope))), x_data)]
-
-        logger.debug(f'build piecewise linear function with total-capacity: {self._total_capacity}, '
-                     f'total-benefit: {round(self._total_benefit, 1)} divided into {steps} steps')
-
-        segments = dict(low=[], up=[], coeff=[], low_=[])
-        for i in range(0, len(y_data) - 1):
-            segments['low'].append(x_data[i])
-            segments['up'].append(x_data[i + 1])
-            dy = (y_data[i + 1] - y_data[i])
-            dx = (x_data[i + 1] - x_data[i])
-            segments['coeff'].append(dy / dx)
-            segments['low_'].append(y_data[i])
-
-        return segments
-
     def _optimize_photovoltaic_usage(self, d_time: datetime, strategy: str = 'required'):
         logger.debug('optimize charging with photovoltaic generation')
 
-        lin_steps = 10
+        lin_steps = len(self.b_fnc)
         # -> get residual generation and determine possible opt. time steps
         generation = self._data.loc[d_time:, 'residual_generation'].values
         steps = range(min(self.T, len(generation)))
@@ -162,10 +135,19 @@ class HouseholdModel(BasicParticipant):
         self._model.pv = Var(steps, within=Reals, bounds=(0, None))
         self._model.capacity = Var(within=Reals, bounds=(0, self._total_capacity))
 
-        self._model.benefit = Var(within=Reals, bounds=(0, self._total_benefit))
+        self._model.benefit = Var(within=Reals, bounds=(0, None))
         if 'Soc' in self._used_strategy:
             if self._solver_type == 'glpk':
-                segments = self._get_segments(steps=lin_steps)
+
+                segments = dict(low=[], up=[], coeff=[], low_=[])
+                for i in range(0, len(self._y_data) - 1):
+                    segments['low'].append(self._x_data[i])
+                    segments['up'].append(self._x_data[i + 1])
+                    dy = (self._y_data[i + 1] - self._y_data[i])
+                    dx = (self._x_data[i + 1] - self._x_data[i])
+                    segments['coeff'].append(dy / dx)
+                    segments['low_'].append(self._y_data[i])
+
                 s = len(segments['low'])
                 self._model.z = Var(range(s), within=Binary)
                 self._model.q = Var(range(s), within=Reals)
@@ -181,17 +163,15 @@ class HouseholdModel(BasicParticipant):
 
                 self._model.benefit_fct = Constraint(expr=quicksum(segments['low_'][k] * self._model.z[k]
                                                                    + segments['coeff'][k]
-                                                                   * (self._model.q[k] - segments['low'][k] * self._model.z[k])
+                                                                   * (self._model.q[k] - segments['low'][k] *
+                                                                      self._model.z[k])
                                                                    for k in range(s)) == self._model.benefit)
-                self._model.capacity_ct = Constraint(expr=quicksum(self._model.q[k] for k in range(s)) == self._model.capacity)
+                self._model.capacity_ct = Constraint(
+                    expr=quicksum(self._model.q[k] for k in range(s)) == self._model.capacity)
 
             elif self._solver_type == 'gurobi':
-                logger.debug(f'use gurobi solver to linearize function with total-capacity {self._total_capacity}, '
-                             f'total-benefit {round(self._total_benefit, 1)} in {lin_steps} steps')
-                x_data = list(np.linspace(0, self._total_capacity, lin_steps))
-                y_data = [*map(lambda x: self._total_benefit * (1 - exp(-x / (self._total_capacity / self._slope))), x_data)]
-                self._model.n_soc = Piecewise(self._model.benefit, self._model.capacity,
-                                              pw_pts=x_data, f_rule=y_data, pw_constr_type='EQ', pw_repn='SOS2')
+                self._model.n_soc = Piecewise(self._model.benefit, self._model.capacity, pw_pts=self._x_data,
+                                              f_rule=self._y_data, pw_constr_type='EQ', pw_repn='SOS2')
         else:
             self._model.benefit_fct = Constraint(expr=self._model.benefit == self.price_limit * self._model.capacity)
 
@@ -219,7 +199,7 @@ class HouseholdModel(BasicParticipant):
                                                                                       - demand[key][t]
                                                                                       for key in self.cars.keys()
                                                                                       for t in steps) * self.dt
-                                                    + quicksum(car.capacity * car.soc for car in self.cars.values()))
+                                                     + quicksum(car.capacity * car.soc for car in self.cars.values()))
         # -> balance charging, pv and grid consumption
         self._model.balance = ConstraintList()
         for t in steps:
@@ -252,8 +232,8 @@ class HouseholdModel(BasicParticipant):
                 self._initial_plan = False
 
         except Exception as e:
-            logger.warning(f' -> model infeasible {repr(e)}')
-            print(self._request.sum())
+            logger.debug(f' -> model infeasible {repr(e)}')
+            # print(self._request.sum())
 
         if self._request.sum() == 0:
             self._commit = time_range[-1]
@@ -267,11 +247,11 @@ class HouseholdModel(BasicParticipant):
 
     def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = 'required'):
         self._simple_commit = d_time
-        d_time += td(minutes=15 * int(sum(self.random.integers(low=1, high=3, size=(5-self._max_requests)))))
+        d_time += td(minutes=15 * int(sum(self.random.integers(low=1, high=3, size=(5 - self._max_requests)))))
         if d_time > self.time_range[-1]:
             d_time = self.time_range[-1]
         remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
-        generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps-1)*self.dt), 'residual_generation']
+        generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps - 1) * self.dt), 'residual_generation']
         self._request = pd.Series(data=np.zeros(remaining_steps),
                                   index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
 
@@ -297,7 +277,7 @@ class HouseholdModel(BasicParticipant):
                     t2 = car_in_use.index[0]
 
                 if t2 > t1:
-                    limit_by_capacity = (car.capacity * (1-car.soc)) / car.maximal_charging_power / self.dt
+                    limit_by_capacity = (car.capacity * (1 - car.soc)) / car.maximal_charging_power / self.dt
                     limit_by_slot = len(self.time_range[(self.time_range >= t1) & (self.time_range < t2)])
                     duration = int(min(limit_by_slot, limit_by_capacity))
                     self._car_power[key] = pd.Series(data=car.maximal_charging_power * np.ones(duration),
@@ -327,7 +307,8 @@ class HouseholdModel(BasicParticipant):
                 self._data.loc[self._request.index, 'planned_grid_consumption'] = self._request.values.copy()
                 self._data.loc[pv_usage.index, 'planned_pv_consumption'] = pv_usage.copy()
 
-            capacity = sum([car.soc * car.capacity for car in self.cars.values()]) + self._request.values.sum() * self.dt
+            capacity = sum(
+                [car.soc * car.capacity for car in self.cars.values()]) + self._request.values.sum() * self.dt
             self._benefit_value = self.price_limit * capacity
             self._request = self._request.loc[self._request.values > 0]
         else:
@@ -398,19 +379,19 @@ if __name__ == "__main__":
     # -> set parameter
     house_opt.set_parameter(weather=weather)
     house_opt.initial_time_series()
-    #opt_power = house_opt.get_request(house_opt.time_range[0], strategy='PV')
+    # opt_power = house_opt.get_request(house_opt.time_range[0], strategy='PV')
     time_range = house_opt.time_range
     t = time_range[0]
-    #r = house_opt.get_request(d_time=t, strategy='simple')
+    # r = house_opt.get_request(d_time=t, strategy='simple')
     for t in time_range:
         x = house_opt.get_request(d_time=t, strategy='MaxPvCap')
         # print(t, x)
         if house_opt._request.sum() > 0:
             print(f'send request at {t}')
             house_opt.commit(pd.Series(data=0.5 * np.ones(len(house_opt._request)), index=house_opt._request.index))
-           #commit = False
-           # while not commit:
-           #    commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
+        # commit = False
+        # while not commit:
+        #    commit = house_opt.commit(pd.Series(data=1500*np.ones(len(house_opt._request)), index=house_opt._request.index))
         house_opt.simulate(t)
     result = house_opt.get_result()
     # -> clone house_1
@@ -441,14 +422,12 @@ if __name__ == "__main__":
     #                       'distance_1', 'odometer_1', 'soc_1', 'work_1', 'errand_1', 'hobby_1',
     #                       'distance_2', 'odometer_2', 'soc_2', 'work_2', 'errand_2', 'hobby_2']
     #     result.to_excel(f'house_{strategy}.xlsx')
-        # opt_power = house_1.get_request(t, strategy='PV')
-        # if sum(opt_power) > 0:
-        #     print('get order house_1')
-        #     # house_1.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
-        #     plt.plot(opt_power)
-        #     plt.show()
-
-
+    # opt_power = house_1.get_request(t, strategy='PV')
+    # if sum(opt_power) > 0:
+    #     print('get order house_1')
+    #     # house_1.commit(pd.Series(data=np.zeros(len(opt_power)), index=opt_power.index))
+    #     plt.plot(opt_power)
+    #     plt.show()
 
     # # assert cap <= house.persons[0].car.capacity/2
     # # print(cap, house.persons[0].car.capacity)
