@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--num_offset', type=int, required=False, default=1, help='offset for simulation number (id)')
     parser.add_argument('--prc_sense', type=float, required=False, default=1.0, help='Price Sensitivity')
     parser.add_argument('--tariff', type=str, required=False, default='const', help='Use variable or constant tariff')
-    parser.add_argument('--london', type=bool, required=False, default=True, help='Use London Data')
+    parser.add_argument('--london', type=bool, required=False, default=False, help='Use London Data')
     parser.add_argument('--start', type=str, required=False, default='2022-03-01', help='Start Date')
     parser.add_argument('--end', type=str, required=False, default='2022-03-31', help='End Date')
     parser.add_argument('--strategy', type=str, required=False, default='PlugInCap', help='charging strategy')
