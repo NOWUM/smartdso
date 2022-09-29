@@ -28,6 +28,10 @@ class WeatherGenerator:
         dhi = np.array(kd) * ghi
         dni = (ghi.values - dhi)
 
+        idx = ghi < np.abs(dhi) + np.abs(dni)
+        dhi.loc[idx.values] = ghi.loc[idx.values]*0.5
+        dni.loc[idx.values] = ghi.loc[idx.values]*0.5
+
         weather = dict(
             dni=dni,
             dhi=dhi,
