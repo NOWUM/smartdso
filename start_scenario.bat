@@ -1,9 +1,10 @@
 :: #!/bin/sh
-set server=10.13.10.55
+set server=10.13.10.58
 set slope=4.0
-set strategy=MaxPvCap
-set pv=80
-set tariff=Spot
+set strategy=PlugInCap
+:: PlugInCap,
+set pv=25
+set tariff=Flat
 set consumers=0
 set num_offset=0
 set num=10
