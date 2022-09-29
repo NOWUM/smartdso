@@ -4,13 +4,13 @@ from collections import defaultdict
 from shapely.geometry import Point
 from tqdm import tqdm
 
-DATA_PATH = r'./demLib/data/pv_potential/dueren/Solarkataster-Potentiale_05358008_Dueren_EPSG25832_Shape.shp'
+DATA_PATH = r'./demLib/data/pv_potential/heinsberg/Solarkataster-Potentiale_05370016_Heinsberg_EPSG25832_Shape.shp'
 
 pv_potential = gpd.read_file(DATA_PATH)
 pv_potential.set_crs('epsg:25832', inplace=True)
 pv_potential.to_crs('epsg:4326', inplace=True)
 
-consumers = pd.read_csv(r'./gridLib/data/export/dem/consumers.csv', index_col=0)
+consumers = pd.read_csv(r'./gridLib/data/export/alliander/consumers.csv', index_col=0)
 consumers['pv'] = None
 consumers = consumers.loc[consumers['jeb'] > 0]
 consumer_nodes = consumers.loc[consumers['profile'] == 'H0']
@@ -44,7 +44,7 @@ for consumer_id, systems in systems.items():
     consumers.at[consumer_id, 'pv'] = str(systems)
 
 
-consumers.to_csv(r'./gridLib/data/export/dem/consumers.csv')
+consumers.to_csv(r'./gridLib/data/export/alliander/consumers.csv')
 
 
 # counter = 0
