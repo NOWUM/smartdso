@@ -172,19 +172,15 @@ class TableCreator:
             except Exception as e:
                 print(repr(e))
 
+    def delete_time_range(self, t: str, sign: str = '>'):
+        for table in self.tables:
+            query = f"DELETE FROM {table} WHERE time {sign} '{t}';"
+            try:
+                self.engine.execute(query)
+            except Exception as e:
+                print(repr(e))
+
 
 if __name__ == "__main__":
     tb = TableCreator(create_tables=True)
-    # tb.delete_scenario(scenario='EV100PV80PRCFlatSTRMaxPvCap')
-    #tb.delete_scenario(scenario='EV100PV100PRC40.0STR-S')
-    #tb.delete_scenario(scenario='EV100PV80PRC40.0STR-S')
-    #tb.delete_scenario(scenario='EV100PV50PRC40.0STR-S')
-    #tb.delete_scenario(scenario='EV100PV80PRC4.0STR-O')
 
-
-    #price_it = PriceIT()
-    # price_it.export_price_simulation()
-    #num = 500
-    #sims = [price_it.get_simulation(simulation=sim+1) for sim in range(num)]
-    #sims = np.asarray(sims, dtype=float)
-    # pTb.export_price_simulation()
