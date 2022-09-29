@@ -2,13 +2,15 @@ import ezdxf
 import sys
 from matplotlib import pyplot as plt
 import pandas as pd
-import uuid
 import logging
 from gridLib.plotting import get_plot
 from pyproj import Geod, Transformer
 import shapely.wkt as converter
 from shapely.ops import split, nearest_points
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
+from shapely import wkt
+import secrets
+
 
 logger = logging.getLogger('dwg-converter')
 # https://de.wikipedia.org/wiki/European_Petroleum_Survey_Group_Geodesy#:~:text=Kartenanbieter%20im%20Netz.-,Deutschland,f%C3%BCr%20Gau%C3%9F%2DKr%C3%BCger%20(4.
@@ -47,7 +49,7 @@ def get_consumers(data):
         y, x = get_coord(x, y)
         shape = f'POINT ({x} {y})'
         if shape not in inserted.keys():
-            id_ = uuid.uuid1()
+            id_ = secrets.token_urlsafe(8)
             nodes_[id_] = {'v_nom': 0.4, 'voltage_id': '_', 'lon': x, 'lat': y, 'shape': shape, 'injection': False,
                            'type': 'consumer'}
             consumers_[consumer.uuid] = {'bus0': id_, 'lon': x, 'lat': y, 'shape': shape,
@@ -60,7 +62,7 @@ def get_consumers(data):
         x, y, _ = station.dxf.insert
         y, x = get_coord(x, y)
         shape = f'POINT ({x} {y})'
-        id_ = uuid.uuid1()
+        id_ = secrets.token_urlsafe(8)
         if station.dxf.layer == 'Stationen':
             nodes_[id_] = {'v_nom': 0.4, 'voltage_id': '_', 'lon': x, 'lat': y, 'shape': shape, 'injection': True,
                            'type': 'transformer'}
@@ -88,7 +90,7 @@ def get_lines(data, nodes: pd.DataFrame):
             if shape in nodes['shape'].values:
                 bus = nodes.loc[nodes['shape'] == shape].index[0]
             else:
-                bus = uuid.uuid1()
+                bus = secrets.token_urlsafe(8)
                 new_[bus] = {'v_nom': 0.4, 'voltage_id': '_', 'injection': False,
                              'lon': x, 'lat': y, 'shape': shape, 'type': 'sleeve'}
 
@@ -155,64 +157,56 @@ def split_lines_for_not_connected_nodes(idx, nodes, lines):
                     new_ += [data]
     lines = lines.drop(index=drop_idx)
     new_lines = pd.DataFrame(new_)
-    new_lines.index = map(uuid.uuid1, range(len(new_lines)))
+    new_lines.index = [secrets.token_urlsafe(8) for _ in range(len(new_lines))]
     lines = pd.concat([lines, new_lines])
 
     return lines
 
 
-if __name__ == "__main__":
-    d = read_file()
-    for layer in d.layers:
-        logger.warning(f'found layer: {layer.dxf.name}')
-    consumers, n = get_consumers(d)
-    lines, n = get_lines(d, n)
+def insert_point_in_nearest_line(point: Point, line_set: pd.DataFrame):
 
-    not_connected = get_not_connected_nodes(n, lines)
-    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
-    not_connected = get_not_connected_nodes(n, lines)
+    min_distance = 1e9
+    idx = None
 
-    for node_id in not_connected:
-        min_distance = 1e9
-        idx = None
-        for index, line_data in lines.iterrows():
-            geom = converter.loads(line_data['shape'])
-            point = converter.loads(n.loc[node_id, 'shape'])
-            points = nearest_points(geom, point)
-            distance = points[0].distance(point)
-            if distance < min_distance:
-                min_distance = distance
-                idx = index
+    for index, line_data in line_set.iterrows():
+        geom = converter.loads(line_data['shape'])
+        distance = geom.distance(point)
+        if distance < min_distance:
+            min_distance = distance
+            idx = index
 
-        lon_coords, lat_coords = lines.loc[idx, 'lon_coords'], lines.loc[idx, 'lat_coords']
-        lon, lat = n.loc[node_id, 'lon'], n.loc[node_id, 'lat']
+    lon_coords = lines.loc[idx, 'lon_coords']
+    lat_coords = lines.loc[idx, 'lat_coords']
 
-        min_distance = 1e9
-        counter = 0
-        i = 0
-        for x, y in zip(list(lon_coords), list(lat_coords)):
-            distance = ((x-lon)**2 + (y-lat)**2)**0.5
-            if distance < min_distance:
-                min_distance = distance
-                i = counter
-            counter += 1
-        print(i, counter)
-        lon_coords = list(lon_coords)
-        lon_coords.insert(i, lon)
-        lat_coords = list(lat_coords)
-        lat_coords.insert(i, lat)
+    min_distance = 1e9
+    lon, lat = None, None
 
-        lines.at[idx, 'lon_coords'] = lon_coords
-        lines.at[idx, 'lat_coords'] = lat_coords
-        geom = LineString([(x, y) for x, y in zip(lon_coords, lat_coords)])
-        lines.at[idx, 'shape'] = str(geom)
+    nearest_line = converter.loads(line_set.loc[idx, 'shape'])
 
-    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
-    not_connected = get_not_connected_nodes(n, lines)
+    coord_idx = 0
 
-    lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
-    n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
-    consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
+    for coord in nearest_line.coords:
+        distance = Point(coord).distance(point)
+        if distance < min_distance:
+            min_distance = distance
+            coord_idx = lon_coords.index(coord[0])
+            lon = coord[0]
+            lat = coord[1]
+
+    lon_coords = list(lon_coords)
+    lon_coords.insert(coord_idx, lon)
+    lat_coords = list(lat_coords)
+    lat_coords.insert(coord_idx, lat)
+
+    line_set.at[idx, 'lon_coords'] = lon_coords
+    line_set.at[idx, 'lat_coords'] = lat_coords
+    geom = LineString([(x, y) for x, y in zip(lon_coords, lat_coords)])
+    line_set.at[idx, 'shape'] = str(geom)
+
+    return line_set
+
+
+def get_transformers():
 
     tech_paras = {
         'POINT (6.175021933947305 51.042055589425004)': dict(r=1.7007936507936505, x=5.704221240422533, b=0, g=0,
@@ -228,8 +222,8 @@ if __name__ == "__main__":
     index = n.loc[n['type'] == 'transformer'].index
     len_ = len(n.loc[n['type'] == 'transformer'].index)
     transformers = dict(bus0=index, v0=len_ * [0.4],
-                        bus1=[uuid.uuid1() for _ in range(len_)], v1=len_ * [10],
-                        voltage_id=[uuid.uuid1() for _ in range(len_)],
+                        bus1=[secrets.token_urlsafe(8) for _ in range(len_)], v1=len_ * [10],
+                        voltage_id=[secrets.token_urlsafe(8) for _ in range(len_)],
                         lon=n.loc[n['type'] == 'transformer', 'lon'].values,
                         lat=n.loc[n['type'] == 'transformer', 'lat'].values,
                         shape=[shapes.loc[i] for i in index],
@@ -239,20 +233,101 @@ if __name__ == "__main__":
                         b=[tech_paras[shape]['b'] for shape in [shapes.loc[i] for i in index]],
                         s_nom=[tech_paras[shape]['s_nom'] for shape in [shapes.loc[i] for i in index]])
     transformers = pd.DataFrame(transformers)
-    transformers.to_csv(r'./Gridlib/data/export/alliander/transformers.csv')
 
-    fig = get_plot(nodes=n, consumers=consumers, edges=lines)
-    fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
+    return transformers
+
+
+if __name__ == "__main__":
+    d = read_file()
+    for layer in d.layers:
+        logger.warning(f'found layer: {layer.dxf.name}')
+    consumers, n = get_consumers(d)
+    lines, n = get_lines(d, n)
+
+    not_connected = get_not_connected_nodes(n, lines)
+    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
+    not_connected = get_not_connected_nodes(n, lines)
+
+    for node_id in not_connected:
+        point = converter.loads(n.loc[node_id, 'shape'])
+        lines = insert_point_in_nearest_line(point, lines)
+
+    lines = split_lines_for_not_connected_nodes(not_connected, n, lines)
+    not_connected = get_not_connected_nodes(n, lines)
 
     index = (lines['bus0'].isin(consumers['bus0'].values)) | (lines['bus1'].isin(consumers['bus0'].values))
     consumer_lines = lines.loc[index]
     not_connected_c = []
+    double_consumers = []
     for index, data in consumer_lines.iterrows():
         if data.bus0 not in consumers['bus0'].values:
             if data.bus1 in consumers['bus0'].values:
                 not_connected_c.append(data.bus0)
-        if data.bus1 not in consumers['bus0'].values:
+        elif data.bus1 not in consumers['bus0'].values:
             if data.bus0 in consumers['bus0'].values:
                 not_connected_c.append(data.bus1)
+        elif data.bus0 in consumers['bus0'].values and data.bus1 in consumers['bus0'].values:
+            double_consumers.append(data)
+
     lines = split_lines_for_not_connected_nodes(not_connected_c, n, lines)
+
+    not_connected_dc = []
+
+    for line in double_consumers:
+        found = False
+        bus0 = converter.loads(n.loc[line.bus0, 'shape'])
+        bus1 = converter.loads(n.loc[line.bus1, 'shape'])
+
+        for index, connected_line in lines.iterrows():
+            if line.name == index:
+                break
+            else:
+                line_geom = converter.loads(connected_line['shape'])
+                if line_geom.contains(bus0):
+                    not_connected_dc.append(line.bus0)
+                    found = True
+                elif line_geom.contains(bus1):
+                    not_connected_dc.append(line.bus1)
+                    found = True
+            if found:
+                break
+
+        if not found:
+            min_distance = 1e9
+            point = None
+            for index, connected_line in lines.iterrows():
+                if line.name == index:
+                    break
+                else:
+                    line_geom = converter.loads(connected_line['shape'])
+
+                    d1 = line_geom.distance(bus0)
+                    d2 = line_geom.distance(bus1)
+
+                    if (d1 < min_distance) or (d2 < min_distance):
+                        distance = min(d1, d2)
+                        line_index = index
+                        point = bus0 if d2 > d1 else bus1
+
+            if point == bus0:
+                not_connected_dc.append(line.bus0)
+            else:
+                not_connected_dc.append(line.bus1)
+
+            lines = insert_point_in_nearest_line(point, lines)
+
+    lines = split_lines_for_not_connected_nodes(not_connected_dc, n, lines)
+
+    transformers = get_transformers()
+
+    transformers.to_csv(r'./Gridlib/data/export/alliander/transformers.csv')
+
+    n.to_csv('./Gridlib/data/export/alliander/nodes.csv')
+    consumers['profile'] = 'H0'
+    consumers['jeb'] = 4500
+    consumers.to_csv('./Gridlib/data/export/alliander/consumers.csv')
+    lines['shape'] = lines['shape'].apply(converter.loads)
     lines.to_csv(r'./Gridlib/data/export/alliander/edges.csv')
+
+    fig = get_plot(nodes=n, edges=lines, transformers=transformers, consumers=consumers)
+    fig.write_html(r'./Gridlib/data/export/alliander/grid.html')
