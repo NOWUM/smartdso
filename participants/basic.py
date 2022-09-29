@@ -4,7 +4,7 @@ from datetime import timedelta as td
 from datetime import datetime
 import pandas as pd
 from sqlalchemy import create_engine
-
+from pvlib.irradiance import get_total_irradiance
 
 from demLib.electric_profile import StandardLoadProfile
 
@@ -66,8 +66,10 @@ class BasicParticipant:
         generation = np.zeros(self._steps)
         for system in self._pv_systems:
             # -> irradiance unit [W/m²]
-            rad_ = system.get_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
-                                         dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'])
+            rad_ = get_total_irradiance(solar_zenith=self.weather['zenith'], solar_azimuth=self.weather['azimuth'],
+                                        dni=self.weather['dni'], ghi=self.weather['ghi'], dhi=self.weather['dhi'],
+                                        surface_tilt=system.arrays[0].module_parameters['surface_tilt'],
+                                        surface_azimuth=system.arrays[0].module_parameters['surface_azimuth'])
             # -> get generation in [kW/m^2] * [m^2]
             power = rad_['poa_global'] / 1e3 * system.arrays[0].module_parameters['pdc0']
             generation += power.values
