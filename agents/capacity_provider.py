@@ -148,10 +148,10 @@ class CapacityProvider:
         node = self.demand.index.get_level_values(0) == node_id
         time = self.demand.index.get_level_values(1).isin(request.index)
         self.demand.loc[node & time, 'power'] += request.values
-
-        # snapshots = self.grid.sub_networks[sub_id]['model'].snapshots
-        # self.line_utilization[sub_id].loc[snapshots, self._rq_l_util.columns] = self._rq_l_util.values
-        # self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
+        sub_id = self.mapper.loc[node_id]
+        snapshots = self.grid.sub_networks[sub_id]['model'].snapshots
+        self.line_utilization[sub_id].loc[snapshots, self._rq_l_util.columns] = self._rq_l_util.values
+        self.transformer_utilization[sub_id].loc[snapshots, 'utilization'] = self._rq_t_util.values.flatten()
 
     def _save_summary(self, d_time: datetime) -> None:
 
@@ -243,7 +243,7 @@ class CapacityProvider:
             self.transformer_utilization[sub_id].loc[time_range, 'utilization'] = self._rq_t_util.values.flatten()
 
     def save_results(self, d_time: datetime) -> None:
-        # self._run_end_of_day(d_time)
+        self._run_end_of_day(d_time)
         self._save_summary(d_time)
         if self.iteration == 0:
             self._save_grid_asset(d_time)
