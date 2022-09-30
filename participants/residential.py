@@ -90,7 +90,7 @@ class HouseholdModel(BasicParticipant):
 
         self._benefit_value = 0
         self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
-        self._y_data = list(self.b_fnc.values)
+        self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity*0.05))
 
         self._max_requests = 5
         self._simple_commit = None
@@ -360,15 +360,15 @@ if __name__ == "__main__":
     # -> testing class residential
     from agents.utils import WeatherGenerator
     from datetime import timedelta as td
-
+    random = np.random.default_rng(2)
     # -> testing horizon
     start_date = pd.to_datetime('2022-01-01')
     end_date = pd.to_datetime('2022-01-10')
     # -> default pv system
     pv_system = dict(pdc0=5, surface_tilt=35, surface_azimuth=180)
-    house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system],
+    house_opt = HouseholdModel(residents=1, demandP=5000, pv_systems=[pv_system], random=random,
                                start_date=start_date, end_date=end_date, ev_ratio=1, T=96,
-                               strategy='MaxPvCap')
+                               strategy='MaxPvSoc')
     # # -> get weather data
     weather_generator = WeatherGenerator()
     weather = pd.concat([weather_generator.get_weather(date=date)
