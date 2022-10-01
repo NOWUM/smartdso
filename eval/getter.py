@@ -44,3 +44,23 @@ def get_sorted_values(parameter: str, scenario: str, date_range: pd.DatetimeInde
 
     return data
 
+
+def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
+    if parameter == 'market_prices':
+        prices = PRICES.loc[date_range]
+        return prices
+    elif parameter == 'charging':
+        insert = "sum(final_grid) + sum(final_grid) as charging"
+    elif parameter == 'availability':
+        insert = f"avg({parameter}) as {parameter}"
+    else:
+        insert = f"sum({parameter}) as {parameter}"
+
+    query = f"select i_table.time, avg(i_table.{parameter}) as {parameter} from " \
+            f"(select time, iteration, {insert} from charging_summary where scenario = '{scenario}' " \
+            f"group by time, iteration order by time) i_table group by i_table.time"
+    data = pd.read_sql(query, ENGINE)
+
+    data = data.set_index('time')
+
+    return data
