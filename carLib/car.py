@@ -37,7 +37,6 @@ class Car:
         # -> charging parameters
         self.charging_limit = charging_limit                                    # -> default strategy
         self.daily_limit = {}                                                   # -> limit @ day
-        
 
         self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planned_charge', 'final_charge',
                                            'demand', 'usage', 'work', 'errand', 'hobby'])
@@ -185,4 +184,6 @@ class Car:
     def set_final_charging(self, time_series: pd.Series) -> None:
         self._data.loc[time_series.index, 'final_charge'] = time_series.values
 
+    def get_current_capacity(self):
+        return self.soc * self.capacity
 
