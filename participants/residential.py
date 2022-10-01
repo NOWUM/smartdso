@@ -106,7 +106,9 @@ class HouseholdModel(BasicParticipant):
         if 'Flat' in scenario:  # -> use median
             median_value = np.sort(tariff.values.flatten())[int(len(tariff) / 2)]
             self._data.loc[tariff.index, 'tariff'] = median_value
-        self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
+            self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
+        else:
+            self._data.loc[self.time_range, 'grid_fee'] = np.random.normal(2.6, 1e-6, self._steps)
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
         self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
         self._data.loc[self.time_range, 'consumer_id'] = [consumer_id] * self._steps
@@ -350,8 +352,9 @@ class HouseholdModel(BasicParticipant):
             self._initial_plan = True
             return True
         else:
-            self._data.loc[price.index, 'grid_fee'] = price.values
-            self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
+            if 'MaxPv' in self._used_strategy:
+                self._data.loc[price.index, 'grid_fee'] = price.values
+            # self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._max_requests -= 1
             return False
 
