@@ -23,33 +23,35 @@ except Exception as e:
     engine = None
     raise Exception("Bad simulation parameters, please check your input")
 
-start_date = pd.to_datetime(os.getenv('START_DATE', '2022-03-01'))              # -> default start date
-end_date = pd.to_datetime(os.getenv('END_DATE', '2022-03-03'))                  # -> default end date
+start_date = pd.to_datetime(os.getenv('START_DATE', '2022-05-01'))              # -> default start date
+end_date = pd.to_datetime(os.getenv('END_DATE', '2022-05-10'))                  # -> default end date
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
-scenario_name = os.getenv('SCENARIO_NAME', 'Testing_0')
-sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
-
-logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
-
+scenario_name = os.getenv('SCENARIO_NAME', 'TestPRCFlatSTRPlugInCap_0')
 # -> PlugInCap, MaxPvCap, MaxPvSoc, PlugInInf
 strategy = os.getenv('STRATEGY', 'PlugInCap')
+sim = int(os.getenv('RESULT_PATH', scenario_name.split('_')[-1]))
+
+if 'Test' in scenario_name:
+    tables.delete_scenario(scenario=scenario_name.split('_')[0])
+
+logger.info(f' -> scenario {scenario_name.split("_")[0]} and iteration {sim}')
 analyse_grid = os.getenv('ANALYSE_GRID', 'True') == 'True'
 
-input_set = {'london_data': (os.getenv('LONDON_DATA', 'True') == 'True'),      # -> Need london data set
+input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      # -> Need london data set
              'start_date': start_date,                                         #    see: demLib.london_data.py
              'end_date': end_date,
              'T': int(os.getenv('STEPS_PER_DAY', 96)),
              'ev_ratio': int(os.getenv('EV_RATIO', 100))/100,
-             'pv_ratio': int(os.getenv('PV_RATIO', 80))/100,
+             'pv_ratio': int(os.getenv('PV_RATIO', 25))/100,
              'number_consumers': int(os.getenv('NUMBER_CONSUMERS', 5)),
-             'price_sensitivity': float(os.getenv('PRC_SENSE', 1.3)),
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
              'strategy': strategy,
              'sub_grid': int(os.getenv('SUB_GRID', 5)),
              'database_uri': DATABASE_URI}
+
 
 try:
     logger.info(' -> starting Capacity Provider')
