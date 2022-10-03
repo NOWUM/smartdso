@@ -23,6 +23,8 @@ logger.setLevel(LOG_LEVEL)
 
 # -> benefit functions from survey
 BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
+BENEFIT_FUNCTIONS += 0.15
+BENEFIT_FUNCTIONS *= 100
 CUM_PROB = np.cumsum([float(x) for x in BENEFIT_FUNCTIONS.columns])
 # -> steps and corresponding time resolution strings in pandas
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
@@ -100,12 +102,10 @@ class HouseholdModel(BasicParticipant):
         tariff = tariff.resample(RESOLUTION[self.T]).ffill().loc[self.time_range]
         self._data.loc[tariff.index, 'tariff'] = tariff.values.flatten()
         if 'Flat' in scenario:  # -> use median
-            median_value = np.sort(tariff.values.flatten())[int(len(tariff) / 2)]
-            self._data.loc[tariff.index, 'tariff'] = median_value
-            self._data.loc[self.time_range, 'grid_fee'] = 2.6 * np.ones(self._steps)
-        self._data.loc[self.time_range, 'grid_fee'] = np.random.normal(2.6, 1e-6, self._steps)
-        pv_capacity = sum([s['pdc0'] for s in pv_systems])
-        self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
+            self._data.loc[tariff.index, 'tariff'] = tariff.values.mean()
+        self._data.loc[self.time_range, 'grid_fee'] = self.random.normal(2.6, 1e-3, self._steps)
+
+        self._data.loc[self.time_range, 'pv_capacity'] = sum([s['pdc0'] for s in pv_systems]) * np.ones(self._steps)
         self._data.loc[self.time_range, 'consumer_id'] = [consumer_id] * self._steps
         self._data.loc[self.time_range, 'car_capacity'] = self._total_capacity * np.ones(self._steps)
 
@@ -115,8 +115,6 @@ class HouseholdModel(BasicParticipant):
         capacity = 0
         for car in self.cars.values():
             capacity += car.get_current_capacity()
-
-        benefit_before_charging = np.interp(capacity, self._x_data, self._y_data)
 
         # -> get residual generation and determine possible opt. time steps
         generation = self._data.loc[d_time:, 'residual_generation'].values
@@ -138,6 +136,7 @@ class HouseholdModel(BasicParticipant):
         self._model.capacity = Var(within=Reals, bounds=(0, self._total_capacity))
 
         self._model.benefit = Var(within=Reals, bounds=(0, None))
+
         if 'Soc' in self._used_strategy:
             if self._solver_type == 'glpk':
 
@@ -222,10 +221,17 @@ class HouseholdModel(BasicParticipant):
 
         try:
             self._solver.solve(self._model)
-            self._benefit_value = value(self._model.benefit) - benefit_before_charging
+
             self._request.loc[time_range] = np.round(np.asarray([self._model.grid[t].value for t in steps]), 2)
+
+            if 'Soc' in self._used_strategy:
+                self._benefit_value = value(self._model.benefit) - np.interp(capacity, self._x_data, self._y_data)
+            else:
+                self._benefit_value = self.price_limit * self._request.values.sum() * self.dt
+
             for key in self.cars.keys():
                 self._car_power[key].loc[time_range] = [self._model.power[key, t].value for t in steps]
+
             if self._initial_plan:
                 self._data.loc[time_range, 'planned_grid_consumption'] = self._request.loc[time_range].copy()
                 self._data.loc[time_range, 'planned_pv_consumption'] = [self._model.pv[t].value for t in steps]
@@ -252,8 +258,6 @@ class HouseholdModel(BasicParticipant):
         generation = self._data.loc[d_time:d_time + td(hours=(remaining_steps - 1) * self.dt), 'residual_generation']
         self._request = pd.Series(data=np.zeros(remaining_steps),
                                   index=pd.date_range(start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps))
-
-        t_next_request = d_time
 
         for key, car in self.cars.items():
             self._car_power[key] = pd.Series(data=np.zeros(remaining_steps),
@@ -324,14 +328,14 @@ class HouseholdModel(BasicParticipant):
         tariff = self._data.loc[price.index, 'tariff'].values.flatten()
         grid_fee = price.values.flatten()
         total_price = sum((tariff + grid_fee) * self._request.values) * self.dt
-        # print(total_price, self._benefit_value)
+
         if self._benefit_value > total_price or self._max_requests == 0:
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
             self._commit = price.index.max()
             self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].copy()
             self._data.loc[:, 'final_pv_consumption'] = self._data.loc[:, 'planned_pv_consumption'].copy()
-            # self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
+            self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
             self._max_requests = 5
             if 'MaxPv' in self._used_strategy:
