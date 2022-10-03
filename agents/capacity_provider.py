@@ -114,10 +114,10 @@ class CapacityProvider:
 
     def get_price(self, request: pd.Series = None, node_id: str = '') -> pd.Series:
         def price_func(util):
-            if util > 100:
-                return 9_999
+            if util >= 100:
+                return 100
             else:
-                return ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
+                return min(((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100, 100)
 
         # -> set current demand at each node
         data = self.demand.copy()
