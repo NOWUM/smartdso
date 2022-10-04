@@ -15,7 +15,9 @@ def get_typ_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex =
 
     if parameter == 'market_prices':
         prices = PRICES.loc[date_range]
-        return prices.groupby(prices.index.time)['price'].mean()
+        data = prices.groupby(prices.index.time)['price'].mean()
+        data.index = data.index.astype(str)
+        return data
     elif parameter == 'charging':
         insert = "avg(final_grid) + avg(final_grid) as charging "
     else:
@@ -64,3 +66,24 @@ def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = Non
     data = data.set_index('time')
 
     return data
+
+def get_ev(scenario: str, ev: str):
+    query = f'''
+SELECT
+    time, avg(usage) AS "usage",
+    avg(final_charging) AS "charging",
+    avg(soc) AS "soc"
+FROM electric_vehicle
+WHERE
+    id_ = '{ev}' AND
+    scenario = '{scenario}' AND
+    iteration = 0
+GROUP BY time
+ORDER BY time
+'''
+    data = pd.read_sql(query, ENGINE)
+
+    data = data.set_index('time')
+
+    return data
+
