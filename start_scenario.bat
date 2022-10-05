@@ -1,4 +1,4 @@
-python scenario_generator.py --case b3
+python scenario_generator.py --case b3 --slp
 
 set server=10.13.10.58
 scp .\docker-compose.yml nowum@%server%:~/smartdso/
