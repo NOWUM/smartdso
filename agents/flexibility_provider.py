@@ -234,6 +234,8 @@ class FlexibilityProvider:
                 data['iteration'] = self.iteration
                 data['sub_id'] = self.sub_grid
                 data['id_'] = key
+                #data['residential_id'] = client.consumer_id
+                data['pv'] = client.get_result(time_range).loc[time_range, 'final_pv_consumption']
                 data.index.name = 'time'
                 data = data.reset_index()
                 data = data.set_index(['time', 'scenario', 'iteration', 'sub_id', 'id_'])

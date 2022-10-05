@@ -83,6 +83,7 @@ class TableCreator:
                             "final_charging double precision, "
                             "demand double precision, "
                             "distance double precision, "
+                            "pv double precision, "
                             "PRIMARY KEY (time , scenario, iteration, sub_id, id_));")
 
         query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
@@ -101,7 +102,7 @@ class TableCreator:
                             "asset text, "
                             "PRIMARY KEY (time , scenario, iteration, id_));")
 
-        query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        query_create_hypertable = "SELECT create_hypertable('grid_asset', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
         with self.engine.connect() as connection:
             with connection.begin():
                 connection.execute(query_create_hypertable)
