@@ -12,7 +12,6 @@ FIGURE_LAYOUT = dict(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgb
 
 COLORS = {'pv_generation': 'rgb(255,128,0)', 'availability': 'rgb(0,0,0)', 'market_price': 'rgb(0,128,255)'}
 
-
 def overview(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figure:
 
     # -> crate figure with two sub plots
@@ -33,7 +32,7 @@ def overview(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figu
             fig.add_trace(plt, row=1, col=1, secondary_y=True)
 
     # -> set axes titles
-    fig.update_yaxes(title_text="Market Price [ct/KWh]",
+    fig.update_yaxes(title_text="Market Price [ct/kWh]",
                      secondary_y=False,
                      showgrid=True,
                      gridwidth=0.1,
@@ -43,6 +42,48 @@ def overview(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figu
                      row=1, col=1)
     fig.update_yaxes(title_text="Availability / PV Generation [%]",
                      secondary_y=True, dtick=25, range=[0, 101],
+                     row=1, col=1)
+    fig.update_xaxes(showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.5)')
+
+    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+
+    return fig
+
+EVCOLORS = {'charging': 'rgb(255,128,0)', 'usage': 'rgb(100,100,100)', 'soc': 'rgb(0,128,255)'}
+
+def ev_plot(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figure:
+
+    # -> crate figure with two sub plots
+    fig = make_subplots(rows=num_rows, cols=1, specs=[num_rows*[{"secondary_y": True}]],
+                        shared_xaxes=True)
+
+    for column in data.columns:
+        plt = go.Scatter(
+            x=data.index,
+            y=data.loc[:, column].values,
+            line={'color': EVCOLORS[column], 'width': 1},
+            showlegend=True,
+            name=f"{column}"
+        )
+        if column == 'charging':
+            fig.add_trace(plt, row=1, col=1, secondary_y=False)
+        else:
+            fig.add_trace(plt, row=1, col=1, secondary_y=True)
+
+    # -> set axes titles
+    fig.update_yaxes(title_text="Charging [kW]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.5)',
+                     dtick=5,
+                     range=[0, 11],
+                     row=1, col=1)
+    fig.update_yaxes(title_text="Usage / SoC [%]",
+                     secondary_y=True, dtick=0.25, range=[0, 1.01],
                      row=1, col=1)
     fig.update_xaxes(showgrid=True,
                      gridwidth=0.1,
