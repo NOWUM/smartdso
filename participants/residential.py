@@ -183,11 +183,12 @@ class HouseholdModel(BasicParticipant):
         for key, car in self.cars.items():
             usage = car.get_data('usage').loc[d_time:].values
             if car.soc < car.get_limit(d_time, strategy):
-                max_power = car.maximal_charging_power * (1 - usage[t])
+                max_power = car.maximal_charging_power
             else:
                 max_power = 0
+
             for t in steps:
-                self._model.power_limit.add(self._model.power[key, t] <= max_power)
+                self._model.power_limit.add(self._model.power[key, t] <= max_power*(1 - usage[t]))
 
             max_power_sum += max_power
 
@@ -195,7 +196,6 @@ class HouseholdModel(BasicParticipant):
 
         for t in steps:
             self._model.grid_power_limit.add(self._model.grid[t] <= max_power_sum)
-                
 
         # -> set range for soc
         self._model.soc_limit = ConstraintList()
