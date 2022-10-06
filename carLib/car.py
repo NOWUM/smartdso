@@ -69,7 +69,7 @@ class Car:
 
         # -> initialize time stamps
         time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T])[:-1]
-        date_range = pd.date_range(start=start_date, end=end_date, freq='d')
+        date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='d')
 
         base = int(60 / (self.T / 24))
 
