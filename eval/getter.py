@@ -53,7 +53,7 @@ def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = Non
         return prices
     elif parameter == 'charging':
         insert = "sum(final_grid) + sum(final_grid) as charging"
-    elif parameter == 'availability':
+    elif parameter in ['availability', 'grid_fee']:
         insert = f"avg({parameter}) as {parameter}"
     else:
         insert = f"sum({parameter}) as {parameter}"
@@ -79,3 +79,39 @@ def get_ev(scenario: str, ev: str):
 
     return data
 
+
+def get_total_values(parameter: str, scenario: str):
+    table = 'charging_summary'
+    factor = 1
+    insert = f"sum({parameter}) as {parameter}"
+    if parameter in ['charging', 'final_grid', 'final_pv', 'initial_grid']:
+        if parameter == 'charging':
+            insert = "sum(final_grid) + sum(final_pv) as charging"
+        factor = 0.25 / 1e3
+    elif parameter == 'availability':
+        insert = f"avg({parameter}) as {parameter}"
+    elif parameter == 'distance':
+        table = 'electric_vehicle'
+
+    query = f"select iteration, {insert} from {table} where scenario='{scenario}' " \
+            f"group by iteration"
+
+    data = pd.read_sql(query, ENGINE)
+
+    data = data.set_index('iteration')
+
+    data = data.mean() * factor
+
+    return data.values[0]
+
+
+def get_grid(scenario: str, iteration: int):
+
+    query = f"Select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+            f"and iteration={iteration} group by time order by time"
+
+    data = pd.read_sql(query, ENGINE)
+
+    data = data.set_index('time')
+
+    return data
