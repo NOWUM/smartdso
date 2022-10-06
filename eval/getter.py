@@ -67,20 +67,12 @@ def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = Non
 
     return data
 
+
 def get_ev(scenario: str, ev: str):
-    query = f'''
-SELECT
-    time, avg(usage) AS "usage",
-    avg(final_charging) AS "charging",
-    avg(soc) AS "soc"
-FROM electric_vehicle
-WHERE
-    id_ = '{ev}' AND
-    scenario = '{scenario}' AND
-    iteration = 0
-GROUP BY time
-ORDER BY time
-'''
+    query = f"select time, avg(usage) as usage, avg(final_charging) as charging, " \
+            f"(1-avg(usage)) * avg(pv) as used_pv_generation, avg(soc) as soc " \
+            f"from electric_vehicle where id_='{ev}' and scenario='{scenario}' group by time order by time"
+
     data = pd.read_sql(query, ENGINE)
 
     data = data.set_index('time')
