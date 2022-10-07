@@ -184,4 +184,13 @@ class TableCreator:
 
 if __name__ == "__main__":
     tb = TableCreator(create_tables=True)
+    prefix = 'B-'
+    scenarios = [
+        f'{prefix}MaxPvCap-PV50-PriceFlat-L',
+        f'{prefix}MaxPvCap-PV80-PriceSpot-L',
+        f'{prefix}MaxPvSoc-PV80-PriceSpot-L',
+        f'{prefix}PlugInCap-PV25-PriceFlat-L'
+    ]
 
+    for scenario in scenarios:
+        tb.delete_scenario(scenario)
