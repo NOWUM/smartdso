@@ -183,8 +183,8 @@ class TableCreator:
 
 
 if __name__ == "__main__":
-    tb = TableCreator(create_tables=True)
-    prefix = 'B-'
+    tb = TableCreator()
+    prefix = 'A-'
     scenarios = [
         f'{prefix}MaxPvCap-PV50-PriceFlat-L',
         f'{prefix}MaxPvCap-PV80-PriceSpot-L',

@@ -6,7 +6,7 @@ for i in "10.13.10.54 a" "10.13.10.55 b" "10.13.10.56 c" "10.13.10.58 d"; do
     case="${a[1]}"
     echo "$server ";
     echo "$case";
-    
+
     python scenario_generator.py --case $case
     scp ./docker-compose.yml nowum@$server:~/smartdso/
     ssh nowum@$server "docker system prune -f"
