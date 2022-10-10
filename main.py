@@ -113,5 +113,5 @@ if __name__ == "__main__":
                 pass
 
         except Exception as e:
-            logger.error(f' -> error during simulation: {repr(e)}')
+            logger.exception(f'Error during simulation')
 
