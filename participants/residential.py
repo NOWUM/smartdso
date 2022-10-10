@@ -75,9 +75,9 @@ class HouseholdModel(BasicParticipant):
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
-        
+
         self.cars = {key_generator(pv_capacity, person.car.capacity): person.car for person in self.persons if person.car.type == 'ev'}
-        
+
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
             self._car_power = {c: pd.Series(dtype=float) for c in self.cars.keys()}
@@ -183,12 +183,12 @@ class HouseholdModel(BasicParticipant):
         max_power_sum = 0
         for key, car in self.cars.items():
             usage = car.get_data('usage').loc[d_time:].values
-            for t in self._steps:
+            for t in steps:
                 if usage[t] > 0:
                     self._model.power_limit.add(self._model.power[key, t] <= 0)
                 else:
                     self._model.power_limit.add(self._model.power[key, t] <= car.maximal_charging_power)
-            
+
             if car.soc < car.get_limit(d_time, strategy):
                 max_power = car.maximal_charging_power
             else:
@@ -210,7 +210,7 @@ class HouseholdModel(BasicParticipant):
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) >= min_charging)
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) <= max_charging)
 
-        self._model.total_capacity = Constraint(expr=self._model.capacity == self._model.pv[t] 
+        self._model.total_capacity = Constraint(expr=self._model.capacity == self._model.pv[t]
                                                                                 + quicksum(self._model.power[key, t]
                                                                                     - demand[key][t]
                                                                                     for key in self.cars.keys()
