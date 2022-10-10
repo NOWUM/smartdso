@@ -84,6 +84,7 @@ class TableCreator:
                             "demand double precision, "
                             "distance double precision, "
                             "pv double precision, "
+                            "pv_available double precision, "
                             "PRIMARY KEY (time , scenario, iteration, sub_id, id_));")
 
         query_create_hypertable = "SELECT create_hypertable('electric_vehicle', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
