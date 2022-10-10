@@ -8,10 +8,10 @@ SUB_GRID = int(os.getenv('SUB_GRID', 5))
 
 KEY = 0
 
-def key_generator():
+def key_generator(pv_capacity, ev_capacity):
     global KEY
     KEY += 1
-    return f'S{SUB_GRID}C{KEY}'
+    return f'S{SUB_GRID}C{KEY}_{pv_capacity}_{ev_capacity}'
 
 class Resident:
 

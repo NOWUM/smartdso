@@ -74,9 +74,10 @@ class HouseholdModel(BasicParticipant):
             self.price_limit = 45
 
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
-
-        self.cars = {key_generator(): person.car for person in self.persons if person.car.type == 'ev'}
-
+        pv_capacity = sum([s['pdc0'] for s in pv_systems])
+        
+        self.cars = {key_generator(pv_capacity, person.car.capacity): person.car for person in self.persons if person.car.type == 'ev'}
+        
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
             self._car_power = {c: pd.Series(dtype=float) for c in self.cars.keys()}
@@ -105,7 +106,7 @@ class HouseholdModel(BasicParticipant):
             self._data.loc[tariff.index, 'tariff'] = tariff.values.mean()
         self._data.loc[self.time_range, 'grid_fee'] = self.random.normal(2.6, 1e-3, self._steps)
 
-        self._data.loc[self.time_range, 'pv_capacity'] = sum([s['pdc0'] for s in pv_systems]) * np.ones(self._steps)
+        self._data.loc[self.time_range, 'pv_capacity'] = pv_capacity * np.ones(self._steps)
         self._data.loc[self.time_range, 'consumer_id'] = [consumer_id] * self._steps
         self._data.loc[self.time_range, 'car_capacity'] = self._total_capacity * np.ones(self._steps)
 
