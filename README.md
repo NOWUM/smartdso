@@ -24,15 +24,39 @@ The input set is as follows:
 The grid fee curve is used to calculate the grid fees which are added to the electricity price to build the final consumer price.
 The consumers then decide wether they need to charge, based on the current SoC (state of charge).
 
+The cars are connected to the same simulation in each iteration, as well as scenario.
+Yet the household can randomly have a PV or does not have a pv.
+Furthermore, the car properties are assigned randomly too.
+
+The Car name is for example `S7C183_4.8_44.1` meaning:
+
+* S7 -> Simulation 7 (iteration)
+* C183 -> Car ID 183 (fixed)
+* 4.8 -> the assigned household has 4.8kwp PV
+* 44.1 -> the battery of the EV Car has a capacity of 44.1 kWh
+
+### fixed Simulation properties
+* irradiation
+* households
+* grid properties
+* spot market price
+* Car ID
+### variable Simulation properties
+* Car properties
+* household PV
+* mobility behavior of the car
+
 ## Scientific Paper - RMIT
 
+'PlugInCap-PV25-PriceFlat-L', 'MaxPvCap-PV25-PriceFlat-L',
+             'MaxPvCap-PV80-PriceSpot-L', 'MaxPvSoc-PV80-PriceSpot-L']
 * Different Pv Scenarios are evaluated:
-    1. tariff Flat+PlugInCap -> Case 1 - Status Quo
-    2. tariff Flat+MaxPvCap -> Case 2 - own consumption optimization
-    3. tariff Spot+MaxPvCap -> Case 3 - own consumption optimization with marktsignal
-    4. tariff Spot+MaxPvSoc -> Case 4 - Nutzenfunktion auf Basis des Füllstandsniveaus
+    1. tariff Flat+PlugInCap -> Case 1 - Status Quo (PlugInCap-PV25-PriceFlat)
+    2. tariff Flat+MaxPvCap -> Case 2 - own consumption optimization (MaxPvCap-PV25-PriceFlat)
+    3. tariff Spot+MaxPvCap -> Case 3 - own consumption optimization with marktsignal (MaxPvCap-PV80-PriceSpot)
+    4. tariff Spot+MaxPvSoc -> Case 4 - Nutzenfunktion auf Basis des Füllstandsniveaus (MaxPvSoc-PV80-PriceSpot)
 
-## Simulation
+## Run Simulation
 
 1. to start the simulation with docker run the command:
 `sudo chmod -R o+rw .` in sim_result directory.
