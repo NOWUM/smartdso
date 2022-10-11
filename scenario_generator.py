@@ -50,6 +50,9 @@ def build_compose_file(strategy: str, prices: str, pv_ratio: int, ev_ratio: int 
 
 CASES = {
     "a": build_compose_file(strategy='PlugInCap', prices='Flat', pv_ratio=25),
+    "a1": build_compose_file(strategy='PlugInCap', prices='Flat', pv_ratio=50),
+    "a2": build_compose_file(strategy='PlugInCap', prices='Flat', pv_ratio=80),
+    "a3": build_compose_file(strategy='PlugInCap', prices='Flat', pv_ratio=100),
     "b": build_compose_file(strategy='MaxPvCap', prices='Flat', pv_ratio=25),
     "b1": build_compose_file(strategy='MaxPvCap', prices='Flat', pv_ratio=50),
     "b2": build_compose_file(strategy='MaxPvCap', prices='Flat', pv_ratio=80),

@@ -30,7 +30,7 @@ Furthermore, the car properties are assigned randomly too.
 
 The Car name is for example `S7C183_4.8_44.1` meaning:
 
-* S7 -> Simulation 7 (iteration)
+* S7 -> Subgrid 7
 * C183 -> Car ID 183 (fixed)
 * 4.8 -> the assigned household has 4.8kwp PV
 * 44.1 -> the battery of the EV Car has a capacity of 44.1 kWh
