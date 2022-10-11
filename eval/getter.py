@@ -10,6 +10,30 @@ PRICES = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_
 PRICES = PRICES.resample('15min').ffill()
 PRICES['price'] /= 10
 
+def get_scenarios():
+    query = 'select distinct scenario from electric_vehicle where time=(select time from electric_vehicle order by time limit 1) and iteration = 0 order by scenario'
+    data = pd.read_sql(query, ENGINE)
+    return list(data['scenario'])
+
+def get_cars(scenario):
+    query = f"select distinct id_ from electric_vehicle where scenario='{scenario}' and time=(select time from electric_vehicle order by time limit 1) order by id_"
+    data = pd.read_sql(query, ENGINE)
+    return list(data['id_'])
+
+def get_soc(scenario: str, sort='desc'):
+    query = f"select id_, soc from electric_vehicle where scenario='{scenario}' and time=(select time from electric_vehicle order by time {sort} limit 1)"
+    data = pd.read_sql(query, ENGINE)
+    return data
+
+def get_avg_soc(scenario: str):
+    query = f"select time, avg(soc) as avg_soc from electric_vehicle where scenario='{scenario}' group by time order by time"
+    data = pd.read_sql(query, ENGINE, index_col = 'time')
+    return data
+
+def get_auslastung(scenario: str, asset:str = 'line'):
+    query = f"select time, avg(utilization), id_ from grid_asset where asset='{asset}' and scenario='{scenario}' group by time order by time desc limit 1"
+    data = pd.read_sql(query, ENGINE)
+    return data
 
 def get_typ_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
 
@@ -19,16 +43,14 @@ def get_typ_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex =
         data.index = data.index.astype(str)
         return data
     elif parameter == 'charging':
-        insert = "avg(final_grid) + avg(final_grid) as charging "
+        insert = "avg(final_grid) + avg(final_pv) as charging "
     else:
         insert = f"avg({parameter}) as {parameter} "
 
     query = f"select to_char(time, 'hh24:mi') as interval, {insert}" \
             f"from charging_summary where scenario = '{scenario}' group by interval"
 
-    data = pd.read_sql(query, ENGINE)
-    data = data.set_index('interval')
-
+    data = pd.read_sql(query, ENGINE, index_col='interval')
     return data
 
 
@@ -37,7 +59,7 @@ def get_sorted_values(parameter: str, scenario: str, date_range: pd.DatetimeInde
         prices = PRICES.loc[date_range]
         return prices.sort_values('price')
     elif parameter == 'charging':
-        insert = "final_grid + final_grid as charging"
+        insert = "final_grid + final_pv as charging"
     else:
         insert = f"{parameter} as {parameter}"
 
@@ -46,13 +68,12 @@ def get_sorted_values(parameter: str, scenario: str, date_range: pd.DatetimeInde
 
     return data
 
-
 def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
     if parameter == 'market_prices':
         prices = PRICES.loc[date_range]
         return prices
     elif parameter == 'charging':
-        insert = "sum(final_grid) + sum(final_grid) as charging"
+        insert = "sum(final_grid) + sum(final_pv) as charging"
     elif parameter in ['availability', 'grid_fee']:
         insert = f"avg({parameter}) as {parameter}"
     else:
@@ -61,10 +82,7 @@ def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = Non
     query = f"select i_table.time, avg(i_table.{parameter}) as {parameter} from " \
             f"(select time, iteration, {insert} from charging_summary where scenario = '{scenario}' " \
             f"group by time, iteration order by time) i_table group by i_table.time"
-    data = pd.read_sql(query, ENGINE)
-
-    data = data.set_index('time')
-
+    data = pd.read_sql(query, ENGINE, index_col='time')
     return data
 
 
@@ -73,10 +91,7 @@ def get_ev(scenario: str, ev: str):
             f"(1-avg(usage)) * avg(pv) as used_pv_generation, avg(soc) as soc " \
             f"from electric_vehicle where id_='{ev}' and scenario='{scenario}' group by time order by time"
 
-    data = pd.read_sql(query, ENGINE)
-
-    data = data.set_index('time')
-
+    data = pd.read_sql(query, ENGINE, index_col='time')
     return data
 
 
@@ -96,22 +111,49 @@ def get_total_values(parameter: str, scenario: str):
     query = f"select iteration, {insert} from {table} where scenario='{scenario}' " \
             f"group by iteration"
 
-    data = pd.read_sql(query, ENGINE)
-
-    data = data.set_index('iteration')
-
+    data = pd.read_sql(query, ENGINE, index_col='iteration')
     data = data.mean() * factor
 
     return data.values[0]
 
 
-def get_grid(scenario: str, iteration: int):
+def get_grid(scenario: str, iteration: int, sub_id=None):
 
-    query = f"Select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+    if sub_id:
+        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
             f"and iteration={iteration} group by time order by time"
+    else:
+        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+                f"and iteration={iteration} group by time order by time"
 
-    data = pd.read_sql(query, ENGINE)
-
-    data = data.set_index('time')
+    data = pd.read_sql(query, ENGINE, index_col='time')
 
     return data
+
+def get_grid2(scenario: str, iteration: int):
+
+    query = f"select time, sub_id, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+            f"and iteration={iteration} group by sub_id, time order by time"
+
+    data = pd.read_sql(query, ENGINE, index_col='time')
+    return data
+
+def pv_capacity():
+    total_alloc = pd.read_csv(fr'./gridLib/data/grid_allocations.csv', index_col=0)
+    tc = total_alloc.dropna()
+    tc = tc['pv']
+    summ_pdc_alloc = 0
+    for val in tc:
+        l = eval(val)
+        for i in l:
+            summ_pdc_alloc += i['pdc0']
+
+    total_consumers = pd.read_csv(fr'./gridLib/data/export/dem/consumers.csv', index_col=0)
+    tc = total_consumers.dropna()
+    tc = tc['pv']
+    summ_pdc_consumer = 0
+    for val in tc:
+        l = eval(val)
+        for i in l:
+            summ_pdc_consumer += i['pdc0']
+    return summ_pdc_alloc, summ_pdc_consumer
