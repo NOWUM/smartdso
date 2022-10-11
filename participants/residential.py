@@ -210,8 +210,7 @@ class HouseholdModel(BasicParticipant):
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) >= min_charging)
             self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) <= max_charging)
 
-        self._model.total_capacity = Constraint(expr=self._model.capacity == self._model.pv[t]
-                                                                                + quicksum(self._model.power[key, t]
+        self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
                                                                                     - demand[key][t]
                                                                                     for key in self.cars.keys()
                                                                                     for t in steps) * self.dt
