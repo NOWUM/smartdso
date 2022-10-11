@@ -190,11 +190,7 @@ class HouseholdModel(BasicParticipant):
                     self._model.power_limit.add(self._model.power[key, t] <= car.maximal_charging_power)
 
             if car.soc < car.get_limit(d_time, strategy):
-                max_power = car.maximal_charging_power
-            else:
-                max_power = 0
-
-            max_power_sum += max_power
+                max_power_sum += car.maximal_charging_power
 
         self._model.grid_power_limit = ConstraintList()
 
