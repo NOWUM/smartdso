@@ -6,11 +6,11 @@ from datetime import timedelta as td
 from eval.getter import (get_typ_values, get_sorted_values, 
                         get_values, get_ev,get_total_values, 
                         get_grid, get_avg_soc, get_shifted,
-                        get_grid_avg_sub, get_gzf_count, get_gzf_power,
+                        get_grid_avg_sub, get_gzf,
                         get_cars, get_scenarios, get_soc)
 
 from matplotlib import pyplot as plt
-from eval.plotter import overview, ev_plot, scenario_compare
+from eval.plotter import overview, ev_plot, scenario_compare, get_table
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-05-01'))              # -> default start date
 end_date = pd.to_datetime(os.getenv('END_DATE', '2022-05-31'))                  # -> default end date
@@ -21,8 +21,16 @@ WEEK_RANGE = pd.date_range(start=start_date + td(days=DAY_OFFSET),
                            freq='15min')
 
 
-# 'MaxPvCap-PV50-PriceFlat', 'MaxPvCap-PV80-PriceFlat', 'MaxPvCap-PV100-PriceFlat'
-
+SCENARIOS = [
+    'A-MaxPvCap-PV25-PriceFlat',
+    'A-PlugInCap-PV25-PriceFlat',
+    'A-MaxPvCap-PV50-PriceFlat', 
+    'A-PlugInCap-PV50-PriceFlat',
+    'A-MaxPvCap-PV80-PriceFlat',
+    'A-PlugInCap-PV80-PriceFlat',
+    'A-MaxPvCap-PV100-PriceFlat',
+    'A-PlugInCap-PV100-PriceFlat',
+]
 SCENARIOS = ['A-PlugInCap-PV25-PriceFlat', 'A-MaxPvCap-PV25-PriceFlat',
              'A-MaxPvCap-PV80-PriceSpot', 'A-MaxPvSoc-PV80-PriceSpot']
 SCENARIO = SCENARIOS[0]
@@ -74,12 +82,13 @@ def export_comparison():
 
 if __name__ == "__main__":
 
-    export_comparison()
+    #export_comparison()
 
-    results = dict()
+    grid_util_results = dict()
 
     table = {key:{} for key in SCENARIOS}
 
+    ############ Scenario plots ###########
     for SCENARIO in SCENARIOS:
         initial_grid_ts = get_values(parameter='initial_grid', scenario=SCENARIO)
         final_grid_ts = get_values(parameter='final_grid', scenario=SCENARIO)
@@ -105,56 +114,82 @@ if __name__ == "__main__":
         table[SCENARIO]['charged_sum'] = charged_kwh.sum()
 
         # -> sorted grid fees
-        sorted_grid_fees = get_sorted_values(scenario=SCENARIO, parameter='grid_fee')
+        sorted_grid_fees = get_sorted_values(scenario=SCENARIO, parameter='grid_fee')['grid_fee']
     
-        qmean = sorted_grid_fees.mean()[0]
-        q5= sorted_grid_fees.quantile(0.05)[0]
-        q95 = sorted_grid_fees.quantile(0.95)[0]
-        qmin = sorted_grid_fees.min()[0]
-        qmax = sorted_grid_fees.max()[0]
+        qmean = sorted_grid_fees.mean()
+        q5= sorted_grid_fees.quantile(0.05)
+        q95 = sorted_grid_fees.quantile(0.95)
+        qmin = sorted_grid_fees.min()
+        qmax = sorted_grid_fees.max()
 
         table[SCENARIO]['grid_fee_q5'] = q5
         table[SCENARIO]['grid_fee_mean'] = qmean
         table[SCENARIO]['grid_fee_q95'] = q95
-        plt.plot(sorted_grid_fees)
+        #plt.plot(sorted_grid_fees)
 
-        table[SCENARIO]['charging_kWh'] = get_total_values(parameter='charging', scenario=SCENARIOS[0])
-        table[SCENARIO]['charging_grid_kWh'] = get_total_values(parameter='final_grid', scenario=SCENARIOS[0])
-        table[SCENARIO]['charging_pv_kWh'] = get_total_values(parameter='final_pv', scenario=SCENARIOS[0])
-        table[SCENARIO]['initial_grid_kWh'] = get_total_values(parameter='initial_grid', scenario=SCENARIOS[0])
-        table[SCENARIO]['distance_km'] = get_total_values(parameter='distance', scenario=SCENARIOS[0])
+        table[SCENARIO]['charging_kWh'] = get_total_values(parameter='charging', scenario=SCENARIO)
+        table[SCENARIO]['charging_grid_kWh'] = get_total_values(parameter='final_grid', scenario=SCENARIO)
+        table[SCENARIO]['charging_pv_kWh'] = get_total_values(parameter='final_pv', scenario=SCENARIO)
+        table[SCENARIO]['initial_grid_kWh'] = get_total_values(parameter='initial_grid', scenario=SCENARIO)
+        table[SCENARIO]['distance_km'] = get_total_values(parameter='distance', scenario=SCENARIO)
 
         # Verschoben aufgrund Marktsignal (diff initial - final)
-        table[SCENARIO]['shifted'] = get_shifted(SCENARIO).mean()
+        shifted = get_shifted(SCENARIO)['sum']
+        # TODO plot shifted
+        # von wo verdrängt wurde
+        table[SCENARIO]['shifted'] = shifted.mean()
 
         # Gleichzeitigkeitsfaktor
-        table[SCENARIO]['gzf'] = get_gzf_power(SCENARIO)['gzf'].mean()
-        table[SCENARIO]['gzf_count'] = get_gzf_count(SCENARIO)['gzf'].mean()
+        table[SCENARIO]['gzf'] = get_gzf(SCENARIO)['gzf'].mean()
+        table[SCENARIO]['gzf_count'] = get_gzf(SCENARIO)['gzf'].mean()
         grid_data = get_grid_avg_sub(scenario=SCENARIO)
         j = 0
         for i in grid_data.mean():
-            print(i, j)
             table[SCENARIO][f'avg_grid_util_sub{j}'] = i
             j +=1
 
-        result = []
+        worst_case = grid_data.max(axis=1)
+        q5_grid = worst_case.quantile(0.05)
+        q95_grid = worst_case.quantile(0.95)
+        min_grid = worst_case.min()
+        mean_grid = worst_case.mean()
+        max_grid = worst_case.max()
 
-        results[SCENARIO] = get_grid_avg_sub(scenario=SCENARIO)
+        table[SCENARIO]['grid_util_q5'] = q5_grid
+        table[SCENARIO]['grid_util_mean'] = mean_grid
+        table[SCENARIO]['grid_util_q95'] = q95_grid
+        table[SCENARIO]['grid_util_max'] = max_grid
 
-    for value in results.values():
-        value.mean(axis=1).plot()
+        grid_util_results[SCENARIO] = grid_data
+
+        # -> get typical days
+        # TODO plotting
+        # charging = get_typ_values(scenario=SCENARIO, parameter='charging')
+        # market_prices = get_typ_values(scenario=SCENARIO, parameter='market_prices', date_range=DATE_RANGE)
+        # availability = get_typ_values(scenario=SCENARIO, parameter='availability')
+        # grid_fees = get_typ_values(scenario=SCENARIO, parameter='grid_fee')
+        # pv_generation = get_typ_values(scenario=SCENARIO, parameter='residual_generation')
+        
+        
+
+    for scenario_grid_data in grid_util_results.values():
+        scenario_grid_data.mean(axis=1).plot()
         plt.show()
 
     ################# TABLE #########
+    df = pd.DataFrame(table).round(3)
+    table_data = get_table(df)
+    table_data.write_image(f'./eval/plots/table.svg', width=1200, height=00)
+    #table_data.show()
 
-    df = pd.DataFrame(table)
-    market_prices = get_values(parameter='market_prices', scenario='MaxPvCap-PV80-PriceSpot', date_range=DATE_RANGE)
+    ####### Other plots ###########
+    market_prices = get_values(parameter='market_prices', scenario='A-MaxPvCap-PV80-PriceSpot', date_range=DATE_RANGE)
     scenario = 'A-MaxPvCap-PV80-PriceSpot'
-    value = results[scenario]
+    value = grid_util_results[scenario]
     plt.scatter(market_prices.values, value.mean(axis=1), label=scenario)
     # plt.show()
     scenario = 'A-MaxPvSoc-PV80-PriceSpot'
-    value = results[scenario]
+    value = grid_util_results[scenario]
     plt.scatter(market_prices.values, value.mean(axis=1), label=scenario)
     plt.legend()
     plt.xlabel('ct/kWh')
@@ -165,12 +200,3 @@ if __name__ == "__main__":
 
     #     #plot_data.show()
     #
-        
-    # # -> get/build typical days
-    #
-    # scenario = SCENARIO
-    # charging = get_typ_values(scenario=scenario, parameter='charging')
-    # market_prices = get_typ_values(scenario=scenario, parameter='market_prices', date_range=DATE_RANGE)
-    # availability = get_typ_values(scenario=scenario, parameter='availability')
-    # grid_fees = get_typ_values(scenario=scenario, parameter='grid_fee')
-    # pv_generation = get_typ_values(scenario=scenario, parameter='residual_generation')

@@ -179,3 +179,22 @@ def ev_plot(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figur
     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
 
     return fig
+
+def get_table(df: pd.DataFrame):
+    fig = go.Figure(data=[go.Table(
+        header=dict(values=['Description']+list(df.columns),
+                    line_color='darkslategray',
+                    fill_color='skyblue',
+                    align='left',
+                    height=30),
+        cells=dict(values=[df.index] +[df.get(c) for c in df.columns],
+                line_color='darkslategray',
+                fill=dict(color=['paleturquoise']+['white']*len(df.columns)),
+                align='left',
+                height=20),
+                )
+    ])
+    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+    fig.update_layout(width=800, height=900)
+    return fig
