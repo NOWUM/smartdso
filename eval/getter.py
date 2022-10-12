@@ -257,6 +257,7 @@ if __name__ == '__main__':
     util = grid.mean(axis=1)
     charged = get_values('charging', scenario)
     import matplotlib.pyplot as plt
+    # TODO in plotly graph überführen
     plt.scatter(util, charged['charging'], label=scenario)
     plt.legend()
     plt.xlabel('mittlere Netzauslastung %')

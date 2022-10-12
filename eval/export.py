@@ -7,7 +7,7 @@ from eval.getter import (get_typ_values, get_sorted_values,
                         get_values, get_ev,get_total_values, 
                         get_grid, get_avg_soc, get_shifted,
                         get_grid_avg_sub, get_gzf,
-                        get_cars, get_scenarios, get_soc)
+                        get_cars, get_scenarios, get_soc, pv_capacity)
 
 from matplotlib import pyplot as plt
 from eval.plotter import overview, ev_plot, scenario_compare, get_table
@@ -35,7 +35,7 @@ SCENARIOS = ['A-PlugInCap-PV25-PriceFlat', 'A-MaxPvCap-PV25-PriceFlat',
              'A-MaxPvCap-PV80-PriceSpot', 'A-MaxPvSoc-PV80-PriceSpot']
 SCENARIO = SCENARIOS[0]
 
-def export_comparison():
+def export_comparison(car_id):
 
     compare = dict()
 
@@ -53,6 +53,7 @@ def export_comparison():
 
     data = pd.concat([market_price, availability, pv_generation], axis=1)
     data.columns = ['market_price', 'availability', 'pv_generation']
+    # TODO preis-Signal raus nehmen, da verschieden für Szenarien
     plot_data = overview(data=data.loc[WEEK_RANGE])
     plot_data.write_image(f'./eval/plots/single/overview.svg', width=1200, height=600)
 
@@ -64,7 +65,7 @@ def export_comparison():
         plt.legend()
         cars = get_cars(SCENARIO)
         for car in cars:
-            if 'S2C122' in car:
+            if car_id in car:
                 break
         
 
@@ -82,7 +83,7 @@ def export_comparison():
 
 if __name__ == "__main__":
 
-    #export_comparison()
+    export_comparison('S7C29_')
 
     grid_util_results = dict()
 
@@ -132,16 +133,19 @@ if __name__ == "__main__":
         table[SCENARIO]['charging_pv_kWh'] = get_total_values(parameter='final_pv', scenario=SCENARIO)
         table[SCENARIO]['initial_grid_kWh'] = get_total_values(parameter='initial_grid', scenario=SCENARIO)
         table[SCENARIO]['distance_km'] = get_total_values(parameter='distance', scenario=SCENARIO)
-
         # Verschoben aufgrund Marktsignal (diff initial - final)
         shifted = get_shifted(SCENARIO)['sum']
-        # TODO plot shifted
+        # ^- TODO plot shifted
         # von wo verdrängt wurde
         table[SCENARIO]['shifted'] = shifted.mean()
 
         # Gleichzeitigkeitsfaktor
-        table[SCENARIO]['gzf'] = get_gzf(SCENARIO)['gzf'].mean()
-        table[SCENARIO]['gzf_count'] = get_gzf(SCENARIO, typ='count')['gzf'].mean()
+        gzf = get_gzf(SCENARIO)['gzf']
+        table[SCENARIO]['gzf'] = gzf.mean()
+        gzf_count = get_gzf(SCENARIO, typ='count')['gzf']
+        # ^- TODO plot gzf, with typ_tage and as sorted curve
+        # GZF basiert auf Anzahl oder Ladeleistung?
+        table[SCENARIO]['gzf_count'] = gzf_count.mean()
         grid_data = get_grid_avg_sub(scenario=SCENARIO)
         j = 0
         for i in grid_data.mean():
@@ -200,3 +204,10 @@ if __name__ == "__main__":
 
     #     #plot_data.show()
     #
+    # Ideen:
+    # Für verschiedene Szenarien-> 25/50/80/100 -> verschiedene pacity pro PvAusbau
+    # Grid-Fee pro Transformer angucken?
+    # PV-Capacity und Anzahl Autos angeben:
+
+    print('Installiert kWp in 100% szenario', pv_capacity()[1])
+    print('Anzahl Autos', len(get_cars(scenario)))
