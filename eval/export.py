@@ -76,13 +76,9 @@ if __name__ == "__main__":
 
     export_comparison()
 
-    charging = get_total_values(parameter='charging', scenario=SCENARIOS[0])
-    final_grid = get_total_values(parameter='final_grid', scenario=SCENARIOS[0])
-    final_pv = get_total_values(parameter='final_pv', scenario=SCENARIOS[0])
-    initial_grid = get_total_values(parameter='initial_grid', scenario=SCENARIOS[0])
-    distance = get_total_values(parameter='distance', scenario=SCENARIOS[0])
-
     results = dict()
+
+    table = {key:{} for key in SCENARIOS}
 
     for SCENARIO in SCENARIOS:
         initial_grid_ts = get_values(parameter='initial_grid', scenario=SCENARIO)
@@ -103,22 +99,55 @@ if __name__ == "__main__":
         grid_cost = (charged_kwh * grid_fee.values / 100).sum()
 
         total_cost = market_cost + grid_cost
-        total_cost_kwh = total_cost/charged_kwh.sum()
-        total_cost_residential = total_cost / 3185
+        table[SCENARIO]['total_cost']=total_cost
+        table[SCENARIO]['total_cost_kwh']=total_cost/charged_kwh.sum()
+        table[SCENARIO]['total_cost_residential']=total_cost / 3185
+        table[SCENARIO]['charged_sum'] = charged_kwh.sum()
 
-        # das hier in Tabellenform werfen
-        print(SCENARIO, total_cost, total_cost_kwh, total_cost_residential, charged_kwh.sum())
+        # -> sorted grid fees
+        sorted_grid_fees = get_sorted_values(scenario=SCENARIO, parameter='grid_fee')
+    
+        qmean = sorted_grid_fees.mean()[0]
+        q5= sorted_grid_fees.quantile(0.05)[0]
+        q95 = sorted_grid_fees.quantile(0.95)[0]
+        qmin = sorted_grid_fees.min()[0]
+        qmax = sorted_grid_fees.max()[0]
+
+        table[SCENARIO]['grid_fee_q5'] = q5
+        table[SCENARIO]['grid_fee_mean'] = qmean
+        table[SCENARIO]['grid_fee_q95'] = q95
+        plt.plot(sorted_grid_fees)
+
+        table[SCENARIO]['charging_kWh'] = get_total_values(parameter='charging', scenario=SCENARIOS[0])
+        table[SCENARIO]['charging_grid_kWh'] = get_total_values(parameter='final_grid', scenario=SCENARIOS[0])
+        table[SCENARIO]['charging_pv_kWh'] = get_total_values(parameter='final_pv', scenario=SCENARIOS[0])
+        table[SCENARIO]['initial_grid_kWh'] = get_total_values(parameter='initial_grid', scenario=SCENARIOS[0])
+        table[SCENARIO]['distance_km'] = get_total_values(parameter='distance', scenario=SCENARIOS[0])
+
+        # Verschoben aufgrund Marktsignal (diff initial - final)
+        table[SCENARIO]['shifted'] = get_shifted(SCENARIO).mean()
+
+        # Gleichzeitigkeitsfaktor
+        table[SCENARIO]['gzf'] = get_gzf_power(SCENARIO)['gzf'].mean()
+        table[SCENARIO]['gzf_count'] = get_gzf_count(SCENARIO)['gzf'].mean()
+        grid_data = get_grid_avg_sub(scenario=SCENARIO)
+        j = 0
+        for i in grid_data.mean():
+            print(i, j)
+            table[SCENARIO][f'avg_grid_util_sub{j}'] = i
+            j +=1
 
         result = []
 
-        for i in range(10):
-            data = get_grid(scenario=SCENARIO, iteration=i)
-            result.append(data)
-        results[SCENARIO] = pd.concat(result, axis=1)
+        results[SCENARIO] = get_grid_avg_sub(scenario=SCENARIO)
 
     for value in results.values():
         value.mean(axis=1).plot()
         plt.show()
+
+    ################# TABLE #########
+
+    df = pd.DataFrame(table)
     market_prices = get_values(parameter='market_prices', scenario='MaxPvCap-PV80-PriceSpot', date_range=DATE_RANGE)
     scenario = 'A-MaxPvCap-PV80-PriceSpot'
     value = results[scenario]
@@ -136,16 +165,7 @@ if __name__ == "__main__":
 
     #     #plot_data.show()
     #
-    #     # -> sorted grid fees
-    #     sorted_grid_fees = get_sorted_values(scenario=SCENARIO, parameter='grid_fee')
-    #
-    #     qmean = sorted_grid_fees.mean()[0]
-    #     q5= sorted_grid_fees.quantile(0.05)[0]
-    #     q95 = sorted_grid_fees.quantile(0.95)[0]
-    #     qmin = sorted_grid_fees.min()[0]
-    #     qmax = sorted_grid_fees.max()[0]
-    #     print(f'Mean {qmean:.3}, Q05 {q5:.3}, Q95 {q95:.3}, Max {qmax:.3}, Min {qmin:.3}')
-    #     plt.plot(sorted_grid_fees)
+        
     # # -> get/build typical days
     #
     # scenario = SCENARIO
