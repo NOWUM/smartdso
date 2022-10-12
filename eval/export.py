@@ -3,7 +3,12 @@ import pandas as pd
 import os
 from datetime import timedelta as td
 
-from eval.getter import get_typ_values, get_sorted_values, get_values, get_ev,get_total_values, get_grid
+from eval.getter import (get_typ_values, get_sorted_values, 
+                        get_values, get_ev,get_total_values, 
+                        get_grid, get_avg_soc, get_shifted,
+                        get_grid_avg_sub, get_gzf_count, get_gzf_power,
+                        get_cars, get_scenarios, get_soc)
+
 from matplotlib import pyplot as plt
 from eval.plotter import overview, ev_plot, scenario_compare
 
@@ -18,34 +23,44 @@ WEEK_RANGE = pd.date_range(start=start_date + td(days=DAY_OFFSET),
 
 # 'MaxPvCap-PV50-PriceFlat', 'MaxPvCap-PV80-PriceFlat', 'MaxPvCap-PV100-PriceFlat'
 
-SCENARIOS = ['PlugInCap-PV25-PriceFlat-L', 'MaxPvCap-PV25-PriceFlat-L',
-             'MaxPvCap-PV80-PriceSpot-L', 'MaxPvSoc-PV80-PriceSpot-L']
-
+SCENARIOS = ['A-PlugInCap-PV25-PriceFlat', 'A-MaxPvCap-PV25-PriceFlat',
+             'A-MaxPvCap-PV80-PriceSpot', 'A-MaxPvSoc-PV80-PriceSpot']
+SCENARIO = SCENARIOS[0]
 
 def export_comparison():
 
     compare = dict()
 
     market_price = get_values(scenario=SCENARIOS[0], parameter='market_prices', date_range=DATE_RANGE)
+    #market_price = market_price.mean(axis=1)
 
-    market_price.columns = ['market_price']
     availability = get_values(scenario=SCENARIOS[0], parameter='availability')
+    availability = availability.mean(axis=1)
     availability *= 100
 
     pv_generation = get_values(scenario=SCENARIOS[0], parameter='residual_generation')
+    pv_generation = pv_generation.mean(axis=1)
     pv_generation /= pv_generation.values.max()
     pv_generation *= 100
-    pv_generation.columns = ['pv_generation']
 
     data = pd.concat([market_price, availability, pv_generation], axis=1)
+    data.columns = ['market_price', 'availability', 'pv_generation']
     plot_data = overview(data=data.loc[WEEK_RANGE])
     plot_data.write_image(f'./eval/plots/single/overview.svg', width=1200, height=600)
 
     compare['overview'] = data.loc[WEEK_RANGE].resample('h').mean()
 
     for SCENARIO in SCENARIOS:
+        grid_fees = get_sorted_values(scenario=SCENARIO, parameter='grid_fee')
+        plt.semilogx(grid_fees, label=SCENARIO)
+        plt.legend()
+        cars = get_cars(SCENARIO)
+        for car in cars:
+            if 'S2C122' in car:
+                break
+        
 
-        data = get_ev(SCENARIO, 'S2C123')
+        data = get_ev(SCENARIO, car)
         plot_data = ev_plot(data=data.loc[WEEK_RANGE])
         plot_data.write_image(f'./eval/plots/single/ev_{SCENARIO}.svg', width=1200, height=600)
         data = data.loc[WEEK_RANGE]
@@ -59,7 +74,7 @@ def export_comparison():
 
 if __name__ == "__main__":
 
-    # export_comparison()
+    export_comparison()
 
     charging = get_total_values(parameter='charging', scenario=SCENARIOS[0])
     final_grid = get_total_values(parameter='final_grid', scenario=SCENARIOS[0])
@@ -91,6 +106,7 @@ if __name__ == "__main__":
         total_cost_kwh = total_cost/charged_kwh.sum()
         total_cost_residential = total_cost / 3185
 
+        # das hier in Tabellenform werfen
         print(SCENARIO, total_cost, total_cost_kwh, total_cost_residential, charged_kwh.sum())
 
         result = []
@@ -103,12 +119,17 @@ if __name__ == "__main__":
     for value in results.values():
         value.mean(axis=1).plot()
         plt.show()
-    market_prices = get_values(parameter='market_prices', scenario='MaxPvCap-PV80-PriceSpot-L', date_range=DATE_RANGE)
-    value = results['MaxPvCap-PV80-PriceSpot-L']
-    plt.scatter(market_prices.values, value.mean(axis=1))
+    market_prices = get_values(parameter='market_prices', scenario='MaxPvCap-PV80-PriceSpot', date_range=DATE_RANGE)
+    scenario = 'A-MaxPvCap-PV80-PriceSpot'
+    value = results[scenario]
+    plt.scatter(market_prices.values, value.mean(axis=1), label=scenario)
     # plt.show()
-    value = results['MaxPvSoc-PV80-PriceSpot-L']
-    plt.scatter(market_prices.values, value.mean(axis=1))
+    scenario = 'A-MaxPvSoc-PV80-PriceSpot'
+    value = results[scenario]
+    plt.scatter(market_prices.values, value.mean(axis=1), label=scenario)
+    plt.legend()
+    plt.xlabel('ct/kWh')
+    plt.ylabel('grid util %')
     plt.show()
 
     # charging = data['charging'].values[0] * 0.25 / 1e3

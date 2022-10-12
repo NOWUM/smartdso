@@ -79,11 +79,13 @@ def get_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = Non
     else:
         insert = f"sum({parameter}) as {parameter}"
 
-    query = f"select i_table.time, avg(i_table.{parameter}) as {parameter} from " \
-            f"(select time, iteration, {insert} from charging_summary where scenario = '{scenario}' " \
-            f"group by time, iteration order by time) i_table group by i_table.time"
+    query = f"""select i_table.time, iteration, avg(i_table.{parameter}) as {parameter} from (
+                    select time, iteration, {insert} from charging_summary where scenario = '{scenario}'
+                    group by time, iteration order by time
+                    ) i_table group by i_table.time, i_table.iteration
+            """
     data = pd.read_sql(query, ENGINE, index_col='time')
-    return data
+    return data.pivot(columns='iteration', values=parameter)
 
 
 def get_ev(scenario: str, ev: str):
@@ -117,26 +119,45 @@ def get_total_values(parameter: str, scenario: str):
     return data.values[0]
 
 
-def get_grid(scenario: str, iteration: int, sub_id=None):
+def get_shifted(scenario: str):
 
+    query = f"""select iteration, sum(initial_grid - final_grid)
+        from charging_summary
+        where initial_grid > final_grid and scenario='{scenario}'
+        group by iteration
+        """
+    data = pd.read_sql(query, ENGINE, index_col='iteration')
+
+    return data
+
+def get_grid(scenario: str, iteration: int, sub_id=None, func='max'):
+    '''average utilization for a given iteration'''
     if sub_id:
-        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='{func}' " \
             f"and iteration={iteration} group by time order by time"
     else:
-        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
+        query = f"select time, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='{func}' " \
                 f"and iteration={iteration} group by time order by time"
 
     data = pd.read_sql(query, ENGINE, index_col='time')
-
     return data
 
-def get_grid2(scenario: str, iteration: int):
+def get_grid_avg_sub(scenario: str, iteration: int=None, func='max'):
+    '''average utilization through all sub grids'''
 
-    query = f"select time, sub_id, avg(value) as util_{iteration} from grid_summary where scenario = '{scenario}' and type='max' " \
-            f"and iteration={iteration} group by sub_id, time order by time"
+    if iteration == None:
+        query = f"""select time, sub_id, avg(value) as util 
+                from grid_summary where scenario = '{scenario}' and type='{func}'
+                group by sub_id, time order by time
+                """
+    else:
+        query = f"""select time, sub_id, avg(value) as util_{iteration} from grid_summary 
+                where scenario = '{scenario}' and type='{func}' and iteration={iteration}
+                group by sub_id, time order by time
+                """
 
     data = pd.read_sql(query, ENGINE, index_col='time')
-    return data
+    return data.pivot(columns='sub_id', values='util')
 
 def pv_capacity():
     total_alloc = pd.read_csv(fr'./gridLib/data/grid_allocations.csv', index_col=0)
@@ -156,4 +177,75 @@ def pv_capacity():
         l = eval(val)
         for i in l:
             summ_pdc_consumer += i['pdc0']
-    return summ_pdc_alloc, summ_pdc_consumer
+    return summ_pdc_alloc, summ_pdc_consumer # [kWp]
+
+def get_max_power(scenario: str) -> float:
+    query = f"select id_, max(final_charging) as max_power from electric_vehicle where scenario = '{scenario}' group by id_"
+    data = pd.read_sql(query, ENGINE, index_col='id_')
+    return float(data.sum()) # [kW]
+
+def get_gzf_count(scenario: str):
+    count = len(get_cars(scenario))
+    query = f"""select time, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
+            from electric_vehicle
+            where scenario = '{scenario}' group by time
+            """
+    data = pd.read_sql(query, ENGINE, index_col='time')
+    return data/count
+
+def get_gzf_power(scenario: str):
+
+    max_power = get_max_power(scenario)
+    query = f"""
+        select time, iteration, sum(final_grid + final_pv) as charging
+        from charging_summary where scenario = '{scenario}'
+        group by time, iteration order by time
+        """
+    data = pd.read_sql(query, ENGINE, index_col='time')
+    data['gzf'] = data['charging']/max_power
+    return data
+
+if __name__ == '__main__':
+    sc = get_scenarios()
+    scenario = sc[0]
+    df_last = get_soc(scenario)
+    # histogram of last charging states
+    # df_last.hist()
+    df_last['soc'].mean()
+    df_first = get_soc(scenario, 'asc')
+    df_first['soc'].mean()
+    #df_first.hist()
+
+    # curves of average soc per scenario
+    import matplotlib.pyplot as plt
+    for i in range(4):
+        d = get_avg_soc(sc[i])
+        plt.plot(d, label = sc[i])
+    plt.legend()
+    plt.show()
+
+
+    for i in range(10):
+        utilization = get_grid(scenario, iteration=i)
+        overloaded_hours = len(utilization[utilization[f'util_{i}'] > 60])/4
+        print(overload_hours())
+    utilization.plot()
+    utilization2 = get_grid2(scenario, iteration=1)
+
+    shifted = get_shifted(scenario)
+
+    gzf = get_gzf_power(scenario)
+    gzf_count = get_gzf_count(scenario)
+    gzf['gzf'].plot()
+    gzf_count['gzf'].plot()
+
+    grid = get_grid_avg_sub(scenario, func='mean')
+    util = grid.mean(axis=1)
+    charged = get_values('charging', scenario)
+    import matplotlib.pyplot as plt
+    plt.scatter(util, charged['charging'], label=scenario)
+    plt.legend()
+    plt.xlabel('mittlere Netzauslastung %')
+    plt.ylabel('kW Ladeleistung')
+    charged['charging']
+    grid.sum()
