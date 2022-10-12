@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
         # Gleichzeitigkeitsfaktor
         table[SCENARIO]['gzf'] = get_gzf(SCENARIO)['gzf'].mean()
-        table[SCENARIO]['gzf_count'] = get_gzf(SCENARIO)['gzf'].mean()
+        table[SCENARIO]['gzf_count'] = get_gzf(SCENARIO, typ='count')['gzf'].mean()
         grid_data = get_grid_avg_sub(scenario=SCENARIO)
         j = 0
         for i in grid_data.mean():
