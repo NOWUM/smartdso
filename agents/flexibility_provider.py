@@ -228,15 +228,15 @@ class FlexibilityProvider:
         for id_, client in self.clients.items():
             for key, car in client.cars.items():
                 data = car.get_result(time_range)
-                data = data.loc[:, ['soc', 'usage', 'planned_charge', 'final_charge', 'demand', 'distance']]
-                data.columns = ['soc', 'usage', 'initial_charging', 'final_charging', 'demand', 'distance']
+                data = data.loc[:, ['soc', 'usage', 'planned_charge', 'final_charge', 'demand', 'distance', 'tariff']]
+                data.columns = ['soc', 'usage', 'initial_charging', 'final_charging', 'demand', 'distance', 'tariff']
                 data['scenario'] = self.scenario
                 data['iteration'] = self.iteration
                 data['sub_id'] = self.sub_grid
                 data['id_'] = key
-                #data['residential_id'] = client.consumer_id
                 data['pv'] = client.get_result(time_range).loc[time_range, 'final_pv_consumption']
                 data['pv_available'] = client.get_result(time_range).loc[time_range, 'residual_generation']
+
                 data.index.name = 'time'
                 data = data.reset_index()
                 data = data.set_index(['time', 'scenario', 'iteration', 'sub_id', 'id_'])
