@@ -39,7 +39,7 @@ class Car:
         self.daily_limit = {}                                                   # -> limit @ day
 
         self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planned_charge', 'final_charge',
-                                           'demand', 'usage', 'work', 'errand', 'hobby'])
+                                           'demand', 'usage', 'work', 'errand', 'hobby', 'tariff'])
         # -> simulation monitoring
         self.empty = False                                                      # -> True if car has not enough energy
         self.virtual_source = 0                                                 # -> used energy if car is empty
@@ -186,4 +186,7 @@ class Car:
 
     def get_current_capacity(self):
         return self.soc * self.capacity
+
+    def set_final_tariff(self, time_series: pd.Series) -> None:
+        self._data.loc[time_series.index, 'tariff'] = time_series.values
 
