@@ -338,10 +338,12 @@ class HouseholdModel(BasicParticipant):
         tariff = self._data.loc[price.index, 'tariff'].values.flatten()
         grid_fee = price.values.flatten()
         total_price = sum((tariff + grid_fee) * self._request.values) * self.dt
-
+        final_tariff = self._data.loc[price.index, 'tariff'] + price
+        # print(final_tariff)
         if self._benefit_value > total_price or self._max_requests == 0:
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
+                car.set_final_tariff(final_tariff)
             self._commit = price.index.max()
             self._data.loc[price.index, 'final_grid_consumption'] = self._request.loc[price.index].copy()
             self._data.loc[:, 'final_pv_consumption'] = self._data.loc[:, 'planned_pv_consumption'].copy()
