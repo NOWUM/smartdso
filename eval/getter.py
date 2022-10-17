@@ -142,17 +142,24 @@ def get_grid(scenario: str, iteration: int, sub_id=None, func='max'):
     data = pd.read_sql(query, ENGINE, index_col='time')
     return data
 
-def get_grid_avg_sub(scenario: str, iteration: int=None, func='max'):
-    '''average utilization through all sub grids'''
 
-    if iteration == None:
-        query = f"""select time, sub_id, avg(value) as util 
-                from grid_summary where scenario = '{scenario}' and type='{func}'
+def get_grid_util(scenario: str, iteration: int=None, func='max'):
+    """average utilization through all sub grids"""
+    if func == 'max':
+        name = func
+        func = name
+    else:
+        name = func
+        func = 'avg'
+
+    if iteration is None:
+        query = f"""select time, sub_id, {func}(value) as util 
+                from grid_summary where scenario = '{scenario}' and type='{name}'
                 group by sub_id, time order by time
                 """
     else:
-        query = f"""select time, sub_id, avg(value) as util_{iteration} from grid_summary 
-                where scenario = '{scenario}' and type='{func}' and iteration={iteration}
+        query = f"""select time, sub_id, {func}(value) as util_{iteration} from grid_summary 
+                where scenario = '{scenario}' and type='{name}' and iteration={iteration}
                 group by sub_id, time order by time
                 """
 
