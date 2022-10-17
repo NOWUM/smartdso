@@ -191,26 +191,34 @@ def get_max_power(scenario: str) -> float:
     data = pd.read_sql(query, ENGINE, index_col='id_')
     return float(data.sum()) # [kW]
 
-def get_gzf_count(scenario: str):
-    count = len(get_cars(scenario))
-    query = f"""select time, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
-            from electric_vehicle
-            where scenario = '{scenario}' group by time
+def get_gzf(scenario: str, typ='power', typ_tage = False):
+    if typ_tage:
+        typ_agg = "to_char(time, 'hh24:mi')"
+        q = f"select count(*) from (select distinct time from charging_summary where scenario = '{scenario}') a"
+        days = int(pd.read_sql(q, ENGINE)['count'])/96
+    else:
+        typ_agg = 'time'
+        days = 1
+
+    if typ =='power':
+        query = f"""
+            select {typ_agg} as interval, sum(final_grid + final_pv) as charging
+            from charging_summary where scenario = '{scenario}'
+            group by interval order by interval
             """
-    data = pd.read_sql(query, ENGINE, index_col='time')
-    return data/count
+    elif typ=='count':
+        query = f"""select {typ_agg} as interval, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
+            from electric_vehicle
+            where scenario = '{scenario}' group by interval order by interval
+            """
+    data = pd.read_sql(query, ENGINE, index_col='interval')
 
-def get_gzf_power(scenario: str):
-
-    max_power = get_max_power(scenario)
-    query = f"""
-        select time, iteration, sum(final_grid + final_pv) as charging
-        from charging_summary where scenario = '{scenario}'
-        group by time, iteration order by time
-        """
-    data = pd.read_sql(query, ENGINE, index_col='time')
-    data['gzf'] = data['charging']/max_power
-    return data
+    if typ =='power':
+        data['gzf'] = data['charging']/get_max_power(scenario)
+    else:
+        count = len(get_cars(scenario))
+        data = data/count
+    return data/days
 
 if __name__ == '__main__':
     sc = get_scenarios()
@@ -235,21 +243,28 @@ if __name__ == '__main__':
     for i in range(10):
         utilization = get_grid(scenario, iteration=i)
         overloaded_hours = len(utilization[utilization[f'util_{i}'] > 60])/4
-        print(overload_hours())
     utilization.plot()
     utilization2 = get_grid2(scenario, iteration=1)
 
     shifted = get_shifted(scenario)
 
-    gzf = get_gzf_power(scenario)
-    gzf_count = get_gzf_count(scenario)
+    gzf = get_gzf(scenario, typ='power')
+    gzf_count = get_gzf(scenario, typ='count')
     gzf['gzf'].plot()
     gzf_count['gzf'].plot()
+
+    # dauerlastkurve der auslastung:
+    kurve = gzf_count.sort_values('gzf')['gzf']
+    kurve.plot()
+
+    typ_gzf = get_gzf(scenario, typ='power', typ_tage=True)
+    typ_gzf_count = get_gzf(scenario, typ='count', typ_tage=True)
 
     grid = get_grid_avg_sub(scenario, func='mean')
     util = grid.mean(axis=1)
     charged = get_values('charging', scenario)
     import matplotlib.pyplot as plt
+    # TODO in plotly graph überführen
     plt.scatter(util, charged['charging'], label=scenario)
     plt.legend()
     plt.xlabel('mittlere Netzauslastung %')
