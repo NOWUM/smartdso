@@ -2,6 +2,8 @@ import pandas as pd
 import plotly.offline
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
+
 
 GRID_COLOR = 'rgba(0, 0, 0, 0.5)'
 LINE_LAYOUT = dict(color='rgb(204, 0, 0)')
@@ -174,6 +176,56 @@ def ev_plot(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figur
     fig.update_xaxes(showgrid=True,
                      gridwidth=0.1,
                      gridcolor='rgba(0, 0, 0, 0.5)')
+
+    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+
+    return fig
+
+
+def summary_table(data: pd.DataFrame):
+    fig = ff.create_table(data)
+    return fig
+
+
+def pv_synergy_plot(data: pd.DataFrame):
+    sub_grids = data['grid'].unique()
+    # -> crate figure with two sub plots
+    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]],
+                        shared_xaxes=True)
+
+    for grid in sub_grids:
+        utilization = data.loc[data['grid'] == grid]
+        utilization = utilization.sort_values(by='pv')
+        utilization =  utilization['utilization'].values
+        plt_data = dict(x=len(utilization) * [grid],
+                        y=utilization,
+                        line={'width': 1, "shape": 'hv'},
+                        showlegend=True,
+                        name=f"Grid: {grid}")
+        plt = go.Scatter(**plt_data)
+        fig.add_trace(plt)
+
+    # -> set axes titles
+    fig.update_yaxes(title_text="Utilization [%]",
+                     secondary_y=False,
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.5)',
+                     dtick=25,
+                     range=[0, 125],
+                     row=1, col=1)
+    fig.update_xaxes(title_text="Sub Grid Id",
+                     dtick=1, range=[0, 10.5],
+                     showgrid=True,
+                     gridwidth=0.1,
+                     gridcolor='rgba(0, 0, 0, 0.5)',
+                     row=1, col=1)
+
+    fig.add_annotation(x=5.7, y=87.5, showarrow=False, text=f'PV 25 %', row=1, col=1)
+    fig.add_annotation(x=5.7, y=85.2, showarrow=False, text=f'PV 50 %', row=1, col=1)
+    fig.add_annotation(x=5.7, y=78.0, showarrow=False, text=f'PV 80 %', row=1, col=1)
+    fig.add_annotation(x=5.7, y=69.6, showarrow=False, text=f'PV 100 %', row=1, col=1)
 
     fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
