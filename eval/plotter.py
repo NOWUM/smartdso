@@ -1,233 +1,205 @@
 import pandas as pd
-import plotly.offline
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
+from matplotlib import pyplot as plt
+import matplotlib
+import numpy as np
+from gridLib import model as gridModel
 
 
-GRID_COLOR = 'rgba(0, 0, 0, 0.5)'
-LINE_LAYOUT = dict(color='rgb(204, 0, 0)')
-FONT = dict(family="Verdana", size=8, color="black")
-FIGURE_LAYOUT = dict(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                     boxmode='group', boxgroupgap=0.005, boxgap=0.005, barmode='group',
-                     bargap=0.005)
+font = {'family': 'Times New Roman', 'style': 'italic', 'weight': 'medium', 'size': 8}
 
-COLORS = {'pv_generation': 'rgba(230,230,74,0.65)',
-          'availability': 'rgba(0,0,0,0.6)',
-          'market_price': 'rgba(255,0,0,0.7)',
-          'charging': 'rgba(255,0,0,0.7)',
-          'usage': 'rgba(0,0,0,0.6)',
-          'soc': 'rgba(20,35,90,1.0)',
-          'used_pv_generation': 'rgba(230,230,74,0.65)'
-          }
+matplotlib.rc('font', **font)
+
+cm = 1 / 2.54
 
 
-def get_overview(f: plotly.graph_objects.Figure, data: pd.DataFrame, row: int = 1) -> plotly.graph_objects.Figure:
-    for column in data.columns:
-        plt = go.Scatter(
-            x=data.index,
-            y=data.loc[:, column].values,
-            line={'color': COLORS[column], 'width': 1.5},
-            showlegend=True,
-            name=f"{column}"
-        )
-        if column == 'market_price':
-            f.add_trace(plt, row=row, col=1, secondary_y=False)
-        else:
-            f.add_trace(plt, row=row, col=1, secondary_y=True)
+class EvalPlotter:
 
-    return f
+    def __init__(self, width: float = 9.05, offset_days=1):
+        self.colors = {'pv_generation': (230 / 255, 230 / 255, 74 / 255, 0.65),
+                       'availability': (0, 0, 0, 0.6),
+                       'market_price': (255 / 255, 0, 0, 0.7),
+                       'charging': (255 / 255, 0, 0, 0.7),
+                       'usage': (0, 0, 0, 0.2),
+                       'soc': (20 / 255, 35 / 255, 90 / 255, 1.0),
+                       'used_pv_generation': (230 / 255, 230 / 255, 74 / 255, 0.65)
+                       }
+        self.pv_colors = {'PV25': (1, 204 / 255, 153 / 255),
+                          'PV50': (1, 102 / 255, 102 / 255),
+                          'PV100': (1, 1, 51 / 255),
+                          'PV80': (1, 0.5, 0 / 255)}
 
+        self.sub_colors = {0: (1, 0, 0), 1: (1, 0.5, 0), 2: (204 / 255, 204 / 255, 0),
+                           3: (0.5, 1, 0), 4: (0, 153 / 255, 0), 5: (51 / 255, 1, 153 / 255),
+                           6: (0, 1, 1), 7: (0, 0.5, 1), 8: (0, 0, 1),
+                           9: (0.5, 0.5, 0.5)}
 
-def get_ev(f: plotly.graph_objects.Figure, data: pd.DataFrame, row: int = 1) -> plotly.graph_objects.Figure:
-    # order is important for stacked and filled plots
-    for column in ['used_pv_generation', 'charging', 'soc', 'usage']:
-        plt_data = dict(x=data.index,
-                        y=data.loc[:, column].values,
-                        line={'color': COLORS[column], 'width': 1, "shape": 'hv'},
-                        showlegend=True if row <= 2 else False,
-                        name=f"{column}")
-        if column in ['charging', 'used_pv_generation']:
-            plt_data['fill'] = 'tonexty'
+        self._grid_model = gridModel.GridModel()
+        self._all_lines = gridModel.total_edges
+        self._all_nodes = gridModel.total_nodes
 
-        plt = go.Scatter(**plt_data)
+        self._width = width
+        self._offset = offset_days
+        self._s1 = 96 * self._offset
+        self._s2 = 96 * (self._offset + 7)
 
-        if column in ['charging', 'used_pv_generation']:
-            f.add_trace(plt, row=row, col=1, secondary_y=False)
-        else:
-            f.add_trace(plt, row=row, col=1, secondary_y=True)
+    def plot_charging_compare(self, data: dict):
+        plt_data = plt.subplots(len(data), 1, sharex='all', figsize=(self._width * cm, 1.5 * self._width * cm), dpi=300)
+        fig, plots = plt_data[0], plt_data[1:]
+        plot, sec_plot = None, None
+        for plot, values in zip(plots[0], data.items()):
+            scenario, val = values[0], values[1]
+            val = val.loc[val.index[self._s1:self._s2], :]
+            plot.set_ylabel('charging [kW]')
+            plot.plot(val.index, val['charging'].values, color=self.colors['charging'], linewidth=1)
+            plot.fill_between(val.index, val['used_pv_generation'].values,
+                              color=self.colors['used_pv_generation'], linewidth=0)
 
-    return f
+            sec_plot = plot.twinx()
+            sec_plot.set_ylabel('SoC / Usage [%]')
+            sec_plot.plot(val.index, val['soc'].values, color=self.colors['soc'], linewidth=1)
+            sec_plot.fill_between(val.index, val['usage'].values, color=self.colors['usage'], linewidth=0)
 
+            major_ticks = [val.index[i] for i in range(0, len(val.index), 3 * 96)]
+            minor_ticks = [val.index[i] for i in range(0, len(val.index), 1 * 96)]
+            plot.xaxis.set_ticks(major_ticks)
+            plot.xaxis.set_ticks(minor_ticks, minor=True)
+            plot.grid(True)
 
-def scenario_compare(data: dict, num_rows: int = 4) -> plotly.graph_objects.Figure:
-    # -> crate figure with two sub plots
-    fig = make_subplots(rows=num_rows, cols=1, specs=num_rows * [[{"secondary_y": True}]],
-                        shared_xaxes=True, subplot_titles=[*data.keys()])
+        if plot is not None and sec_plot is not None:
+            plot.set_xlabel('time')
+            plot.legend(['Total Charging', 'PV Charging'], loc=9, bbox_to_anchor=(0.5, -0.4),
+                        fancybox=True, ncol=2, frameon=False)
+            sec_plot.legend(['State of Charge', 'Car Usage'], loc=9, bbox_to_anchor=(0.5, -0.65),
+                            fancybox=True, ncol=2, frameon=False)
+        fig.tight_layout()
 
-    row_counter = 1
-    for key, d in data.items():
-        if key == 'overview':
-            fig = get_overview(fig, d, row_counter)
-        else:
-            fig = get_ev(fig, d, row_counter)
-        row_counter += 1
+        return fig
 
-    # -> set axes titles
+    def plot_pv_impact(self, data: dict):
+        fig, ax = plt.subplots(1, 1, sharex='all', figsize=(self._width * cm, self._width / 2 * cm), dpi=300)
 
-    # -> first y axes
-    fig.update_yaxes(title_text="Price [ct/kWh]",
-                     secondary_y=False,
-                     showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor=GRID_COLOR,
-                     dtick=5,
-                     range=[0, 30],
-                     row=1, col=1)
+        for name, val in data.items():
+            ax.plot(np.arange(len(val)) / len(val), val.values, color=self.pv_colors[name.split('-')[-2]])
+            ax.grid(True)
+            ax.set_ylabel('Utilization [%]')
+        ax.legend([*data.keys()], loc=1)
 
-    for row in range(2, num_rows + 1):
-        row_options = dict(secondary_y=False,
-                           showgrid=True,
-                           gridwidth=0.1,
-                           gridcolor=GRID_COLOR,
-                           dtick=5,
-                           range=[0, 20],
-                           row=row, col=1)
-        if row == num_rows - 1:
-            row_options['title_text'] = "Charging [kW]"
-        fig.update_yaxes(**row_options)
+        fig.tight_layout()
 
-    # -> second y axis
-    fig.update_yaxes(title_text="Availability [%]",
-                     secondary_y=True,
-                     dtick=25,
-                     range=[0, 101],
-                     row=1, col=1)
-    for row in range(2, num_rows + 1):
-        row_options = dict(secondary_y=True,
-                           showgrid=True,
-                           dtick=0.25,
-                           range=[0, 1],
-                           row=row, col=1)
-        if row == num_rows - 1:
-            row_options['title_text'] = "Usage / SoC [%]"
-        fig.update_yaxes(**row_options)
+        return fig
 
-    # -> single x axis
-    fig.update_xaxes(showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)')
+    def plot_pv_impact_grid_level(self, transformer_data: dict, line_data: dict):
+        fig, (ax_transformer, ax_line) = plt.subplots(2, 1, sharex='all',
+                                                      figsize=(self._width * cm, self._width * cm), dpi=300)
 
-    fig.update_annotations(font_size=8)
-    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+        grids = [*transformer_data.values()][0].columns
+        scenarios = len(transformer_data)
 
-    return fig
+        for grid in grids:
+            values = [df[grid].max() for df in transformer_data.values()]
+            values.sort()
+            ax_transformer.plot(scenarios * [grid], values, 'x', color=self.sub_colors[grid])
 
+            values = [df[grid].max() for df in line_data.values()]
+            values.sort()
+            ax_line.plot(scenarios * [grid], values, 'x', color=self.sub_colors[grid])
 
-def overview(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figure:
-    # -> crate figure with two sub plots
-    fig = make_subplots(rows=num_rows, cols=1, specs=[num_rows * [{"secondary_y": True}]],
-                        shared_xaxes=True)
+        ax_transformer.grid(True)
+        ax_line.grid(True)
+        ax_transformer.set_ylabel('Transformer Utilization [%]')
+        ax_line.set_ylabel('Line Utilization [%]')
+        ax_line.set_xlabel('Id')
 
-    fug = get_overview(fig, data, 1)
+        ax_transformer.set_ylim([30, 130])
+        ax_line.set_ylim([30, 130])
 
-    # -> set axes titles
-    fig.update_yaxes(title_text="Market Price [ct/kWh]",
-                     secondary_y=False,
-                     showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)',
-                     dtick=5,
-                     range=[0, 30],
-                     row=1, col=1)
-    fig.update_yaxes(title_text="Availability / PV Generation [%]",
-                     secondary_y=True, dtick=25, range=[0, 101],
-                     row=1, col=1)
-    fig.update_xaxes(showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)')
+        fig.tight_layout()
 
-    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+        return fig
 
-    return fig
+    def plot_grid(self):
+        fig, ax = plt.subplots(1, 1, sharex='all', figsize=(self._width * cm, self._width * cm), dpi=300)
 
+        self._all_lines['sub_grid'] = 0
+        self._all_nodes['sub_grid'] = 0
+        for name, network in self._grid_model.sub_networks.items():
+            m = network['model']
+            lines = m.lines.index
+            nodes = m.buses.index
+            self._all_lines.loc[lines, 'sub_grid'] = int(name)
+            self._all_nodes.loc[nodes, 'sub_grid'] = int(name)
 
-def ev_plot(data: pd.DataFrame, num_rows: int = 1) -> plotly.graph_objects.Figure:
-    # -> crate figure with two sub plots
-    fig = make_subplots(rows=num_rows, cols=1, specs=[num_rows * [{"secondary_y": True}]],
-                        shared_xaxes=True)
+        for grid in self._all_nodes['sub_grid'].unique():
+            nodes = self._all_nodes.loc[self._all_nodes['sub_grid'] == grid]
+            ax.scatter(nodes['lon'].values, nodes['lat'].values, color=self.sub_colors[grid], s=5)
+        for grid in self._all_nodes['sub_grid'].unique():
+            lines = self._all_lines.loc[self._all_lines['sub_grid'] == grid]
+            for idx, values in lines.iterrows():
+                ax.plot(eval(values.lon_coords), eval(values.lat_coords), color='black', linewidth=1)
 
-    fig = get_ev(fig, data, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
 
-    # -> set axes titles
-    fig.update_yaxes(title_text="Charging [kW]",
-                     secondary_y=False,
-                     showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)',
-                     dtick=5,
-                     range=[0, 11],
-                     row=1, col=1)
-    fig.update_yaxes(title_text="Usage / SoC [%]",
-                     secondary_y=True, dtick=0.25, range=[0, 1.01],
-                     row=1, col=1)
-    fig.update_xaxes(showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)')
+        ax.legend([f'Id: {g}' for g in self._all_nodes['sub_grid'].unique()],
+                  loc=4)
 
-    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+        fig.tight_layout()
 
-    return fig
+        return fig
 
+    def plot_utilization(self, data: dict, date_range: list):
 
-def summary_table(data: pd.DataFrame):
-    fig = ff.create_table(data)
-    return fig
+        plt_data = plt.subplots(len(data), 1, sharex='all', figsize=(self._width * cm, 1.5 * self._width * cm), dpi=300)
+        fig, plots = plt_data[0], plt_data[1:]
+        date_range = date_range[self._s1:self._s2]
+        for plot, values in zip(plots[0], data.items()):
+            scenario, val = values[0], values[1]
+            plot.set_ylabel('Utilization [%]')
+            x = date_range
+            y1 = val[0][self._s1:self._s2]
+            y2 = val[1][self._s1:self._s2]
+            plot.plot(x, y1, color=self.colors['soc'], linewidth=1)
+            plot.plot(x, y2, color=self.colors['soc'], linewidth=1)
+            plot.fill_between(x=x, y1=y1, y2=y2, color='grey', alpha=0.5, linewidth=0)
 
+            major_ticks = [date_range[i] for i in range(0, len(date_range), 3 * 96)]
+            minor_ticks = [date_range[i] for i in range(0, len(date_range), 1 * 96)]
+            plot.xaxis.set_ticks(major_ticks)
+            plot.xaxis.set_ticks(minor_ticks, minor=True)
+            plot.grid(True)
+            plot.set_ylim([0, 100])
 
-def pv_synergy_plot(data: pd.DataFrame):
-    sub_grids = data['grid'].unique()
-    # -> crate figure with two sub plots
-    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]],
-                        shared_xaxes=True)
+        fig.tight_layout()
 
-    for grid in sub_grids:
-        utilization = data.loc[data['grid'] == grid]
-        utilization = utilization.sort_values(by='pv')
-        utilization =  utilization['utilization'].values
-        plt_data = dict(x=len(utilization) * [grid],
-                        y=utilization,
-                        line={'width': 1, "shape": 'hv'},
-                        showlegend=True,
-                        name=f"Grid: {grid}")
-        plt = go.Scatter(**plt_data)
-        fig.add_trace(plt)
+        return fig
 
-    # -> set axes titles
-    fig.update_yaxes(title_text="Utilization [%]",
-                     secondary_y=False,
-                     showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)',
-                     dtick=25,
-                     range=[0, 125],
-                     row=1, col=1)
-    fig.update_xaxes(title_text="Sub Grid Id",
-                     dtick=1, range=[0, 10.5],
-                     showgrid=True,
-                     gridwidth=0.1,
-                     gridcolor='rgba(0, 0, 0, 0.5)',
-                     row=1, col=1)
+    def plot_overview(self, data: pd.DataFrame):
+        fig, ax = plt.subplots(1, 1, figsize=(self._width * cm, 0.5 * self._width * cm), dpi=300)
+        # data = data.resample('h').mean()
+        data = data.iloc[self._s1:self._s2, :]
+        data.loc[:, 'pv'] /= data['pv'].max()
+        data.loc[:, 'pv'] *= 100
 
-    fig.add_annotation(x=5.7, y=87.5, showarrow=False, text=f'PV 25 %', row=1, col=1)
-    fig.add_annotation(x=5.7, y=85.2, showarrow=False, text=f'PV 50 %', row=1, col=1)
-    fig.add_annotation(x=5.7, y=78.0, showarrow=False, text=f'PV 80 %', row=1, col=1)
-    fig.add_annotation(x=5.7, y=69.6, showarrow=False, text=f'PV 100 %', row=1, col=1)
+        ax.plot(data.index, data['price'].values,
+                color=self.colors['market_price'], linewidth=1)
 
-    fig.update_layout(font=FONT, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=1))
+        sec_ax = ax.twinx()
+        sec_ax.fill_between(x=data.index, y1=data['pv'].values,
+                            color=self.colors['used_pv_generation'], linewidth=1)
 
-    return fig
+        sec_ax.plot(data.index, data['availability'].values,
+                    color=self.colors['availability'], linewidth=1)
+
+        ax.set_xlabel('time')
+        ax.set_ylabel('Market Price [ct/kWh]')
+        sec_ax.set_ylabel('Availability / PV Feed-In [%]')
+
+        ax.grid(True)
+        major_ticks = [data.index[i] for i in range(0, len(data.index), 3 * 96)]
+        minor_ticks = [data.index[i] for i in range(0, len(data.index), 1 * 96)]
+        ax.xaxis.set_ticks(major_ticks)
+        ax.xaxis.set_ticks(minor_ticks, minor=True)
+
+        fig.tight_layout()
+
+        return fig
