@@ -6,9 +6,7 @@ from gridLib import model as gridModel
 
 
 font = {'family': 'Times New Roman', 'style': 'italic', 'weight': 'medium', 'size': 8}
-
 matplotlib.rc('font', **font)
-
 cm = 1 / 2.54
 
 
@@ -42,13 +40,18 @@ class EvalPlotter:
         self._s1 = 96 * self._offset
         self._s2 = 96 * (self._offset + 7)
 
-    def plot_charging_compare(self, data: dict):
+    def plot_charging_compare(self, data: dict, car_id: str):
+        _, pv, kwh = car_id.split('_')
+
         plt_data = plt.subplots(len(data), 1, sharex='all', figsize=(self._width * cm, 1.5 * self._width * cm), dpi=300)
         fig, plots = plt_data[0], plt_data[1:]
-        plot, sec_plot = None, None
+        plot, sec_plot = plots[0][0], None
+        fig.suptitle(f'Installed PV: {pv} kW, Battery Capacity: {kwh} kWh')
         for plot, values in zip(plots[0], data.items()):
             scenario, val = values[0], values[1]
             val = val.loc[val.index[self._s1:self._s2], :]
+            plot.set_title(scenario)
+            # plot.annotate(scenario, xy=(val.index[0], val['charging'].values.max() - 2))
             plot.set_ylabel('charging [kW]')
             plot.plot(val.index, val['charging'].values, color=self.colors['charging'], linewidth=1)
             plot.fill_between(val.index, val['used_pv_generation'].values,
@@ -76,33 +79,54 @@ class EvalPlotter:
         return fig
 
     def plot_pv_impact(self, data: dict):
-        fig, ax = plt.subplots(1, 1, sharex='all', figsize=(self._width * cm, self._width / 2 * cm), dpi=300)
+        fig, (ax, ax_zoom) = plt.subplots(1, 2, figsize=(self._width * cm, self._width / 2 * cm), dpi=300,
+                                          gridspec_kw={'width_ratios': [2, 1]})
 
+        num = len([*data.values()][0])
+        # TODO: fix legend, set colors, set marker size for 1 % Quantile value
         for name, val in data.items():
-            ax.plot(np.arange(len(val)) / len(val), val.values, color=self.pv_colors[name.split('-')[-2]])
+            ax.plot(np.arange(num) / num, val.values, linewidth=0.75)
+            ax.scatter([0.01], [val.values[:int(len(val)*0.01)][-1]])
             ax.grid(True)
             ax.set_ylabel('Utilization [%]')
-        ax.legend([*data.keys()], loc=1)
+            ax.set_xlabel('Number of Values [%]')
+        # TODO: add 1 % Quantile value
+        for name, val in data.items():
+            val = val[:int(len(val) * 0.2)]
+            ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75)
+            ax_zoom.grid(True)
+            ax_zoom.set_ylabel('Utilization [%]')
+            ax_zoom.set_xlabel('Number of Values [%]')
+
+        ax.legend([*data.keys()], loc=1, fontsize=6)
 
         fig.tight_layout()
 
         return fig
 
-    def plot_pv_impact_grid_level(self, transformer_data: dict, line_data: dict):
-        fig, (ax_transformer, ax_line) = plt.subplots(2, 1, sharex='all',
-                                                      figsize=(self._width * cm, self._width * cm), dpi=300)
+    def plot_pv_impact_grid_level(self, transformer_data: dict, line_data: dict, pv_ratio: dict):
+        fig, (ax_pv, ax_transformer, ax_line) = plt.subplots(3, 1, sharex='all', gridspec_kw={'height_ratios': [1, 3, 3]},
+                                                             figsize=(self._width * cm, self._width * cm), dpi=300)
 
         grids = [*transformer_data.values()][0].columns
         scenarios = len(transformer_data)
+        data = pd.DataFrame.from_dict(pv_ratio, orient='index').sort_index()
+        pv_ratio = data.values
+        ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 0] / pv_ratio[:, 1], linewidth=0.5, color='black')
+        ax_pv.grid(True)
+        ax_pv.set_title('Total PV [kW] / Number of Cars', fontsize=6)
 
         for grid in grids:
-            values = [df[grid].max() for df in transformer_data.values()]
-            values.sort()
-            ax_transformer.plot(scenarios * [grid], values, 'x', color=self.sub_colors[grid])
 
-            values = [df[grid].max() for df in line_data.values()]
-            values.sort()
-            ax_line.plot(scenarios * [grid], values, 'x', color=self.sub_colors[grid])
+            values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in transformer_data.values()]
+            pv = [float(sc.split('-')[-2].replace('PV', '')) for sc in transformer_data.keys()]
+            ax_transformer.scatter(scenarios * [grid], values, marker='x', color=self.sub_colors[grid],
+                                   alpha=[p/100 for p in pv], s=2)
+
+            values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in line_data.values()]
+            pv = [float(sc.split('-')[-2].replace('PV', '')) for sc in transformer_data.keys()]
+            ax_line.scatter(scenarios * [grid], values, marker='x', color=self.sub_colors[grid],
+                            alpha=[p/100 for p in pv], s=2)
 
         ax_transformer.grid(True)
         ax_line.grid(True)
@@ -110,8 +134,8 @@ class EvalPlotter:
         ax_line.set_ylabel('Line Utilization [%]')
         ax_line.set_xlabel('Id')
 
-        ax_transformer.set_ylim([30, 130])
-        ax_line.set_ylim([30, 130])
+        ax_transformer.set_ylim([20, 100])
+        ax_line.set_ylim([20, 100])
 
         fig.tight_layout()
 
@@ -147,19 +171,25 @@ class EvalPlotter:
 
         return fig
 
-    def plot_utilization(self, data: dict, date_range: list):
+    def plot_utilization(self, data: dict, date_range: list, sub_id: int = 5):
 
         plt_data = plt.subplots(len(data), 1, sharex='all', figsize=(self._width * cm, 1.5 * self._width * cm), dpi=300)
         fig, plots = plt_data[0], plt_data[1:]
         date_range = date_range[self._s1:self._s2]
+
+        fig.suptitle(f'Utilization Transformer Subgrid {sub_id}')
+
         for plot, values in zip(plots[0], data.items()):
             scenario, val = values[0], values[1]
+            plot.set_title(scenario)
             plot.set_ylabel('Utilization [%]')
             x = date_range
             y1 = val[0][self._s1:self._s2]
             y2 = val[1][self._s1:self._s2]
-            plot.plot(x, y1, color=self.colors['soc'], linewidth=1)
-            plot.plot(x, y2, color=self.colors['soc'], linewidth=1)
+            y_sim = val[2][self._s1:self._s2]
+            plot.plot(x, y1, color=self.colors['soc'], linewidth=0.5)
+            plot.plot(x, y2, color=self.colors['soc'], linewidth=0.5)
+            plot.plot(x, y_sim, color=self.colors['market_price'], linewidth=0.5)
             plot.fill_between(x=x, y1=y1, y2=y2, color='grey', alpha=0.5, linewidth=0)
 
             major_ticks = [date_range[i] for i in range(0, len(date_range), 3 * 96)]

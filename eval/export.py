@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from datetime import datetime
 
 from eval.plotter import EvalPlotter
 from eval.getter import EvalGetter
@@ -8,7 +9,7 @@ from eval.getter import EvalGetter
 plotter = EvalPlotter()
 getter = EvalGetter()
 
-base_scenarios = ['A-PlugInCap-PV25-PriceFlat', 'A-MaxPvCap-PV25-PriceFlat',
+base_scenarios = ['A-PlugInCap-PV80-PriceFlat', 'A-MaxPvCap-PV80-PriceFlat',
                   'A-MaxPvCap-PV80-PriceSpot', 'A-MaxPvSoc-PV80-PriceSpot']
 
 
@@ -31,38 +32,38 @@ def get_comparison(car_id: str = 'S2C122') -> (pd.DataFrame, dict):
         data.loc[idx, 'used_pv_generation'] = 0
         compare[sc] = data
 
-    return overview, compare
+    return overview, compare, car_id
 
 
-def get_pv_impact():
+def get_pv_impact(scenarios: list):
     impact = dict()
-    for sc in [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]:
+    for sc in scenarios:
         data = getter.get_all_utilization_values(sc)
         impact[sc] = data
 
     return impact
 
 
-def get_pv_impact_grid_level():
+def get_pv_impact_grid_level(scenarios: list):
     transformer_impact = dict()
     line_impact = dict()
-    for sc in [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]:
+    for sc in scenarios:
         transformer_impact[sc] = getter.get_aggregated_utilization_values(sc, func='max', asset='transformer')
         line_impact[sc] = getter.get_aggregated_utilization_values(sc, func='max', asset='line')
 
     return transformer_impact, line_impact
 
 
-def get_time_utilization(sub_grid: int = 5):
+def get_time_utilization(sub_id: int = 5):
     utilization = {}
     for sc in base_scenarios:
         values = []
         for iteration in range(10):
             val = getter.get_aggregated_utilization_values(scenario=sc, func='mean', asset='transformer',
                                                            iteration=iteration)
-            values.append(val[sub_grid].values)
+            values.append(val[sub_id].values)
         values = np.asarray(values)
-        utilization[sc] = (values.max(axis=0, initial=-np.inf), values.min(axis=0, initial=np.inf))
+        utilization[sc] = (values.max(axis=0, initial=-np.inf), values.min(axis=0, initial=np.inf), values[0, :])
 
     return utilization
 
@@ -177,21 +178,31 @@ def get_time_utilization(sub_grid: int = 5):
 
 
 if __name__ == "__main__":
-
-    summary, comparison = get_comparison()
-    fig = plotter.plot_overview(summary)
-    fig.savefig(r'./eval/plots/overview.png')
-    fig = plotter.plot_charging_compare(comparison)
-    fig.savefig(r'./eval/plots/charging_comparison.png')
-    pv_impact = get_pv_impact()
+    # summary, comparison, car_id = get_comparison()
+    # fig = plotter.plot_overview(summary)
+    # fig.savefig(r'./eval/plots/overview.png')
+    # fig = plotter.plot_charging_compare(comparison, car_id)
+    # fig.savefig(r'./eval/plots/charging_comparison.png')
+    # pv_impact = get_pv_impact(scenarios=base_scenarios)
+    # fig = plotter.plot_pv_impact(pv_impact)
+    # fig.savefig(r'./eval/plots/pv_impact_on_transformer_scenarios.png')
+    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
+    pv_impact = get_pv_impact(scenarios=base_scenarios)
     fig = plotter.plot_pv_impact(pv_impact)
-    fig.savefig(r'./eval/plots/pv_impact_on_transformer.png')
-    t_impact, l_impact = get_pv_impact_grid_level()
-    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact)
+    fig.savefig(r'./eval/plots/pv_impact_on_transformer_pv.png')
+
+    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
+    t_impact, l_impact = get_pv_impact_grid_level(scenarios=scenarios)
+    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
     fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
-    fig = plotter.plot_grid()
-    fig.savefig(r'./eval/plots/total_grid.png')
-    utilization = get_time_utilization()
-    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]))
+    t_impact, l_impact = get_pv_impact_grid_level(scenarios=base_scenarios)
+    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
+
+    # fig = plotter.plot_grid()
+    # fig.savefig(r'./eval/plots/total_grid.png')
+    sub_id = 5
+    utilization = get_time_utilization(sub_id=sub_id)
+    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
     fig.savefig(r'./eval/plots/utilization_comparison.png')
 

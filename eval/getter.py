@@ -1,7 +1,10 @@
 from sqlalchemy import create_engine, inspect
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import os
+from agents.capacity_provider import CapacityProvider
+from gridLib.model import total_consumers, total_nodes
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 
@@ -14,6 +17,16 @@ class EvalGetter:
         self._prices = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_dates=True)
         self._prices = self._prices.resample('15min').ffill()
         self._prices['price'] /= 10
+
+        self._cp = CapacityProvider(**dict(start_date=datetime(2022, 1, 1), end_date=datetime(2022, 1, 2),
+                                     scenario=None, iteration=None, T=96), write_geo=False)
+
+        self._total_consumers = total_consumers
+        grid_series = self._cp.mapper
+        self._total_consumers['sub_grid'] = [grid_series.loc[node] if node in grid_series.index else -1
+                                             for node in self._total_consumers['bus0'].values]
+        self._total_consumers['residents'] = self._total_consumers['jeb'].apply(lambda x: int(min(max(x / 1500, 1), 2)))
+        self._sub_grids = self._cp.mapper.unique()
 
         def get_scenarios():
             query = 'select distinct scenario from electric_vehicle ' \
@@ -34,10 +47,27 @@ class EvalGetter:
             data = pd.read_sql(query, self.engine)
             return list(data['time'])
 
+        def get_pv_capacity():
+
+            pv_capacities = {}
+            consumers = self._total_consumers.dropna()
+            for sub_id in self._sub_grids:
+                total_residents = consumers.loc[consumers['sub_grid'] == sub_id, 'residents'].sum()
+                total_pv = consumers.loc[consumers['sub_grid'] == sub_id, 'pv']
+                sum_capacity = 0
+                for pv in total_pv:
+                    l = eval(pv)
+                    for i in l:
+                        sum_capacity += i['pdc0']
+                pv_capacities[sub_id] = (sum_capacity, total_residents)
+
+            return pv_capacities
+
         self.tables = inspect(self.engine).get_table_names()
         self.scenarios = get_scenarios()
         self.cars = {sc: get_cars(sc) for sc in self.scenarios}
         self.time_ranges = {sc: get_time_range(sc) for sc in self.scenarios}
+        self.pv_capacities = get_pv_capacity()
 
     def get_all_utilization_values(self, scenario: str, asset: str = 'transformer'):
         table = 'grid_asset'
@@ -86,7 +116,7 @@ class EvalGetter:
 
         if iteration is None:
             query = f"""select time, sub_id, {func}(value) as util
-                    from grid_summary where scenario = '{scenario}' and type='{name}' and asset='{asset}' 
+                    from grid_summary where scenario = '{scenario}' and type='{name}' and asset='{asset}'  
                     group by sub_id, time order by time
                     """
         else:
@@ -99,6 +129,59 @@ class EvalGetter:
 
         return data.pivot(columns='sub_id', values='util')
 
+    def get_max_power(self, scenario: str) -> float:
+        query = f"select id_, max(final_charging) as max_power from electric_vehicle where scenario = '{scenario}' group by id_"
+        data = pd.read_sql(query, self.engine, index_col='id_')
+        return float(data.sum())  # [kW]
+
+    def get_gzf(self, scenario: str, typ: str = 'power', typ_tage: bool = False):
+        if typ_tage:
+            typ_agg = "to_char(time, 'hh24:mi')"
+            q = f"select count(*) from (select distinct time from charging_summary where scenario = '{scenario}') a"
+            days = int(pd.read_sql(q, self.engine)['count']) / 96
+        else:
+            typ_agg = 'time'
+            days = 1
+
+        if typ == 'power':
+            query = f"""
+                select {typ_agg} as interval, sum(final_grid + final_pv) as charging
+                from charging_summary where scenario = '{scenario}'
+                group by interval order by interval
+                """
+        else:   # typ == 'count':
+            query = f"""select {typ_agg} as interval, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
+                from electric_vehicle
+                where scenario = '{scenario}' group by interval order by interval
+                """
+        data = pd.read_sql(query, self.engine, index_col='interval')
+
+        if typ == 'power':
+            data['gzf'] = data['charging'] / self.get_max_power(scenario)
+        else:
+            count = len(self.cars[scenario])
+            data = data / count
+
+        return data / days
+
+    def get_typ_values(self, parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
+
+        if parameter == 'market_prices':
+            prices = self._prices.loc[date_range]
+            data = prices.groupby(prices.index.time)['price'].mean()
+            data.index = data.index.astype(str)
+            return data
+        elif parameter == 'charging':
+            insert = "avg(final_grid) + avg(final_pv) as charging "
+        else:
+            insert = f"avg({parameter}) as {parameter} "
+
+        query = f"select to_char(time, 'hh24:mi') as interval, {insert}" \
+                f"from charging_summary where scenario = '{scenario}' group by interval"
+
+        data = pd.read_sql(query, self.engine, index_col='interval')
+        return data
+
 
 # def get_auslastung(scenario: str, asset:str = 'line'):
 #     query = f"select time, avg(utilization), id_ from grid_asset where asset='{asset}' and scenario='{scenario}' group by time order by time desc limit 1"
@@ -106,23 +189,7 @@ class EvalGetter:
 #     return data
 #
 #
-# def get_typ_values(parameter: str, scenario: str, date_range: pd.DatetimeIndex = None):
-#
-#     if parameter == 'market_prices':
-#         prices = PRICES.loc[date_range]
-#         data = prices.groupby(prices.index.time)['price'].mean()
-#         data.index = data.index.astype(str)
-#         return data
-#     elif parameter == 'charging':
-#         insert = "avg(final_grid) + avg(final_pv) as charging "
-#     else:
-#         insert = f"avg({parameter}) as {parameter} "
-#
-#     query = f"select to_char(time, 'hh24:mi') as interval, {insert}" \
-#             f"from charging_summary where scenario = '{scenario}' group by interval"
-#
-#     data = pd.read_sql(query, ENGINE, index_col='interval')
-#     return data
+
 
 # def get_total_values(parameter: str, scenario: str):
 #     table = 'charging_summary'
@@ -159,56 +226,7 @@ class EvalGetter:
 #
 
 
-# def pv_capacity():
-#     total_alloc = pd.read_csv(fr'./gridLib/data/grid_allocations.csv', index_col=0)
-#     tc = total_alloc.dropna()
-#     tc = tc['pv']
-#     summ_pdc_alloc = 0
-#     for val in tc:
-#         l = eval(val)
-#         for i in l:
-#             summ_pdc_alloc += i['pdc0']
+
 #
-#     total_consumers = pd.read_csv(fr'./gridLib/data/export/dem/consumers.csv', index_col=0)
-#     tc = total_consumers.dropna()
-#     tc = tc['pv']
-#     summ_pdc_consumer = 0
-#     for val in tc:
-#         l = eval(val)
-#         for i in l:
-#             summ_pdc_consumer += i['pdc0']
-#     return summ_pdc_alloc, summ_pdc_consumer # [kWp]
+
 #
-# def get_max_power(scenario: str) -> float:
-#     query = f"select id_, max(final_charging) as max_power from electric_vehicle where scenario = '{scenario}' group by id_"
-#     data = pd.read_sql(query, ENGINE, index_col='id_')
-#     return float(data.sum()) # [kW]
-#
-# def get_gzf(scenario: str, typ='power', typ_tage = False):
-#     if typ_tage:
-#         typ_agg = "to_char(time, 'hh24:mi')"
-#         q = f"select count(*) from (select distinct time from charging_summary where scenario = '{scenario}') a"
-#         days = int(pd.read_sql(q, ENGINE)['count'])/96
-#     else:
-#         typ_agg = 'time'
-#         days = 1
-#
-#     if typ =='power':
-#         query = f"""
-#             select {typ_agg} as interval, sum(final_grid + final_pv) as charging
-#             from charging_summary where scenario = '{scenario}'
-#             group by interval order by interval
-#             """
-#     elif typ=='count':
-#         query = f"""select {typ_agg} as interval, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
-#             from electric_vehicle
-#             where scenario = '{scenario}' group by interval order by interval
-#             """
-#     data = pd.read_sql(query, ENGINE, index_col='interval')
-#
-#     if typ =='power':
-#         data['gzf'] = data['charging']/get_max_power(scenario)
-#     else:
-#         count = len(get_cars(scenario))
-#         data = data/count
-#     return data/days
