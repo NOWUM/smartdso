@@ -40,6 +40,7 @@ class GridModel:
         # -> build grid data
         grid_data = {'nodes': total_nodes, 'transformers': total_transformers, 'edges': total_edges,
                      'consumers': total_consumers}
+        # -> used by a least one consumer
         grid_data['connected'] = grid_data['nodes'].loc[grid_data['nodes'].index.isin(grid_data['consumers']['bus0'])]
         grid_data['voltage_ids'] = grid_data['connected']['voltage_id'].unique()
         self.data = grid_data.copy()
