@@ -26,7 +26,7 @@ def get_coord(x_, y_):
     return transformer.transform(y_, x_)
 
 
-def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_4.dxf'):
+def read_file(path: str = r'./gridLib/data/import/alliander/Porselen_Daten_5.dxf'):
     try:
         doc = ezdxf.readfile(path)
     except IOError:
