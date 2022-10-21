@@ -83,22 +83,29 @@ class EvalPlotter:
                                           gridspec_kw={'width_ratios': [2, 1]})
 
         num = len([*data.values()][0])
-        # TODO: fix legend, set colors, set marker size for 1 % Quantile value
+        # drawing the same order per plot, the colors are the same in both plots
         for name, val in data.items():
             ax.plot(np.arange(num) / num, val.values, linewidth=0.75)
-            ax.scatter([0.01], [val.values[:int(len(val)*0.01)][-1]])
-            ax.grid(True)
-            ax.set_ylabel('Utilization [%]')
-            ax.set_xlabel('Number of Values [%]')
-        # TODO: add 1 % Quantile value
-        for name, val in data.items():
             val = val[:int(len(val) * 0.2)]
             ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75)
-            ax_zoom.grid(True)
-            ax_zoom.set_ylabel('Utilization [%]')
-            ax_zoom.set_xlabel('Number of Values [%]')
 
-        ax.legend([*data.keys()], loc=1, fontsize=6)
+        # add scatters afterwards so that they don't appear in first 4 items of legend
+        for name, val in data.items():
+            p99_quantile = [val.values[:int(len(val)*0.01)][-1]]
+            ax_zoom.scatter([0.01], p99_quantile, s=2, marker='x')
+            ax.scatter([0.01], p99_quantile, s=2, marker='x')
+        
+        ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+        ax.grid(which='both', linewidth=0.5)
+        ax.set_ylabel('Utilization [%]')
+        ax.set_xlabel('Number of Values [%]')
+        ax_zoom.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+        ax_zoom.grid(which='both', linewidth=0.5)
+        ax_zoom.set_ylabel('Utilization [%]')
+        ax_zoom.set_xlabel('Number of Values [%]')
+        ax.tick_params(which='minor', length=10)
+        # legend prints only first 4 lines
+        fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.3), loc='lower center', fontsize=6)
 
         fig.tight_layout()
 

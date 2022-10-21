@@ -67,6 +67,37 @@ def get_time_utilization(sub_id: int = 5):
 
     return utilization
 
+if __name__ == "__main__":
+    # summary, comparison, car_id = get_comparison()
+    # fig = plotter.plot_overview(summary)
+    # fig.savefig(r'./eval/plots/overview.png')
+    # fig = plotter.plot_charging_compare(comparison, car_id)
+    # fig.savefig(r'./eval/plots/charging_comparison.png')
+    # pv_impact = get_pv_impact(scenarios=base_scenarios)
+    # fig = plotter.plot_pv_impact(pv_impact)
+    # fig.savefig(r'./eval/plots/pv_impact_on_transformer_scenarios.png')
+    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
+    pv_impact = get_pv_impact(scenarios=base_scenarios)
+    fig = plotter.plot_pv_impact(pv_impact)
+    fig.savefig(r'./eval/plots/pv_impact_on_transformer_pv.png', bbox_inches = "tight")
+    # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
+
+    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
+    t_impact, l_impact = get_pv_impact_grid_level(scenarios=scenarios)
+    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
+    t_impact, l_impact = get_pv_impact_grid_level(scenarios=base_scenarios)
+    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
+
+    # fig = plotter.plot_grid()
+    # fig.savefig(r'./eval/plots/total_grid.png')
+    sub_id = 5
+    utilization = get_time_utilization(sub_id=sub_id)
+    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
+    fig.savefig(r'./eval/plots/utilization_comparison.png')
+
+
 
 #
 # def export_summary_table() -> pd.DataFrame:
@@ -175,34 +206,3 @@ def get_time_utilization(sub_id: int = 5):
 #     plt.show()
 #
 #     return result
-
-
-if __name__ == "__main__":
-    # summary, comparison, car_id = get_comparison()
-    # fig = plotter.plot_overview(summary)
-    # fig.savefig(r'./eval/plots/overview.png')
-    # fig = plotter.plot_charging_compare(comparison, car_id)
-    # fig.savefig(r'./eval/plots/charging_comparison.png')
-    # pv_impact = get_pv_impact(scenarios=base_scenarios)
-    # fig = plotter.plot_pv_impact(pv_impact)
-    # fig.savefig(r'./eval/plots/pv_impact_on_transformer_scenarios.png')
-    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
-    pv_impact = get_pv_impact(scenarios=base_scenarios)
-    fig = plotter.plot_pv_impact(pv_impact)
-    fig.savefig(r'./eval/plots/pv_impact_on_transformer_pv.png')
-
-    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
-    t_impact, l_impact = get_pv_impact_grid_level(scenarios=scenarios)
-    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
-    fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
-    t_impact, l_impact = get_pv_impact_grid_level(scenarios=base_scenarios)
-    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
-    fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
-
-    # fig = plotter.plot_grid()
-    # fig.savefig(r'./eval/plots/total_grid.png')
-    sub_id = 5
-    utilization = get_time_utilization(sub_id=sub_id)
-    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
-    fig.savefig(r'./eval/plots/utilization_comparison.png')
-
