@@ -32,6 +32,12 @@ class EvalGetter:
         self._benefit_functions += 0.15
         self._benefit_functions *= 100
 
+        def get_grid_fee(util):
+            if util >= 100:
+                return 100
+            else:
+                return min(((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100, 100)
+
         def get_scenarios():
             query = 'select distinct scenario from electric_vehicle ' \
                     'where time=(select time from electric_vehicle order by time limit 1) ' \
@@ -72,6 +78,8 @@ class EvalGetter:
         self.cars = {sc: get_cars(sc) for sc in self.scenarios}
         self.time_ranges = {sc: get_time_range(sc) for sc in self.scenarios}
         self.pv_capacities = get_pv_capacity()
+
+        self._grid_fee = {x: get_grid_fee(x) for x in range(120)}
 
     def get_all_utilization_values(self, scenario: str, asset: str = 'transformer'):
         table = 'grid_asset'
@@ -188,6 +196,9 @@ class EvalGetter:
 
     def get_benefit_functions(self):
         return self._benefit_functions
+
+    def get_grid_fee(self):
+        return self._grid_fee
 
 # def get_auslastung(scenario: str, asset:str = 'line'):
 #     query = f"select time, avg(utilization), id_ from grid_asset where asset='{asset}' and scenario='{scenario}' group by time order by time desc limit 1"

@@ -258,3 +258,27 @@ class EvalPlotter:
         fig.tight_layout()
 
         return fig
+
+    def plot_benefit_function(self, data: pd.DataFrame):
+        fig, ax = plt.subplots(1, 1, figsize=(self._width * cm, self._width * cm), dpi=300)
+        ax.grid(True)
+        ax.set_xlabel('SoC [%]')
+        ax.set_ylabel('Price [ct/kWh]')
+        for col in data.columns:
+            ax.plot(data.index.values, data[col].values, linewidth=0.75)
+
+        fig.tight_layout()
+
+        return fig
+
+    def plot_grid_fee_function(self, data: dict):
+        fig, ax = plt.subplots(1, 1, figsize=(self._width * cm, 0.5 * self._width * cm), dpi=300)
+        ax.grid(True)
+        ax.set_xlabel('Utilization [%]')
+        ax.set_ylabel('Price [ct/kWh]')
+        util = [*data.keys()]
+        price = [*data.values()]
+        ax.plot(util, price, linewidth=0.75)
+        fig.tight_layout()
+
+        return fig

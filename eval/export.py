@@ -95,6 +95,12 @@ if __name__ == "__main__":
         _, y_values = smooth_function(x_values, y_values)
         new_y_values[col] = y_values
     benefit_functions = pd.DataFrame(new_y_values)
+    fig = plotter.plot_benefit_function(benefit_functions)
+    fig.savefig(r'./eval/plots/benefit_functions.png')
+
+    grid_fee = getter.get_grid_fee()
+    fig = plotter.plot_grid_fee_function(grid_fee)
+    fig.savefig(r'./eval/plots/grid_fee_function.png')
 
     # summary, comparison, car_id = get_comparison()
     # fig = plotter.plot_overview(summary)
