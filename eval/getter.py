@@ -19,7 +19,7 @@ class EvalGetter:
         self._prices['price'] /= 10
 
         self._cp = CapacityProvider(**dict(start_date=datetime(2022, 1, 1), end_date=datetime(2022, 1, 2),
-                                     scenario=None, iteration=None, T=96), write_geo=False)
+                                           scenario=None, iteration=None, T=96), write_geo=False)
 
         self._total_consumers = total_consumers
         grid_series = self._cp.mapper
@@ -27,6 +27,16 @@ class EvalGetter:
                                              for node in self._total_consumers['bus0'].values]
         self._total_consumers['residents'] = self._total_consumers['jeb'].apply(lambda x: int(min(max(x / 1500, 1), 2)))
         self._sub_grids = self._cp.mapper.unique()
+
+        self._benefit_functions = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
+        self._benefit_functions += 0.15
+        self._benefit_functions *= 100
+
+        def get_grid_fee(util):
+            if util >= 100:
+                return 100
+            else:
+                return min(((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100, 100)
 
         def get_scenarios():
             query = 'select distinct scenario from electric_vehicle ' \
@@ -68,6 +78,8 @@ class EvalGetter:
         self.cars = {sc: get_cars(sc) for sc in self.scenarios}
         self.time_ranges = {sc: get_time_range(sc) for sc in self.scenarios}
         self.pv_capacities = get_pv_capacity()
+
+        self._grid_fee = {x: get_grid_fee(x) for x in range(120)}
 
     def get_all_utilization_values(self, scenario: str, asset: str = 'transformer'):
         table = 'grid_asset'
@@ -149,7 +161,7 @@ class EvalGetter:
                 from charging_summary where scenario = '{scenario}'
                 group by interval order by interval
                 """
-        else:   # typ == 'count':
+        else:  # typ == 'count':
             query = f"""select {typ_agg} as interval, count(CASE WHEN final_charging > 0 THEN 1 END) as gzf
                 from electric_vehicle
                 where scenario = '{scenario}' group by interval order by interval
@@ -182,6 +194,11 @@ class EvalGetter:
         data = pd.read_sql(query, self.engine, index_col='interval')
         return data
 
+    def get_benefit_functions(self):
+        return self._benefit_functions
+
+    def get_grid_fee(self):
+        return self._grid_fee
 
 # def get_auslastung(scenario: str, asset:str = 'line'):
 #     query = f"select time, avg(utilization), id_ from grid_asset where asset='{asset}' and scenario='{scenario}' group by time order by time desc limit 1"
@@ -224,7 +241,6 @@ class EvalGetter:
 #     return data
 #
 #
-
 
 
 #

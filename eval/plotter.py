@@ -50,8 +50,7 @@ class EvalPlotter:
         for plot, values in zip(plots[0], data.items()):
             scenario, val = values[0], values[1]
             val = val.loc[val.index[self._s1:self._s2], :]
-            plot.set_title(scenario)
-            # plot.annotate(scenario, xy=(val.index[0], val['charging'].values.max() - 2))
+            plot.set_title(scenario, fontsize=6)
             plot.set_ylabel('charging [kW]')
             plot.plot(val.index, val['charging'].values, color=self.colors['charging'], linewidth=1)
             plot.fill_between(val.index, val['used_pv_generation'].values,
@@ -78,22 +77,33 @@ class EvalPlotter:
 
         return fig
 
-    def plot_pv_impact(self, data: dict):
+    def plot_impact(self, data: dict, pv_colors: bool = False):
         fig, (ax, ax_zoom) = plt.subplots(1, 2, figsize=(self._width * cm, self._width / 2 * cm), dpi=300,
                                           gridspec_kw={'width_ratios': [2, 1]})
 
         num = len([*data.values()][0])
         # drawing the same order per plot, the colors are the same in both plots
         for name, val in data.items():
-            ax.plot(np.arange(num) / num, val.values, linewidth=0.75)
-            val = val[:int(len(val) * 0.2)]
-            ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75)
+            if pv_colors:
+                pv = name.split(' ')[-1]
+                ax.plot(np.arange(num) / num, val.values, linewidth=0.75, color=self.pv_colors[pv])
+                val = val[:int(len(val) * 0.2)]
+                ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75, color=self.pv_colors[pv])
+            else:
+                ax.plot(np.arange(num) / num, val.values, linewidth=0.75)
+                val = val[:int(len(val) * 0.2)]
+                ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75)
 
         # add scatters afterwards so that they don't appear in first 4 items of legend
         for name, val in data.items():
             p99_quantile = [val.values[:int(len(val)*0.01)][-1]]
-            ax_zoom.scatter([0.01], p99_quantile, marker='x')
-            ax.scatter([0.01], p99_quantile, marker='x')
+            if pv_colors:
+                pv = name.split(' ')[-1]
+                ax_zoom.scatter([0.01], p99_quantile, marker='x', color=self.pv_colors[pv])
+                ax.scatter([0.01], p99_quantile, marker='x', color=self.pv_colors[pv])
+            else:
+                ax_zoom.scatter([0.01], p99_quantile, marker='x')
+                ax.scatter([0.01], p99_quantile, marker='x')
         
         ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
         ax.grid(which='both', linewidth=0.5)
@@ -105,8 +115,8 @@ class EvalPlotter:
         ax_zoom.set_xlabel('Number of Values [%]')
         ax.tick_params(which='minor', length=10)
         # legend prints only first 4 lines
-        fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.3), 
-                loc='lower center', fontsize=6, frameon=False)
+        fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.3), loc='lower center', fontsize=6,
+                   fancybox=True, ncol=2, frameon=False)
 
         fig.tight_layout()
 
@@ -121,7 +131,8 @@ class EvalPlotter:
 
         grids = [*transformer_data.values()][0].columns
         scenarios = len(transformer_data)
-        
+        data = pd.DataFrame.from_dict(pv_ratio, orient='index').sort_index()
+        pv_ratio = data.values
         ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 0] / pv_ratio[:, 1], linewidth=0.5, color='black')
         ax_pv.grid(True)
         ax_pv.set_title('Total PV [kW] / Number of Cars', fontsize=6)
@@ -132,7 +143,7 @@ class EvalPlotter:
 
             trans_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in transformer_data.values()]
             line_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in line_data.values()]
-            pv = [float(sc.split('-')[-2].replace('PV', '')) for sc in transformer_data.keys()]
+            pv = [float(sc.split(' ')[-1].replace('PV', '')) for sc in transformer_data.keys()]
             scenario_keys = list(transformer_data.keys())
             for i in range(len(line_data)):
                 ax_transformer.scatter(grid, trans_values[i], marker=marker[i], color=self.sub_colors[grid],
@@ -195,7 +206,7 @@ class EvalPlotter:
 
         for plot, values in zip(plots[0], data.items()):
             scenario, val = values[0], values[1]
-            plot.set_title(scenario)
+            plot.set_title(scenario, fontsize=6)
             plot.set_ylabel('Utilization [%]')
             x = date_range
             y1 = val[0][self._s1:self._s2]
@@ -244,6 +255,30 @@ class EvalPlotter:
         ax.xaxis.set_ticks(major_ticks)
         ax.xaxis.set_ticks(minor_ticks, minor=True)
 
+        fig.tight_layout()
+
+        return fig
+
+    def plot_benefit_function(self, data: pd.DataFrame):
+        fig, ax = plt.subplots(1, 1, figsize=(self._width * cm, self._width * cm), dpi=300)
+        ax.grid(True)
+        ax.set_xlabel('SoC [%]')
+        ax.set_ylabel('Price [ct/kWh]')
+        for col in data.columns:
+            ax.plot(data.index.values, data[col].values, linewidth=0.75)
+
+        fig.tight_layout()
+
+        return fig
+
+    def plot_grid_fee_function(self, data: dict):
+        fig, ax = plt.subplots(1, 1, figsize=(self._width * cm, 0.5 * self._width * cm), dpi=300)
+        ax.grid(True)
+        ax.set_xlabel('Utilization [%]')
+        ax.set_ylabel('Price [ct/kWh]')
+        util = [*data.keys()]
+        price = [*data.values()]
+        ax.plot(util, price, linewidth=0.75)
         fig.tight_layout()
 
         return fig

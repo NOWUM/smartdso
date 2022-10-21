@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-from datetime import datetime
+from scipy.interpolate import BSpline, make_interp_spline
 
 from eval.plotter import EvalPlotter
 from eval.getter import EvalGetter
@@ -11,6 +10,26 @@ getter = EvalGetter()
 
 base_scenarios = ['A-PlugInCap-PV80-PriceFlat', 'A-MaxPvCap-PV80-PriceFlat',
                   'A-MaxPvCap-PV80-PriceSpot', 'A-MaxPvSoc-PV80-PriceSpot']
+pv_scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
+
+
+def get_case(scenario: str):
+    pv = scenario.split('-')[-2]
+    if 'PlugInCap' in scenario:
+        return f'Base Case {pv}'
+    elif ('MaxPvCap' in scenario) and ('PriceFlat' in scenario):
+        return f'Case A {pv}'
+    elif ('MaxPvCap' in scenario) and ('PriceSpot' in scenario):
+        return f'Case B {pv}'
+    elif ('MaxPvSoc' in scenario) and ('PriceSpot' in scenario):
+        return f'Case C {pv}'
+
+
+def smooth_function(x: np.array, y: np.array):
+    new_x = np.linspace(x.min(), x.max(), 100)
+    spl = make_interp_spline(x, y, k=3)
+    new_y = spl(new_x)
+    return new_x, new_y
 
 
 def get_comparison(car_id: str = 'S2C122') -> (pd.DataFrame, dict):
@@ -35,21 +54,16 @@ def get_comparison(car_id: str = 'S2C122') -> (pd.DataFrame, dict):
     return overview, compare, car_id
 
 
-def get_pv_impact(scenarios: list):
-    impact = dict()
-    for sc in scenarios:
-        data = getter.get_all_utilization_values(sc)
-        impact[sc] = data
-
+def get_impact(scenarios: list):
+    impact = {sc: getter.get_all_utilization_values(sc) for sc in scenarios}
     return impact
 
 
-def get_pv_impact_grid_level(scenarios: list):
-    transformer_impact = dict()
-    line_impact = dict()
-    for sc in scenarios:
-        transformer_impact[sc] = getter.get_aggregated_utilization_values(sc, func='max', asset='transformer')
-        line_impact[sc] = getter.get_aggregated_utilization_values(sc, func='max', asset='line')
+def get_impact_grid_level(scenarios: list):
+    transformer_impact = {sc: getter.get_aggregated_utilization_values(sc, func='max', asset='transformer')
+                          for sc in scenarios}
+    line_impact = {sc: getter.get_aggregated_utilization_values(sc, func='max', asset='line')
+                   for sc in scenarios}
 
     return transformer_impact, line_impact
 
@@ -67,37 +81,65 @@ def get_time_utilization(sub_id: int = 5):
 
     return utilization
 
+
 if __name__ == "__main__":
+
+    benefit_functions = getter.get_benefit_functions()
+    x_values = benefit_functions.index.values
+    idx = [x in [0, 15, 40, 80, 100] for x in x_values]
+    x_values = x_values[idx]
+    new_y_values = {}
+    for col in benefit_functions.columns:
+        y_values = benefit_functions[col].values
+        y_values = y_values[idx]
+        _, y_values = smooth_function(x_values, y_values)
+        new_y_values[col] = y_values
+    benefit_functions = pd.DataFrame(new_y_values)
+    fig = plotter.plot_benefit_function(benefit_functions)
+    fig.savefig(r'./eval/plots/benefit_functions.png')
+
+    grid_fee = getter.get_grid_fee()
+    fig = plotter.plot_grid_fee_function(grid_fee)
+    fig.savefig(r'./eval/plots/grid_fee_function.png')
+
     # summary, comparison, car_id = get_comparison()
     # fig = plotter.plot_overview(summary)
     # fig.savefig(r'./eval/plots/overview.png')
+    # comparison = {get_case(sc): val for sc, val in comparison.items()}
     # fig = plotter.plot_charging_compare(comparison, car_id)
     # fig.savefig(r'./eval/plots/charging_comparison.png')
-    # pv_impact = get_pv_impact(scenarios=base_scenarios)
-    # fig = plotter.plot_pv_impact(pv_impact)
-    # fig.savefig(r'./eval/plots/pv_impact_on_transformer_scenarios.png')
-    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
-    pv_impact = get_pv_impact(scenarios=base_scenarios)
-    fig = plotter.plot_pv_impact(pv_impact)
-    fig.savefig(r'./eval/plots/pv_impact_on_transformer_pv.png', bbox_inches = "tight")
-    # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
-
-    scenarios = [scenario for scenario in getter.scenarios if ('MaxPvCap' in scenario) and ('Flat' in scenario)]
-    t_impact, l_impact = get_pv_impact_grid_level(scenarios=scenarios)
-    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
-    fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
-    t_impact, l_impact = get_pv_impact_grid_level(scenarios=base_scenarios)
-    fig = plotter.plot_pv_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
-    fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
-
-    # fig = plotter.plot_grid()
-    # fig.savefig(r'./eval/plots/total_grid.png')
-    sub_id = 5
-    utilization = get_time_utilization(sub_id=sub_id)
-    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
-    fig.savefig(r'./eval/plots/utilization_comparison.png')
-
-
+    #
+    # strategy_impact = get_impact(scenarios=base_scenarios)
+    # strategy_impact = {get_case(sc): val for sc, val in strategy_impact.items()}
+    # fig = plotter.plot_impact(strategy_impact)
+    # # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
+    # fig.savefig(r'./eval/plots/strategy_impact_on_transformer_pv.png', bbox_inches="tight")
+    #
+    # pv_impact = get_impact(scenarios=pv_scenarios)
+    # pv_impact = {get_case(sc): val for sc, val in pv_impact.items()}
+    # fig = plotter.plot_impact(pv_impact, pv_colors=True)
+    # # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
+    # fig.savefig(r'./eval/plots/pv_impact_on_transformer.png', bbox_inches="tight")
+    #
+    # t_impact, l_impact = get_impact_grid_level(scenarios=pv_scenarios)
+    # t_impact = {get_case(sc): val for sc, val in t_impact.items()}
+    # l_impact = {get_case(sc): val for sc, val in l_impact.items()}
+    # fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    # fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
+    #
+    # t_impact, l_impact = get_impact_grid_level(scenarios=base_scenarios)
+    # t_impact = {get_case(sc): val for sc, val in t_impact.items()}
+    # l_impact = {get_case(sc): val for sc, val in l_impact.items()}
+    # fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities, annotate_name=True)
+    # fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
+    #
+    # # fig = plotter.plot_grid()
+    # # fig.savefig(r'./eval/plots/total_grid.png')
+    # sub_id = 5
+    # utilization = get_time_utilization(sub_id=sub_id)
+    # utilization = {get_case(sc): val for sc, val in utilization.items()}
+    # fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
+    # fig.savefig(r'./eval/plots/utilization_comparison.png')
 
 #
 # def export_summary_table() -> pd.DataFrame:
