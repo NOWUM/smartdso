@@ -64,7 +64,7 @@ def get_impact_grid_level(scenarios: list):
                           for sc in scenarios}
 
     total_charged = {sc: getter.get_total_charged_per_grid(sc)
-                          for sc in scenarios}
+                     for sc in scenarios}
     return transformer_impact, total_charged
 
 
@@ -83,11 +83,11 @@ def get_time_utilization(sub_id: int = 5):
 
 
 def get_economic_table(scenarios: list):
-
     table = pd.DataFrame(columns=scenarios,
-                             index=['total charging [MWh]', 'grid charging [%]', 'pv charging [%]', 'shifted charging [%]',
-                                    'cost [€/kWh]', 'market [%]', 'grid [%]',
-                                    'mean grid fee [€/kWh]', 'mean utilization [%]', '95 % quantile', 'mean > 95 % quantile'])
+                         index=['total charging [MWh]', 'grid charging [%]', 'pv charging [%]', 'shifted charging [%]',
+                                'cost [€/kWh]', 'market [%]', 'grid [%]',
+                                'mean grid fee [€/kWh]', 'mean utilization [%]', '95 % quantile',
+                                'mean > 95 % quantile'])
 
     for sc in scenarios:
 
@@ -103,7 +103,7 @@ def get_economic_table(scenarios: list):
         pv_kwh = (final_pv_ts.values * 0.25)
         total_charged_kwh = charged_kwh + pv_kwh
 
-        shifted = 100 * np.abs(charged_kwh-initial_kwh).sum() / initial_kwh.sum()
+        shifted = 100 * np.abs(charged_kwh - initial_kwh).sum() / initial_kwh.sum()
 
         table.at['total charging [MWh]', sc] = round(total_charged_kwh.sum() / 1e3, 2)
         table.at['grid charging [%]', sc] = round(100 * charged_kwh.sum() / total_charged_kwh.sum(), 0)
