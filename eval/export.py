@@ -82,7 +82,67 @@ def get_time_utilization(sub_id: int = 5):
     return utilization
 
 
+def get_economic_table(scenarios: list):
+
+    table = pd.DataFrame(columns=scenarios,
+                             index=['total charging [MWh]', 'grid charging [%]', 'pv charging [%]', 'shifted charging [%]',
+                                    'cost [€/kWh]', 'market [%]', 'grid [%]',
+                                    'mean grid fee [€/kWh]', 'mean utilization [%]', '95 % quantile', 'mean > 95 % quantile'])
+
+    for sc in scenarios:
+
+        initial_grid_ts = getter.get_mean_values(parameter='initial_grid', scenario=sc)
+        initial_grid_ts = initial_grid_ts.mean(axis=1)
+        final_grid_ts = getter.get_mean_values(parameter='final_grid', scenario=sc)
+        final_grid_ts = final_grid_ts.mean(axis=1)
+        final_pv_ts = getter.get_mean_values(parameter='final_pv', scenario=sc)
+        final_pv_ts = final_pv_ts.mean(axis=1)
+
+        initial_kwh = (initial_grid_ts.values * 0.25)
+        charged_kwh = (final_grid_ts.values * 0.25)
+        pv_kwh = (final_pv_ts.values * 0.25)
+        total_charged_kwh = charged_kwh + pv_kwh
+
+        shifted = 100 * np.abs(charged_kwh-initial_kwh).sum() / initial_kwh.sum()
+
+        table.at['total charging [MWh]', sc] = round(total_charged_kwh.sum() / 1e3, 2)
+        table.at['grid charging [%]', sc] = round(100 * charged_kwh.sum() / total_charged_kwh.sum(), 0)
+        table.at['pv charging [%]', sc] = round(100 * pv_kwh.sum() / total_charged_kwh.sum(), 0)
+        table.at['shifted charging [%]', sc] = round(shifted, 1)
+
+        sim_range = getter.time_ranges.get(getter.scenarios[0])
+
+        market_prices = getter.get_mean_values(parameter='market_prices', scenario=sc, date_range=sim_range)
+        market_prices = market_prices.values.flatten()
+        if 'Flat' in sc:
+            market_cost = (charged_kwh * market_prices.mean() / 100).sum()
+        else:
+            market_cost = (charged_kwh * market_prices / 100).sum()
+
+        grid_fee = getter.get_mean_values(parameter='grid_fee', scenario=sc)
+        grid_fee_mean = grid_fee.mean(axis=1)
+        grid_cost = (charged_kwh * grid_fee_mean.values / 100).sum()
+        total_cost = market_cost + grid_cost
+        table.at['cost [€/kWh]', sc] = round(total_cost / total_charged_kwh.sum(), 3)
+        grid_utilization = getter.get_all_utilization_values(scenario=sc)
+        table.at['market [%]', sc] = round(100 * market_cost / total_cost, 2)
+        table.at['grid [%]', sc] = round(100 * grid_cost / total_cost, 2)
+        table.at['mean grid fee [€/kWh]', sc] = round(grid_fee.values.mean() / 100, 3)
+        mean_utilization = grid_utilization.values.mean()
+        table.at['mean utilization [%]', sc] = round(mean_utilization, 0)
+
+        q95 = grid_utilization.quantile(0.95)[0]
+        mean_q95 = grid_utilization.values[(grid_utilization > q95).values].mean()
+        table.at['95 % quantile', sc] = round(q95, 0)
+        table.at['mean > 95 % quantile', sc] = round(mean_q95, 0)
+        table.at['mean utilization [%]', sc] = round(mean_utilization, 0)
+
+    return table
+
+
 if __name__ == "__main__":
+
+    table = get_economic_table(base_scenarios)
 
     benefit_functions = getter.get_benefit_functions()
     x_values = benefit_functions.index.values
@@ -102,44 +162,44 @@ if __name__ == "__main__":
     fig = plotter.plot_grid_fee_function(grid_fee)
     fig.savefig(r'./eval/plots/grid_fee_function.png')
 
-    # summary, comparison, car_id = get_comparison()
-    # fig = plotter.plot_overview(summary)
-    # fig.savefig(r'./eval/plots/overview.png')
-    # comparison = {get_case(sc): val for sc, val in comparison.items()}
-    # fig = plotter.plot_charging_compare(comparison, car_id)
-    # fig.savefig(r'./eval/plots/charging_comparison.png')
-    #
-    # strategy_impact = get_impact(scenarios=base_scenarios)
-    # strategy_impact = {get_case(sc): val for sc, val in strategy_impact.items()}
-    # fig = plotter.plot_impact(strategy_impact)
-    # # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
-    # fig.savefig(r'./eval/plots/strategy_impact_on_transformer_pv.png', bbox_inches="tight")
-    #
-    # pv_impact = get_impact(scenarios=pv_scenarios)
-    # pv_impact = {get_case(sc): val for sc, val in pv_impact.items()}
-    # fig = plotter.plot_impact(pv_impact, pv_colors=True)
-    # # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
-    # fig.savefig(r'./eval/plots/pv_impact_on_transformer.png', bbox_inches="tight")
-    #
-    # t_impact, l_impact = get_impact_grid_level(scenarios=pv_scenarios)
-    # t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    # l_impact = {get_case(sc): val for sc, val in l_impact.items()}
-    # fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
-    # fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
-    #
-    # t_impact, l_impact = get_impact_grid_level(scenarios=base_scenarios)
-    # t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    # l_impact = {get_case(sc): val for sc, val in l_impact.items()}
-    # fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities, annotate_name=True)
-    # fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
-    #
-    # # fig = plotter.plot_grid()
-    # # fig.savefig(r'./eval/plots/total_grid.png')
-    # sub_id = 5
-    # utilization = get_time_utilization(sub_id=sub_id)
-    # utilization = {get_case(sc): val for sc, val in utilization.items()}
-    # fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
-    # fig.savefig(r'./eval/plots/utilization_comparison.png')
+    summary, comparison, car_id = get_comparison()
+    fig = plotter.plot_overview(summary)
+    fig.savefig(r'./eval/plots/overview.png')
+    comparison = {get_case(sc): val for sc, val in comparison.items()}
+    fig = plotter.plot_charging_compare(comparison, car_id)
+    fig.savefig(r'./eval/plots/charging_comparison.png')
+
+    strategy_impact = get_impact(scenarios=base_scenarios)
+    strategy_impact = {get_case(sc): val for sc, val in strategy_impact.items()}
+    fig = plotter.plot_impact(strategy_impact)
+    # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
+    fig.savefig(r'./eval/plots/strategy_impact_on_transformer_pv.png', bbox_inches="tight")
+
+    pv_impact = get_impact(scenarios=pv_scenarios)
+    pv_impact = {get_case(sc): val for sc, val in pv_impact.items()}
+    fig = plotter.plot_impact(pv_impact, pv_colors=True)
+    # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
+    fig.savefig(r'./eval/plots/pv_impact_on_transformer.png', bbox_inches="tight")
+
+    t_impact, l_impact = get_impact_grid_level(scenarios=pv_scenarios)
+    t_impact = {get_case(sc): val for sc, val in t_impact.items()}
+    l_impact = {get_case(sc): val for sc, val in l_impact.items()}
+    fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
+
+    t_impact, l_impact = get_impact_grid_level(scenarios=base_scenarios)
+    t_impact = {get_case(sc): val for sc, val in t_impact.items()}
+    l_impact = {get_case(sc): val for sc, val in l_impact.items()}
+    fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
+
+    # fig = plotter.plot_grid()
+    # fig.savefig(r'./eval/plots/total_grid.png')
+    sub_id = 5
+    utilization = get_time_utilization(sub_id=sub_id)
+    utilization = {get_case(sc): val for sc, val in utilization.items()}
+    fig = plotter.plot_utilization(utilization, getter.time_ranges.get(getter.scenarios[0]), sub_id=sub_id)
+    fig.savefig(r'./eval/plots/utilization_comparison.png')
 
 #
 # def export_summary_table() -> pd.DataFrame:
