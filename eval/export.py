@@ -183,18 +183,16 @@ if __name__ == "__main__":
 
     t_impact, total_charged = get_impact_grid_level(scenarios=pv_scenarios)
     t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    grid_sum = {get_case(sc): val for sc, val in grid_sum.items()}
-    pv_sum = {get_case(sc): val for sc, val in pv_sum.items()}
+    total_charged = {get_case(sc): val for sc, val in total_charged.items()}
 
     fig = plotter.plot_impact_grid_level(t_impact, total_charged, getter.pv_capacities)
     fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
 
     t_impact, total_charged = get_impact_grid_level(scenarios=base_scenarios)
     t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    grid_sum = {get_case(sc): val for sc, val in grid_sum.items()}
-    pv_sum = {get_case(sc): val for sc, val in pv_sum.items()}
+    total_charged = {get_case(sc): val for sc, val in total_charged.items()}
 
-    fig = plotter.plot_impact_grid_level(t_impact, grid_sum, getter.pv_capacities)
+    fig = plotter.plot_impact_grid_level(t_impact, total_charged, getter.pv_capacities)
     fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
 
     # fig = plotter.plot_grid()
