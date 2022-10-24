@@ -76,7 +76,8 @@ class HouseholdModel(BasicParticipant):
         self._pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
         pv_capacity = sum([s['pdc0'] for s in pv_systems])
 
-        self.cars = {key_generator(pv_capacity, person.car.capacity): person.car for person in self.persons if person.car.type == 'ev'}
+        self.cars = {key_generator(pv_capacity, person.car.capacity): person.car for person in self.persons if
+                     person.car.type == 'ev'}
 
         if len(self.cars) > 0:
             self._total_capacity = sum([c.capacity for c in self.cars.values()])
@@ -90,7 +91,7 @@ class HouseholdModel(BasicParticipant):
 
         self._benefit_value = 0
         self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
-        self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity*0.05))
+        self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity * 0.05))
 
         self._max_requests = 5
         self.finished = False
@@ -135,7 +136,7 @@ class HouseholdModel(BasicParticipant):
         self._model.grid = Var(steps, within=Reals, bounds=(0, None))
         self._model.pv = Var(steps, within=Reals, bounds=(0, None))
         self._model.capacity = Var(within=Reals, bounds=(0, self._total_capacity))
-
+        self._model.volume = Var(self.cars.keys(), steps, within=Reals)
         self._model.benefit = Var(within=Reals, bounds=(0, None))
 
         if 'Soc' in self._used_strategy:
@@ -189,7 +190,8 @@ class HouseholdModel(BasicParticipant):
                 else:
                     self._model.power_limit.add(self._model.power[key, t] <= car.maximal_charging_power)
 
-            if car.soc < car.get_limit(d_time, strategy):
+            soc = (car.soc * car.capacity) - self.dt * demand[key].sum()
+            if soc < car.get_limit(d_time + td(days=1), strategy):
                 max_power_sum += car.maximal_charging_power
 
         self._model.grid_power_limit = ConstraintList()
@@ -200,16 +202,21 @@ class HouseholdModel(BasicParticipant):
         # -> set range for soc
         self._model.soc_limit = ConstraintList()
         for key, car in self.cars.items():
-            limit = car.get_limit(d_time, strategy)
-            min_charging = max(car.capacity * (limit - car.soc), 0)
-            max_charging = car.capacity * (1 - car.soc)
-            self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) >= min_charging)
-            self._model.soc_limit.add(quicksum(self.dt * self._model.power[key, t] for t in steps) <= max_charging)
+            for t in self.t:
+                balance = self.dt * (self._model.power[key, t] - demand[key][t])
+                if t > 0:
+                    self._model.soc_limit.add(self._model.volume[key, t] == self._model.volume[key, t-1] + balance)
+                else:
+                    capacity = car.soc * car.capacity
+                    self._model.soc_limit.add(self._model.volume[key, t] == capacity + balance)
+
+                self._model.soc_limit.add(self._model.volume[key,t] >= 0)
+                self._model.soc_limit.add(self._model.volume[key, t] <= car.capacity)
 
         self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
-                                                                                    - demand[key][t]
-                                                                                    for key in self.cars.keys()
-                                                                                    for t in steps) * self.dt
+                                                                                      - demand[key][t]
+                                                                                      for key in self.cars.keys()
+                                                                                      for t in steps) * self.dt
                                                      + quicksum(car.capacity * car.soc for car in self.cars.values()))
         # -> balance charging, pv and grid consumption
         self._model.balance = ConstraintList()
