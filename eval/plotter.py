@@ -4,7 +4,6 @@ import matplotlib
 import numpy as np
 from gridLib import model as gridModel
 
-
 font = {'family': 'Times New Roman', 'style': 'italic', 'weight': 'medium', 'size': 8}
 matplotlib.rc('font', **font)
 cm = 1 / 2.54
@@ -58,7 +57,7 @@ class EvalPlotter:
 
             sec_plot = plot.twinx()
             sec_plot.set_ylabel('SoC / Usage [%]')
-            sec_plot.plot(val.index, val['soc'].values*100, color=self.colors['soc'], linewidth=1)
+            sec_plot.plot(val.index, val['soc'].values * 100, color=self.colors['soc'], linewidth=1)
             sec_plot.fill_between(val.index, val['usage'].values, color=self.colors['usage'], linewidth=0)
 
             major_ticks = [val.index[i] for i in range(0, len(val.index), 3 * 96)]
@@ -96,7 +95,7 @@ class EvalPlotter:
 
         # add scatters afterwards so that they don't appear in first 4 items of legend
         for name, val in data.items():
-            p99_quantile = [val.values[:int(len(val)*0.01)][-1]]
+            p99_quantile = [val.values[:int(len(val) * 0.01)][-1]]
             if pv_colors:
                 pv = name.split(' ')[-1]
                 ax_zoom.scatter([0.01], p99_quantile, marker='x', color=self.pv_colors[pv])
@@ -104,7 +103,7 @@ class EvalPlotter:
             else:
                 ax_zoom.scatter([0.01], p99_quantile, marker='x')
                 ax.scatter([0.01], p99_quantile, marker='x')
-        
+
         ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
         ax.grid(which='both', linewidth=0.5)
         ax.set_ylabel('Utilization [%]')
@@ -118,38 +117,37 @@ class EvalPlotter:
         fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.3), loc='lower center', fontsize=6,
                    fancybox=True, ncol=2, frameon=False)
 
-        fig.tight_layout()
+        # fig.tight_layout()
 
         return fig
 
-    def plot_pv_impact_grid_level(self, transformer_data: dict, line_data: dict, pv_ratio: dict):
+    def plot_impact_grid_level(self, transformer_data: dict, line_data: dict, pv_ratio: dict):
         data = pd.DataFrame.from_dict(pv_ratio, orient='index').sort_index()
         pv_ratio = data.values
-    
-        fig, (ax_pv, ax_transformer, ax_line) = plt.subplots(3, 1, sharex='all', gridspec_kw={'height_ratios': [1, 3, 3]},
+
+        fig, (ax_pv, ax_transformer, ax_line) = plt.subplots(3, 1, sharex='all',
+                                                             gridspec_kw={'height_ratios': [1, 3, 3]},
                                                              figsize=(self._width * cm, self._width * cm), dpi=300)
 
         grids = [*transformer_data.values()][0].columns
-        scenarios = len(transformer_data)
-        data = pd.DataFrame.from_dict(pv_ratio, orient='index').sort_index()
-        pv_ratio = data.values
         ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 0] / pv_ratio[:, 1], linewidth=0.5, color='black')
         ax_pv.grid(True)
         ax_pv.set_title('Total PV [kW] / Number of Cars', fontsize=6)
 
-        marker = ['x', 'o', 'D', 's']
+        marker = ['^', 'o', 's', 'D']
 
         for grid in grids:
 
-            trans_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in transformer_data.values()]
+            trans_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in
+                            transformer_data.values()]
             line_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in line_data.values()]
             pv = [float(sc.split(' ')[-1].replace('PV', '')) for sc in transformer_data.keys()]
             scenario_keys = list(transformer_data.keys())
             for i in range(len(line_data)):
                 ax_transformer.scatter(grid, trans_values[i], marker=marker[i], color=self.sub_colors[grid],
-                                    alpha=[p/100 for p in pv])
+                                       alpha=[p / 100 for p in pv], s=5)
                 ax_line.scatter(grid, line_values[i], marker=marker[i], color=self.sub_colors[grid],
-                            alpha=[p/100 for p in pv])
+                                alpha=[p / 100 for p in pv], s=5)
 
         ax_transformer.grid(True)
         ax_line.grid(True)
@@ -159,10 +157,9 @@ class EvalPlotter:
 
         ax_transformer.set_ylim([20, 100])
         ax_line.set_ylim([20, 100])
-        ax_line.legend(scenario_keys, bbox_to_anchor=(0.85, -1), 
-                loc='lower center', fontsize=6, frameon=False)
-        #fig.tight_layout()
+        ax_line.legend(scenario_keys, bbox_to_anchor=(0.85, -1), loc='lower center', fontsize=6, frameon=False)
 
+        fig.tight_layout()
 
         return fig
 
@@ -189,8 +186,7 @@ class EvalPlotter:
         ax.set_xticks([])
         ax.set_yticks([])
 
-        ax.legend([f'Id: {g}' for g in self._all_nodes['sub_grid'].unique()],
-                  loc=4)
+        ax.legend([f'Id: {g}' for g in self._all_nodes['sub_grid'].unique()], loc=4)
 
         fig.tight_layout()
 
