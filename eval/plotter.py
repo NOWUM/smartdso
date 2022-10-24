@@ -121,45 +121,52 @@ class EvalPlotter:
 
         return fig
 
-    def plot_impact_grid_level(self, transformer_data: dict, line_data: dict, pv_ratio: dict):
+    def plot_impact_grid_level(self, transformer_data: dict, total_charged: dict, pv_ratio: dict):
         data = pd.DataFrame.from_dict(pv_ratio, orient='index').sort_index()
         pv_ratio = data.values
 
-        fig, (ax_pv, ax_transformer, ax_line) = plt.subplots(3, 1, sharex='all',
-                                                             gridspec_kw={'height_ratios': [1, 3, 3]},
+        fig, (ax_pv, ax_transformer) = plt.subplots(2, 1, sharex='all',
+                                                             gridspec_kw={'height_ratios': [3, 7]},
                                                              figsize=(self._width * cm, self._width * cm), dpi=300)
 
         grids = [*transformer_data.values()][0].columns
-        ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 0] / pv_ratio[:, 1], linewidth=0.5, color='black')
+        ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 0] , linewidth=0.5, color='black')
+        ax_pv.plot([int(i) for i in data.index], pv_ratio[:, 1] , linewidth=0.5, color='blue')
         ax_pv.grid(True)
-        ax_pv.set_title('Total PV [kW] / Number of Cars', fontsize=6)
+        ax_pv.set_title('Total PV [kW] and Number of Cars', fontsize=6)
+        ax_pv.legend(['total kWp', 'no. cars'], loc='lower center', fontsize=6, ncol=2, frameon=False)
 
         marker = ['^', 'o', 's', 'D']
 
+        column = 'sum_pv'
+
         for grid in grids:
 
-            trans_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in
+            trans_values = [df[grid].max() for df in
                             transformer_data.values()]
-            line_values = [df[grid].loc[df[grid] >= df[grid].quantile(0.95)].mean() for df in line_data.values()]
+            #charged_values = [df[column][grid] for df in total_charged.values()]
             pv = [float(sc.split(' ')[-1].replace('PV', '')) for sc in transformer_data.keys()]
             scenario_keys = list(transformer_data.keys())
-            for i in range(len(line_data)):
+            for i in range(len(trans_values)):
                 ax_transformer.scatter(grid, trans_values[i], marker=marker[i], color=self.sub_colors[grid],
                                        alpha=[p / 100 for p in pv], s=5)
-                ax_line.scatter(grid, line_values[i], marker=marker[i], color=self.sub_colors[grid],
-                                alpha=[p / 100 for p in pv], s=5)
+                #ax_charged.scatter(grid, charged_values[i]/1e6, marker=marker[i], color=self.sub_colors[grid],
+                #                alpha=[p / 100 for p in pv], s=5)
 
         ax_transformer.grid(True)
-        ax_line.grid(True)
+        ax_transformer.set_xticks(range(10))
+        #ax_charged.grid(True)
         ax_transformer.set_ylabel('Transformer Util. [%]')
-        ax_line.set_ylabel('Line Util. [%]')
-        ax_line.set_xlabel('Subgrid ID')
+        #ax_charged.set_ylabel(f'charged {column} [MWh]')
+        #ax_charged.set_xlabel('Subgrid ID')
+        ax_transformer.set_xticks(range(10))
 
-        ax_transformer.set_ylim([20, 100])
-        ax_line.set_ylim([20, 100])
-        ax_line.legend(scenario_keys, bbox_to_anchor=(0.85, -1), loc='lower center', fontsize=6, frameon=False)
+        ax_transformer.set_ylim([30, 100])
+        ax_transformer.legend(scenario_keys, bbox_to_anchor=(0.55, -0.3), loc='lower center', fontsize=6, ncol=2, frameon=False)
+        #ax_charged.set_ylim([10, 100])
+        
 
-        fig.tight_layout()
+        #fig.tight_layout()
 
         return fig
 

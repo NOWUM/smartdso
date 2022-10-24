@@ -62,10 +62,10 @@ def get_impact(scenarios: list):
 def get_impact_grid_level(scenarios: list):
     transformer_impact = {sc: getter.get_aggregated_utilization_values(sc, func='max', asset='transformer')
                           for sc in scenarios}
-    line_impact = {sc: getter.get_aggregated_utilization_values(sc, func='max', asset='line')
-                   for sc in scenarios}
 
-    return transformer_impact, line_impact
+    total_charged = {sc: getter.get_total_charged_per_grid(sc)
+                          for sc in scenarios}
+    return transformer_impact, total_charged
 
 
 def get_time_utilization(sub_id: int = 5):
@@ -181,16 +181,20 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/45239261/matplotlib-savefig-text-chopped-off
     fig.savefig(r'./eval/plots/pv_impact_on_transformer.png', bbox_inches="tight")
 
-    t_impact, l_impact = get_impact_grid_level(scenarios=pv_scenarios)
+    t_impact, total_charged = get_impact_grid_level(scenarios=pv_scenarios)
     t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    l_impact = {get_case(sc): val for sc, val in l_impact.items()}
-    fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    grid_sum = {get_case(sc): val for sc, val in grid_sum.items()}
+    pv_sum = {get_case(sc): val for sc, val in pv_sum.items()}
+
+    fig = plotter.plot_impact_grid_level(t_impact, total_charged, getter.pv_capacities)
     fig.savefig(r'./eval/plots/pv_impact_on_sub_grid.png')
 
-    t_impact, l_impact = get_impact_grid_level(scenarios=base_scenarios)
+    t_impact, total_charged = get_impact_grid_level(scenarios=base_scenarios)
     t_impact = {get_case(sc): val for sc, val in t_impact.items()}
-    l_impact = {get_case(sc): val for sc, val in l_impact.items()}
-    fig = plotter.plot_impact_grid_level(t_impact, l_impact, getter.pv_capacities)
+    grid_sum = {get_case(sc): val for sc, val in grid_sum.items()}
+    pv_sum = {get_case(sc): val for sc, val in pv_sum.items()}
+
+    fig = plotter.plot_impact_grid_level(t_impact, grid_sum, getter.pv_capacities)
     fig.savefig(r'./eval/plots/strategy_impact_on_sub_grid.png')
 
     # fig = plotter.plot_grid()

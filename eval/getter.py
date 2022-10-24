@@ -200,6 +200,14 @@ class EvalGetter:
     def get_grid_fee(self):
         return self._grid_fee
 
+    def get_total_charged_per_grid(self, scenario: str):
+        query = f"""select sub_id, sum(final_pv) as sum_pv, sum(final_grid) as sum_grid from charging_summary
+                where scenario = '{scenario}'
+                group by sub_id order by sub_id
+                """
+        data = pd.read_sql(query, self.engine, index_col='sub_id')
+        return data
+
 # def get_auslastung(scenario: str, asset:str = 'line'):
 #     query = f"select time, avg(utilization), id_ from grid_asset where asset='{asset}' and scenario='{scenario}' group by time order by time desc limit 1"
 #     data = pd.read_sql(query, ENGINE)
