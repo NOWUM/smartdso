@@ -23,7 +23,7 @@ logger.setLevel(LOG_LEVEL)
 
 # -> benefit functions from survey
 BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
-BENEFIT_FUNCTIONS += 0.15
+BENEFIT_FUNCTIONS += 0.10
 BENEFIT_FUNCTIONS *= 100
 CUM_PROB = np.cumsum([float(x) for x in BENEFIT_FUNCTIONS.columns])
 # -> steps and corresponding time resolution strings in pandas
