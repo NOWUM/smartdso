@@ -182,11 +182,9 @@ class FlexibilityProvider:
                                                          'residual_generation', 'availability', 'grid_fee'])
         result = result.fillna(0)
 
-        consumer_counter, car_counter = 0, 0
+        total_demand, car_counter = np.zeros(96), 0
 
         for id_, client in self.clients.items():
-            # if client.consumer_type == 'household':
-            consumer_counter += 1
             # -> reset parameter for optimization for the next day
             client.reset_commit()
             self._commits[id_] = False
@@ -199,7 +197,9 @@ class FlexibilityProvider:
             result.loc[time_range, 'car_demand'] += data.loc[time_range, 'car_demand']
             result.loc[time_range, 'residential_demand'] += data.loc[time_range, 'demand']
             result.loc[time_range, 'residual_generation'] += data.loc[time_range, 'residual_generation']
-            result.loc[time_range, 'grid_fee'] += data.loc[time_range, 'grid_fee']
+            grid_fee = data.loc[time_range, 'grid_fee'] * (data.loc[time_range, 'final_grid_consumption'] / 4)
+            result.loc[time_range, 'grid_fee'] += grid_fee
+            total_demand += (data.loc[time_range, 'final_grid_consumption'] / 4)
 
             for key, car in client.cars.items():
                 car_counter += 1
@@ -207,12 +207,12 @@ class FlexibilityProvider:
                 result['availability'].loc[time_range] += (1-data.loc[time_range, 'usage'])
 
         result['availability'] /= car_counter
-        result['grid_fee'] /= consumer_counter
+        result['grid_fee'] /= total_demand
 
         result['scenario'] = self.scenario
         result['iteration'] = self.iteration
         result['sub_id'] = self.sub_grid
-
+        result = result.fillna(value=0)
         result.index.name = 'time'
         result = result.reset_index()
         result = result.set_index(['time', 'scenario', 'iteration', 'sub_id'])

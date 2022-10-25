@@ -210,7 +210,7 @@ class HouseholdModel(BasicParticipant):
                     capacity = car.soc * car.capacity
                     self._model.soc_limit.add(self._model.volume[key, t] == capacity + balance)
 
-                self._model.soc_limit.add(self._model.volume[key,t] >= 0)
+                self._model.soc_limit.add(self._model.volume[key, t] >= 0)
                 self._model.soc_limit.add(self._model.volume[key, t] <= car.capacity)
 
         self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
