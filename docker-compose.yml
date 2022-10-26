@@ -1,183 +1,803 @@
 version: "3.9"
 services:
 
-              scenario_10050_0_0:
-                container_name: s10050_0_0
+              s_PlugInCap_0_0:
+                container_name: PlugInCap_0_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 0
                   ANALYSE_GRID: "True"
                   SUB_GRID: 0
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_1_0:
-                container_name: s10050_1_0
+              s_PlugInCap_1_0:
+                container_name: PlugInCap_1_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 1
                   ANALYSE_GRID: "True"
                   SUB_GRID: 1
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_2_0:
-                container_name: s10050_2_0
+              s_PlugInCap_2_0:
+                container_name: PlugInCap_2_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 2
                   ANALYSE_GRID: "True"
                   SUB_GRID: 2
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_3_0:
-                container_name: s10050_3_0
+              s_PlugInCap_3_0:
+                container_name: PlugInCap_3_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 3
                   ANALYSE_GRID: "True"
                   SUB_GRID: 3
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_4_0:
-                container_name: s10050_4_0
+              s_PlugInCap_4_0:
+                container_name: PlugInCap_4_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 4
                   ANALYSE_GRID: "True"
                   SUB_GRID: 4
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_5_0:
-                container_name: s10050_5_0
+              s_PlugInCap_5_0:
+                container_name: PlugInCap_5_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 5
                   ANALYSE_GRID: "True"
                   SUB_GRID: 5
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_6_0:
-                container_name: s10050_6_0
+              s_PlugInCap_6_0:
+                container_name: PlugInCap_6_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 6
                   ANALYSE_GRID: "True"
                   SUB_GRID: 6
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_7_0:
-                container_name: s10050_7_0
+              s_PlugInCap_7_0:
+                container_name: PlugInCap_7_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 7
                   ANALYSE_GRID: "True"
                   SUB_GRID: 7
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_8_0:
-                container_name: s10050_8_0
+              s_PlugInCap_8_0:
+                container_name: PlugInCap_8_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 8
                   ANALYSE_GRID: "True"
                   SUB_GRID: 8
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
             
-              scenario_10050_9_0:
-                container_name: s10050_9_0
+              s_PlugInCap_9_0:
+                container_name: PlugInCap_9_0
                 image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
                 build: .
                 environment:
-                  LONDON_DATA: "True"
+                  LONDON_DATA: "False"
                   EV_RATIO: 100
-                  PV_RATIO: 50
-                  START_DATE: 2022-03-01
-                  END_DATE: 2022-03-31
-                  PRC_SENSE: 4.0
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
                   STRATEGY: PlugInCap
                   RANDOM_SEED: 9
                   ANALYSE_GRID: "True"
                   SUB_GRID: 9
-                  NUMBER_CONSUMERS: 0
-                  SCENARIO_NAME: EV100PV50PRCFlatSTRPlugInCap_0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_0
+            
+              s_PlugInCap_0_1:
+                container_name: PlugInCap_0_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 1
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_1_1:
+                container_name: PlugInCap_1_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 2
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 1
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_2_1:
+                container_name: PlugInCap_2_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 3
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 2
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_3_1:
+                container_name: PlugInCap_3_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 4
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 3
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_4_1:
+                container_name: PlugInCap_4_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 5
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 4
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_5_1:
+                container_name: PlugInCap_5_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 6
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 5
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_6_1:
+                container_name: PlugInCap_6_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 7
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 6
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_7_1:
+                container_name: PlugInCap_7_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 8
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 7
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_8_1:
+                container_name: PlugInCap_8_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 9
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 8
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_9_1:
+                container_name: PlugInCap_9_1
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 10
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 9
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_1
+            
+              s_PlugInCap_0_2:
+                container_name: PlugInCap_0_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 2
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_1_2:
+                container_name: PlugInCap_1_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 3
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 1
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_2_2:
+                container_name: PlugInCap_2_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 4
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 2
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_3_2:
+                container_name: PlugInCap_3_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 5
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 3
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_4_2:
+                container_name: PlugInCap_4_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 6
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 4
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_5_2:
+                container_name: PlugInCap_5_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 7
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 5
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_6_2:
+                container_name: PlugInCap_6_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 8
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 6
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_7_2:
+                container_name: PlugInCap_7_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 9
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 7
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_8_2:
+                container_name: PlugInCap_8_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 10
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 8
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_9_2:
+                container_name: PlugInCap_9_2
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 11
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 9
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_2
+            
+              s_PlugInCap_0_3:
+                container_name: PlugInCap_0_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 3
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_1_3:
+                container_name: PlugInCap_1_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 4
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 1
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_2_3:
+                container_name: PlugInCap_2_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 5
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 2
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_3_3:
+                container_name: PlugInCap_3_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 6
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 3
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_4_3:
+                container_name: PlugInCap_4_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 7
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 4
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_5_3:
+                container_name: PlugInCap_5_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 8
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 5
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_6_3:
+                container_name: PlugInCap_6_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 9
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 6
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_7_3:
+                container_name: PlugInCap_7_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 10
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 7
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_8_3:
+                container_name: PlugInCap_8_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 11
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 8
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_9_3:
+                container_name: PlugInCap_9_3
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 12
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 9
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_3
+            
+              s_PlugInCap_0_4:
+                container_name: PlugInCap_0_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 4
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 0
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_1_4:
+                container_name: PlugInCap_1_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 5
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 1
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_2_4:
+                container_name: PlugInCap_2_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 6
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 2
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_3_4:
+                container_name: PlugInCap_3_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 7
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 3
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_4_4:
+                container_name: PlugInCap_4_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 8
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 4
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_5_4:
+                container_name: PlugInCap_5_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 9
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 5
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_6_4:
+                container_name: PlugInCap_6_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 10
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 6
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_7_4:
+                container_name: PlugInCap_7_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 11
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 7
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_8_4:
+                container_name: PlugInCap_8_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 12
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 8
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
+            
+              s_PlugInCap_9_4:
+                container_name: PlugInCap_9_4
+                image: registry.git.fh-aachen.de/nowum-energy/projects/smartdso/smartdso:latest
+                build: .
+                environment:
+                  LONDON_DATA: "False"
+                  EV_RATIO: 100
+                  PV_RATIO: 80
+                  START_DATE: 2022-05-01
+                  END_DATE: 2022-05-31
+                  STRATEGY: PlugInCap
+                  RANDOM_SEED: 13
+                  ANALYSE_GRID: "True"
+                  SUB_GRID: 9
+                  SCENARIO_NAME: F-PlugInCap-PV80-PriceFlat_4
             

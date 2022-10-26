@@ -2,7 +2,7 @@ import argparse
 
 IMAGE_REPO = 'registry.git.fh-aachen.de/nowum-energy/projects/smartdso/'
 EV_RATIO = 100
-SIMULATIONS, GRIDS = 10, 10
+SIMULATIONS, GRIDS = 5, 10
 START_DATE = '2022-05-01'
 END_DATE = '2022-05-31'
 
@@ -42,7 +42,7 @@ def build_compose_file(strategy: str, prices: str, pv_ratio: int, ev_ratio: int 
                   RANDOM_SEED: {simulation + sub_grid}
                   ANALYSE_GRID: "True"
                   SUB_GRID: {sub_grid}
-                  SCENARIO_NAME: {strategy}-PV{pv_ratio}-Price{prices}{insert}_{simulation}
+                  SCENARIO_NAME: F-{strategy}-PV{pv_ratio}-Price{prices}{insert}_{simulation}
             ''')
 
     return output
