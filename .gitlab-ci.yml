@@ -1,6 +1,6 @@
 default:
   tags:
-    - shared
+    - nowum
 
 stages:
 - build
