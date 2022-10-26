@@ -5,7 +5,7 @@ import os
 
 # CREATE EXTENSION postgis;
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/rmit_smartdso')
 DATABASE_HPFC = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/priceit')
 
 
@@ -185,14 +185,14 @@ class TableCreator:
 
 
 if __name__ == "__main__":
-    tb = TableCreator()
-    prefix = 'A-'
-    scenarios = [
-        f'{prefix}MaxPvCap-PV50-PriceFlat-L',
-        f'{prefix}MaxPvCap-PV80-PriceSpot-L',
-        f'{prefix}MaxPvSoc-PV80-PriceSpot-L',
-        f'{prefix}PlugInCap-PV25-PriceFlat-L'
-    ]
-
-    for scenario in scenarios:
-        tb.delete_scenario(scenario)
+    tb = TableCreator(create_tables=True)
+    # prefix = 'A-'
+    # scenarios = [
+    #     f'{prefix}MaxPvCap-PV25-PriceFlat',
+    #     f'{prefix}MaxPvSoc-PV80-PriceSpot',
+    #     f'{prefix}MaxPvCap-PV80-PriceSpot',
+    #     f'{prefix}PlugInCap-PV25-PriceFlat'
+    # ]
+    #
+    # for scenario in scenarios:
+    #     tb.delete_scenario(scenario)
