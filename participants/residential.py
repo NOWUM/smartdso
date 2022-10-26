@@ -16,7 +16,7 @@ from participants.utils import Resident, key_generator
 from demLib.electric_profile import StandardLoadProfile
 
 # -> set logging options
-logging.basicConfig()
+# logging.basicConfig()
 LOG_LEVEL = "INFO"
 logger = logging.getLogger('residential')
 logger.setLevel(LOG_LEVEL)
@@ -112,7 +112,6 @@ class HouseholdModel(BasicParticipant):
         self._data.loc[self.time_range, 'car_capacity'] = self._total_capacity * np.ones(self._steps)
 
     def _optimize_photovoltaic_usage(self, d_time: datetime, strategy: str = 'required'):
-        logger.debug('optimize charging with photovoltaic generation')
 
         capacity = 0
         for car in self.cars.values():
@@ -233,6 +232,8 @@ class HouseholdModel(BasicParticipant):
         self._request = pd.Series(data=np.zeros(len(steps)), index=time_range)
         self._car_power = {key: pd.Series(data=np.zeros(len(steps)), index=time_range) for key in self.cars.keys()}
 
+        used_pv = np.zeros(self.T)
+
         try:
             self._solver.solve(self._model)
 
@@ -253,6 +254,8 @@ class HouseholdModel(BasicParticipant):
                     car.set_planned_charging(self._car_power[key])
                 self._initial_plan = False
 
+            used_pv = [self._model.pv[t].value for t in steps]
+
         except Exception as e:
             logger.debug(f' -> model infeasible {repr(e)}')
             # print(self._request.sum())
@@ -261,7 +264,7 @@ class HouseholdModel(BasicParticipant):
             self._commit = time_range[-1]
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
-            self._data.loc[time_range, 'final_pv_consumption'] = [self._model.pv[t].value for t in steps]
+            self._data.loc[time_range, 'final_pv_consumption'] = used_pv
 
             self._max_requests = 5
             self._finished = True
@@ -353,6 +356,7 @@ class HouseholdModel(BasicParticipant):
             self._data.loc[:, 'final_pv_consumption'] = self._data.loc[:, 'planned_pv_consumption'].copy()
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, 'grid_fee'] = price.values
+            self._data = self._data.fillna(0)
             self._max_requests = 5
             if 'MaxPv' in self._used_strategy:
                 self._finished = True

@@ -76,7 +76,7 @@ class FlexibilityProvider:
         g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
         rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
 
-        logger.info(f'found {len(consumers)} consumers in sub grid {sub_grid} '
+        logger.info(f' -> found {len(consumers)} consumers in sub grid {sub_grid} '
                     f'start building...')
 
         if number_consumers > 0:
@@ -218,7 +218,10 @@ class FlexibilityProvider:
         result = result.set_index(['time', 'scenario', 'iteration', 'sub_id'])
 
         try:
-            result.to_sql(name='charging_summary', con=self._database, if_exists='append', method='multi')
+            result.to_sql(name='charging_summary', con=self._database, if_exists='append')
+            logger.info('-> saved data in table: charging_summary')
+            logger.info(f' -> sum pv: {round(result["final_pv"].sum(),1) / 4}, '
+                        f'sum grid: {round(result["final_grid"].sum(),1) / 4}, ')
         except Exception as e:
             logger.warning(f'server closed the connection {repr(e)}')
 
