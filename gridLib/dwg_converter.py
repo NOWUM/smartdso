@@ -18,8 +18,8 @@ transformer = Transformer.from_crs("epsg:31466", "epsg:4326")
 
 geod = Geod(ellps="WGS84")
 
-line_parameters = dict(Niederspannug={'r': 0.255, 'x': 0.08, 's_nom':0.22},
-                       Hausanschluss={'r': 0.225, 'x': 0.08, 's_nom':0.22})
+line_parameters = dict(Niederspannug={'r': 0.255, 'x': 0.08, 's_nom': 0.420},
+                       Hausanschluss={'r': 0.225, 'x': 0.08, 's_nom': 0.213})
 
 
 def get_coord(x_, y_):
