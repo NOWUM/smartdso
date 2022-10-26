@@ -26,10 +26,10 @@ def build_compose_file(strategy: str, prices: str, pv_ratio: int, ev_ratio: int 
 
     output = ['version: "3.9"\n', 'services:\n']
     for simulation in range(simulations):
-        for sub_gird in range(grids):
+        for sub_grid in range(grids):
             output.append(f'''
-              s_{strategy}_{sub_gird}_{simulation}:
-                container_name: {strategy}_{sub_gird}_{simulation}
+              s_{strategy}_{sub_grid}_{simulation}:
+                container_name: {strategy}_{sub_grid}_{simulation}
                 image: {IMAGE_REPO}smartdso:latest
                 build: .
                 environment:
@@ -39,9 +39,9 @@ def build_compose_file(strategy: str, prices: str, pv_ratio: int, ev_ratio: int 
                   START_DATE: {start_date}
                   END_DATE: {end_date}
                   STRATEGY: {strategy}
-                  RANDOM_SEED: {simulation + sub_gird}
+                  RANDOM_SEED: {simulation + sub_grid}
                   ANALYSE_GRID: "True"
-                  SUB_GRID: {sub_gird}
+                  SUB_GRID: {sub_grid}
                   SCENARIO_NAME: {strategy}-PV{pv_ratio}-Price{prices}{insert}_{simulation}
             ''')
 
