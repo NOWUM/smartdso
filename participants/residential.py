@@ -213,11 +213,8 @@ class HouseholdModel(BasicParticipant):
                 self._model.soc_limit.add(self._model.volume[key, t] >= 0)
                 self._model.soc_limit.add(self._model.volume[key, t] <= car.capacity)
 
-        self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
-                                                                                      - demand[key][t]
-                                                                                      for key in self.cars.keys()
-                                                                                      for t in steps) * self.dt
-                                                     + quicksum(car.capacity * car.soc for car in self.cars.values()))
+        self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.volume[key, self.T - 1]
+                                                                                      for key in self.cars.keys()))
         # -> balance charging, pv and grid consumption
         self._model.balance = ConstraintList()
         for t in steps:
