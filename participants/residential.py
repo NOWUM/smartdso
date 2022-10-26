@@ -23,7 +23,7 @@ logger.setLevel(LOG_LEVEL)
 
 # -> benefit functions from survey
 BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', index_col=0)
-BENEFIT_FUNCTIONS += 0.15
+BENEFIT_FUNCTIONS += 0.10
 BENEFIT_FUNCTIONS *= 100
 CUM_PROB = np.cumsum([float(x) for x in BENEFIT_FUNCTIONS.columns])
 # -> steps and corresponding time resolution strings in pandas
@@ -210,7 +210,7 @@ class HouseholdModel(BasicParticipant):
                     capacity = car.soc * car.capacity
                     self._model.soc_limit.add(self._model.volume[key, t] == capacity + balance)
 
-                self._model.soc_limit.add(self._model.volume[key,t] >= 0)
+                self._model.soc_limit.add(self._model.volume[key, t] >= 0)
                 self._model.soc_limit.add(self._model.volume[key, t] <= car.capacity)
 
         self._model.total_capacity = Constraint(expr=self._model.capacity == quicksum(self._model.power[key, t]
