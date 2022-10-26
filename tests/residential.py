@@ -39,7 +39,7 @@ def run_household_model(strategy: str = 'PlugInCap', test_commit: bool = True):
                     if test_commit:
                         house.commit(pd.Series(data=np.zeros(len(request)), index=request.index))
                     else:
-                        res = house.commit(pd.Series(data=20 * np.ones(len(request)), index=request.index))
+                        res = house.commit(pd.Series(data=50 * np.ones(len(request)), index=request.index))
                         assert not res
             else:
                 house.simulate(t)
@@ -74,3 +74,6 @@ def test_household():
         d2 = run_household_model(strategy=strategy, test_commit=False)
         assert any(d2['planned_grid_consumption'] != d2['final_grid_consumption'])
         print('----------------------------')
+
+if __name__ == '__main__':
+    test_household()
