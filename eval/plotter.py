@@ -58,7 +58,7 @@ class EvalPlotter:
             sec_plot = plot.twinx()
             sec_plot.set_ylabel('SoC / Usage [%]')
             sec_plot.plot(val.index, val['soc'].values * 100, color=self.colors['soc'], linewidth=1)
-            sec_plot.fill_between(val.index, val['usage'].values, color=self.colors['usage'], linewidth=0)
+            sec_plot.fill_between(val.index, 100 * val['usage'].values, color=self.colors['usage'], linewidth=0.25)
 
             major_ticks = [val.index[i] for i in range(0, len(val.index), 3 * 96)]
             minor_ticks = [val.index[i] for i in range(0, len(val.index), 1 * 96)]
@@ -76,7 +76,7 @@ class EvalPlotter:
 
         return fig
 
-    def plot_impact(self, data: dict, pv_colors: bool = False):
+    def plot_impact(self, data: dict, pv_colors: bool = False, linewidth: float = 0.5):
         fig, (ax, ax_zoom) = plt.subplots(1, 2, figsize=(self._width * cm, self._width / 2 * cm), dpi=300,
                                           gridspec_kw={'width_ratios': [2, 1]})
 
@@ -85,39 +85,39 @@ class EvalPlotter:
         for name, val in data.items():
             if pv_colors:
                 pv = name.split(' ')[-1]
-                ax.plot(np.arange(num) / num, val.values, linewidth=0.75, color=self.pv_colors[pv])
+                ax.plot(100 * np.arange(num) / num, val.values, linewidth=linewidth, color=self.pv_colors[pv])
                 val = val[:int(len(val) * 0.2)]
-                ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75, color=self.pv_colors[pv])
+                ax_zoom.plot(100 * np.arange(len(val)) / num, val.values, linewidth=linewidth, color=self.pv_colors[pv])
             else:
-                ax.plot(np.arange(num) / num, val.values, linewidth=0.75)
+                ax.plot(100 * np.arange(num) / num, val.values, linewidth=linewidth)
                 val = val[:int(len(val) * 0.2)]
-                ax_zoom.plot(np.arange(len(val)) / num, val.values, linewidth=0.75)
+                ax_zoom.plot(100 * np.arange(len(val)) / num, val.values, linewidth=linewidth)
 
         # add scatters afterwards so that they don't appear in first 4 items of legend
         for name, val in data.items():
-            p99_quantile = [val.values[:int(len(val) * 0.01)][-1]]
+            p99_quantile = val.quantile(0.99)
             if pv_colors:
                 pv = name.split(' ')[-1]
-                ax_zoom.scatter([0.01], p99_quantile, marker='x', color=self.pv_colors[pv])
-                ax.scatter([0.01], p99_quantile, marker='x', color=self.pv_colors[pv])
+                ax_zoom.scatter([1], p99_quantile, marker='o', s=1, color=self.pv_colors[pv])
+                ax.scatter([1], p99_quantile, marker='o', s=1, color=self.pv_colors[pv])
             else:
-                ax_zoom.scatter([0.01], p99_quantile, marker='x')
-                ax.scatter([0.01], p99_quantile, marker='x')
+                ax_zoom.scatter([1], p99_quantile, marker='o', s=1,)
+                ax.scatter([1], p99_quantile, marker='o', s=1,)
 
         ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
-        ax.grid(which='both', linewidth=0.5)
+        ax.grid(which='both', linewidth=0.25)
         ax.set_ylabel('Utilization [%]')
-        ax.set_xlabel('Number of Values [%]')
+        ax.set_xlabel('Num. of Values [%]')
         ax_zoom.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
-        ax_zoom.grid(which='both', linewidth=0.5)
-        ax_zoom.set_ylabel('Utilization [%]')
-        ax_zoom.set_xlabel('Number of Values [%]')
-        ax.tick_params(which='minor', length=10)
+        ax_zoom.grid(which='both', linewidth=0.25)
+        # ax_zoom.set_ylabel('Utilization [%]')
+        ax_zoom.set_xlabel('Num. of Values [%]')
+        # ax.tick_params(which='minor', length=10)
         # legend prints only first 4 lines
-        fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.3), loc='lower center', fontsize=6,
+        fig.legend([*data.keys()], bbox_to_anchor=(0.55, -0.15), loc='lower center', fontsize=6,
                    fancybox=True, ncol=2, frameon=False)
 
-        # fig.tight_layout()
+        fig.tight_layout()
 
         return fig
 
@@ -143,7 +143,7 @@ class EvalPlotter:
         for grid in grids:
             trans_values = [df[grid].max() for df in transformer_data.values()]
             for i in range(len(trans_values)):
-                ax_transformer.scatter(grid, trans_values[i], marker=marker[i], color=self.sub_colors[grid], s=2)
+                ax_transformer.scatter(grid, trans_values[i], marker=marker[i], color=self.sub_colors[grid], s=4)
 
         ax_transformer.grid(True)
         ax_transformer.set_ylabel('Transformer Util. [%]')
@@ -173,13 +173,14 @@ class EvalPlotter:
         ax_grid.legend(['total kWp', 'no. cars'], loc='lower center', fontsize=6, ncol=2, frameon=False)
 
         scenario_keys = list(transformer_data.keys())
-
+        scenario_keys.remove('Case A PV25')
         utilization_values = transformer_data['Case A PV25']
         max_utilization_values = {}
         for grid in grids:
-            max_utilization = utilization_values[grid].max()
+            q95 = utilization_values[grid].quantile(0.95)
+            max_utilization = utilization_values.loc[utilization_values.values > q95, grid].mean()
             max_utilization_values[grid] = max_utilization
-            ax_25.scatter(grid, max_utilization, marker='^', color=self.sub_colors[grid], s=2)
+            ax_25.scatter(grid, max_utilization, marker='^', color=self.sub_colors[grid], s=4)
 
         for grid in grids:
             marker = (m for m in ['o', 's', 'D'])
@@ -187,17 +188,18 @@ class EvalPlotter:
                 if 'PV25' in sc:
                     continue
                 else:
-                    max_utilization = df[grid].max()
+                    q95 = df[grid].quantile(0.95)
+                    max_utilization = df.loc[df.values > q95, grid].mean()
                     delta = max_utilization_values[grid] - max_utilization
-                    ax_transformer.scatter(grid, delta, marker=next(marker), color=self.sub_colors[grid], s=2)
+                    ax_transformer.scatter(grid, delta, marker=next(marker), color=self.sub_colors[grid], s=4)
 
         ax_25.grid(True)
         ax_25.set_ylabel('Util. [%]')
         ax_transformer.grid(True)
-
+        ax_transformer.set_xticks(range(10))
         ax_transformer.set_ylabel('\u0394Util. [%]')
 
-        ax_transformer.legend(scenario_keys[1:], bbox_to_anchor=(0.55, -0.4), loc='lower center', fontsize=6, ncol=2,
+        ax_transformer.legend(scenario_keys, bbox_to_anchor=(0.55, -0.4), loc='lower center', fontsize=6, ncol=2,
                               frameon=False)
 
         fig.tight_layout()
