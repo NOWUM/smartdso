@@ -7,6 +7,7 @@ import logging
 from pvlib.pvsystem import PVSystem
 from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
     Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
+from carLib import CarData
 # example to Piecewise:
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
 # http://yetanothermathprogrammingconsultant.blogspot.com/2015/10/piecewise-linear-functions-in-mip-models.html
@@ -120,7 +121,7 @@ class HouseholdModel(BasicParticipant):
         # -> get residual generation and determine possible opt. time steps
         generation = self._data.loc[d_time:, 'residual_generation'].values
         steps = range(min(self.T, len(generation)))
-        demand = {key: car.get_data('demand').loc[d_time:].values[steps] for key, car in self.cars.items()}
+        demand = {key: car.get(CarData.demand, slice(d_time)).values[steps] for key, car in self.cars.items()}
         # -> get prices
         tariff = self._data.loc[d_time:, 'tariff'].values.flatten()[steps]
         grid_fee = self._data.loc[d_time:, 'grid_fee'].values.flatten()[steps]
@@ -182,7 +183,7 @@ class HouseholdModel(BasicParticipant):
 
         max_power_sum = 0
         for key, car in self.cars.items():
-            usage = car.get_data('usage').loc[d_time:].values
+            usage = car.get(CarData.usage, slice(d_time)).values
             for t in steps:
                 if usage[t] > 0:
                     self._model.power_limit.add(self._model.power[key, t] <= 0)
@@ -280,7 +281,7 @@ class HouseholdModel(BasicParticipant):
             self._car_power[key] = pd.Series(data=np.zeros(remaining_steps),
                                              index=pd.date_range(start=d_time, freq=RESOLUTION[self.T],
                                                                  periods=remaining_steps))
-            usage = car.get_data('usage').loc[d_time:]
+            usage = car.get(CarData.usage, slice(d_time))
             if car.soc < car.get_limit(d_time, strategy) and usage.at[d_time] == 0:
                 chargeable = usage.loc[usage == 0]
                 # -> get first time stamp of next charging block

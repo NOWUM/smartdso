@@ -7,10 +7,18 @@ from sqlalchemy import create_engine
 from pvlib.irradiance import get_total_irradiance
 
 from demLib.electric_profile import StandardLoadProfile
+from carLib.car import Car, CarData
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
+from enum import Enum
+class DataType(Enum):
+    generation = 1
+    residual_generation = 2
+    demand = 3
+    residual_demand = 4
+    final_pv_consumption = 5
 
 class BasicParticipant:
 
@@ -54,7 +62,7 @@ class BasicParticipant:
         self._finished, self._initial_plan = False, True
         self._commit = self.time_range[0] - td(minutes=1)
         self._pv_systems = []
-        self.cars = {}
+        self.cars : dict[str, Car] = {}
 
         self.random = random
 
@@ -92,7 +100,7 @@ class BasicParticipant:
 
         self._data.loc[self.time_range, 'car_demand'] = np.zeros(self._steps)
         for car in self.cars.values():
-            self._data.loc[self.time_range, 'car_demand'] += car.get_data('demand').values
+            self._data.loc[self.time_range, 'car_demand'] += car.get(CarData.demand).values
 
     def has_commit(self) -> bool:
         return self._finished
@@ -119,17 +127,10 @@ class BasicParticipant:
             self._initial_plan = True
         return pd.Series(dtype=float, index=[d_time], data=[0])
 
-    def get_demand(self, time_range=None) -> (pd.Series, pd.Series):
-        if time_range is None:
-            time_range = self.time_range
-        return self._data.loc[time_range, 'demand'], self._data.loc[time_range, 'residual_demand']
-
-    def get_generation(self, time_range=None) -> (pd.Series, pd.Series):
-        if time_range is None:
-            time_range = self.time_range
-        return self._data.loc[time_range, 'generation'], self._data.loc[time_range, 'residual_generation']
+    def get(self, data_type: DataType, time_range=None):
+        time_range = time_range or self.time_range
+        return self._data.loc[time_range, data_type.name]
 
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
-        if time_range is None:
-            time_range = self.time_range
+        time_range = time_range or self.time_range
         return self._data.loc[time_range]

@@ -4,10 +4,15 @@ import numpy as np
 import os
 
 from mobLib.mobility_demand import MobilityDemand
-
+from enum import Enum
 # -> load electric vehicle data
 electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
 electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
+
+class CarData(Enum):
+    usage = 1
+    demand = 2
+    soc = 4
 
 RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
@@ -154,6 +159,8 @@ class Car:
         self.soc = min(self.soc, 1)
 
         return self._data.loc[d_time, 'final_charge']
+    def get(self, data_type: CarData, time_range=None):
+        return self._data.loc[time_range, data_type.name]
 
     def get_data(self, column: str) -> pd.Series:
         return self._data[column]

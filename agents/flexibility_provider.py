@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
+from participants.basic import DataType
 from agents.utils import WeatherGenerator
 
 GRID_DATA = os.getenv('GRID_DATA', 'dem')
@@ -139,9 +140,9 @@ class FlexibilityProvider:
         for id_, client in self.clients.items():
             client.set_parameter(weather=weather.copy())
             client.initial_time_series()
-            _, demand = client.get_demand()
+            demand = client.get(DataType.residual_demand)
             demand_.append(build_dataframe(demand, id_))
-            _, generation = client.get_generation()
+            generation = client.get(DataType.residual_generation)
             generation_.append(build_dataframe(generation, id_))
 
         return pd.concat(demand_), pd.concat(generation_)
@@ -203,8 +204,7 @@ class FlexibilityProvider:
 
             for key, car in client.cars.items():
                 car_counter += 1
-                data = car.get_result(time_range)
-                result['availability'].loc[time_range] += (1-data.loc[time_range, 'usage'])
+                result['availability'].loc[time_range] += (1-car.get(CarDataType.usage, time_range))
 
         result['availability'] /= car_counter
         result['grid_fee'] /= total_demand
@@ -237,8 +237,8 @@ class FlexibilityProvider:
                 data['iteration'] = self.iteration
                 data['sub_id'] = self.sub_grid
                 data['id_'] = key
-                data['pv'] = client.get_result(time_range).loc[time_range, 'final_pv_consumption']
-                data['pv_available'] = client.get_result(time_range).loc[time_range, 'residual_generation']
+                data['pv'] = client.get(DataType.final_pv_consumption)
+                data['pv_available'] = client.get(DataType.residual_generation
 
                 data.index.name = 'time'
                 data = data.reset_index()
