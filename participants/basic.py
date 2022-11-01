@@ -85,7 +85,7 @@ class BasicParticipant:
         self._database = create_engine(database_uri)
 
         self._request = pd.Series(dtype=float)
-        self._used_strategy = strategy
+        self.strategy = strategy
 
         self._finished, self._initial_plan = False, True
         self._commit = self.time_range[0] - td(minutes=1)
@@ -148,7 +148,7 @@ class BasicParticipant:
 
     def reset_commit(self) -> None:
         self._finished = False
-        if self._used_strategy == "optimized":
+        if self.strategy == "optimized":
             self._initial_plan = True
 
     def set_parameter(
@@ -165,7 +165,7 @@ class BasicParticipant:
             person.car.charge(d_time)  # -> do charging
             person.car.drive(d_time)  # -> do driving
 
-    def get_request(self, d_time: datetime, strategy: str = None) -> pd.Series:
+    def get_request(self, d_time: datetime) -> pd.Series:
         if d_time > self._commit:
             self._commit = d_time + td(days=1)
             self._finished = True

@@ -193,7 +193,7 @@ class HouseholdModel(BasicParticipant):
         self._model.volume = Var(self.cars.keys(), steps, within=Reals)
         self._model.benefit = Var(within=Reals, bounds=(0, None))
 
-        if "Soc" in self._used_strategy:
+        if "Soc" in self.strategy:
             if self._solver_type == "glpk":
 
                 segments = dict(low=[], up=[], coeff=[], low_=[])
@@ -335,7 +335,7 @@ class HouseholdModel(BasicParticipant):
                 np.asarray([self._model.grid[t].value for t in steps]), 2
             )
 
-            if "Soc" in self._used_strategy:
+            if "Soc" in self.strategy:
                 self._benefit_value = value(self._model.benefit) - np.interp(
                     capacity, self._x_data, self._y_data
                 )
@@ -465,16 +465,15 @@ class HouseholdModel(BasicParticipant):
             )
             self._request = self._request.loc[self._request.values > 0]
 
-    def get_request(self, d_time: datetime, strategy: str = "MaxPvCap"):
-        self._used_strategy = strategy
+    def get_request(self, d_time: datetime):
         if self._total_capacity > 0 and d_time > self._commit:
-            if "MaxPv" in strategy:
+            if "MaxPv" in self.strategy:
                 self._optimize_photovoltaic_usage(d_time=d_time)
-            elif "PlugIn" in strategy:
+            elif "PlugIn" in self.strategy:
                 self._plan_without_photovoltaic(d_time=d_time)
             else:
-                logger.error(f"invalid strategy {strategy}")
-                raise Exception(f"invalid strategy {strategy}")
+                logger.error(f"invalid strategy {self.strategy}")
+                raise Exception(f"invalid strategy {self.strategy}")
 
         elif self._total_capacity == 0:
             self._finished = True
@@ -503,12 +502,12 @@ class HouseholdModel(BasicParticipant):
             self._data.loc[price.index, "grid_fee"] = price.values
             self._data = self._data.fillna(0)
             self._max_requests = 5
-            if "MaxPv" in self._used_strategy:
+            if "MaxPv" in self.strategy:
                 self._finished = True
             self._initial_plan = True
             return True
         else:
-            if "MaxPv" in self._used_strategy:
+            if "MaxPv" in self.strategy:
                 self._data.loc[price.index, "grid_fee"] = price.values
             else:
                 self._commit += td(minutes=np.random.randint(low=1, high=3))
