@@ -1,9 +1,10 @@
-from datetime import datetime
 import os
+from datetime import datetime
+
 import numpy as np
 
-from participants.basic import BasicParticipant
 from demLib.electric_profile import StandardLoadProfile
+from participants.basic import BasicParticipant
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 

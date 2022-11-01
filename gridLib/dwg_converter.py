@@ -1,16 +1,17 @@
-import ezdxf
-import sys
-from matplotlib import pyplot as plt
-import pandas as pd
 import logging
-from gridLib.plotting import get_plot
-from pyproj import Geod, Transformer
-import shapely.wkt as converter
-from shapely.ops import split, nearest_points
-from shapely.geometry import LineString, Point
-from shapely import wkt
 import secrets
+import sys
 
+import ezdxf
+import pandas as pd
+import shapely.wkt as converter
+from matplotlib import pyplot as plt
+from pyproj import Geod, Transformer
+from shapely import wkt
+from shapely.geometry import LineString, Point
+from shapely.ops import nearest_points, split
+
+from gridLib.plotting import get_plot
 
 logger = logging.getLogger('dwg-converter')
 # https://de.wikipedia.org/wiki/European_Petroleum_Survey_Group_Geodesy#:~:text=Kartenanbieter%20im%20Netz.-,Deutschland,f%C3%BCr%20Gau%C3%9F%2DKr%C3%BCger%20(4.

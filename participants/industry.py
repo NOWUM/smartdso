@@ -1,11 +1,11 @@
 import os
 from datetime import datetime
+
 import numpy as np
 
-from participants.basic import BasicParticipant
-from demLib.electric_profile import StandardLoadProfile
-
 from config import DATABASE_URI
+from demLib.electric_profile import StandardLoadProfile
+from participants.basic import BasicParticipant
 
 
 class IndustryModel(BasicParticipant):

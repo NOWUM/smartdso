@@ -1,6 +1,7 @@
+from collections import deque
+
 import numpy as np
 import pandas as pd
-from collections import deque
 
 REFERENCE_TEMPERATURE = np.load(r'./demLib/data/heat_demand/reference_temperature.bin')
 REFERENCE_TEMPERATURE = pd.DataFrame(data=dict(temp_air=REFERENCE_TEMPERATURE),

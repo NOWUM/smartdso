@@ -1,10 +1,11 @@
+from collections import defaultdict
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, Polygon
-from collections import defaultdict
-from tqdm import tqdm
 import plotly.graph_objs as go
+from shapely.geometry import Point, Polygon
+from tqdm import tqdm
 
 API_KEY = 'pk.eyJ1Ijoicmlla2VjaCIsImEiOiJjazRiYTdndXkwYnN3M2xteGN2MHhtZjB0In0.33tSDK45TXF3lb3-G147jw'
 

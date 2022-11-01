@@ -1,13 +1,13 @@
-from geopy.geocoders import Nominatim
-from geopy.extra.rate_limiter import RateLimiter
-import pandas as pd
 import os
-from shapely.wkt import loads
-import numpy as np
 import secrets
-from shapely.geometry import Point
-from matplotlib import pyplot as plt
 
+import numpy as np
+import pandas as pd
+from geopy.extra.rate_limiter import RateLimiter
+from geopy.geocoders import Nominatim
+from matplotlib import pyplot as plt
+from shapely.geometry import Point
+from shapely.wkt import loads
 
 geolocator = Nominatim(user_agent=secrets.token_urlsafe(8))
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1.2)

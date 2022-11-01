@@ -1,6 +1,6 @@
-import plotly.graph_objs as go
 import numpy as np
 import pandas as pd
+import plotly.graph_objs as go
 from shapely.wkt import loads
 
 COLOR = {'0.4': '#000000', '10': '#278511', '20': '#222233', '110': '#424949'}

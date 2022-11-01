@@ -1,9 +1,11 @@
-import overpass as osm
-from shapely.geometry import Polygon, Point
-import numpy as np
 import logging
 import multiprocessing as mp
+
+import numpy as np
+import overpass as osm
+from shapely.geometry import Point, Polygon
 from tqdm import tqdm
+
 
 class GetNoInformation(Exception): pass
 

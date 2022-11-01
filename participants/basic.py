@@ -1,17 +1,18 @@
-import numpy as np
 import os
-from datetime import timedelta as td
 from datetime import datetime
-import pandas as pd
-from sqlalchemy import create_engine
-from pvlib.irradiance import get_total_irradiance
-
-from demLib.electric_profile import StandardLoadProfile
-from carLib.car import Car, CarData
-
-from config import DATABASE_URI, RESOLUTION
-
+from datetime import timedelta as td
 from enum import Enum
+
+import numpy as np
+import pandas as pd
+from pvlib.irradiance import get_total_irradiance
+from sqlalchemy import create_engine
+
+from carLib.car import Car, CarData
+from config import DATABASE_URI, RESOLUTION
+from demLib.electric_profile import StandardLoadProfile
+
+
 class DataType(Enum):
     generation = 1
     residual_generation = 2

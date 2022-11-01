@@ -1,23 +1,27 @@
+import logging
+import os
+from datetime import datetime
+from datetime import timedelta as td
 from math import exp
+
 import numpy as np
 import pandas as pd
-import os
-from datetime import datetime, timedelta as td
-import logging
 from pvlib.pvsystem import PVSystem
-from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
-    Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
+from pyomo.environ import (Binary, ConcreteModel, Constraint, ConstraintList,
+                           Objective, Piecewise, Reals, SolverFactory, Var,
+                           maximize, minimize, quicksum, value)
+
 from carLib.car import CarData
+from config import DATABASE_URI, RESOLUTION, key_generator
+from demLib.electric_profile import StandardLoadProfile
+from participants.basic import BasicParticipant
+from participants.resident import Resident
 
 # example to Piecewise:
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
 # http://yetanothermathprogrammingconsultant.blogspot.com/2015/10/piecewise-linear-functions-in-mip-models.html
 
-from participants.basic import BasicParticipant
-from participants.resident import Resident
-from demLib.electric_profile import StandardLoadProfile
 
-from config import DATABASE_URI, key_generator, RESOLUTION
 # -> set logging options
 LOG_LEVEL = "INFO"
 logger = logging.getLogger('residential')

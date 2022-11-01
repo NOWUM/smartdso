@@ -1,6 +1,7 @@
+from collections import defaultdict
+
 import geopandas as gpd
 import pandas as pd
-from collections import defaultdict
 from shapely.geometry import Point
 from tqdm import tqdm
 

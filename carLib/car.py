@@ -5,6 +5,7 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
+
 from config import RESOLUTION
 from mobLib.mobility_demand import MobilityDemand
 

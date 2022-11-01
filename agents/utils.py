@@ -1,6 +1,6 @@
-from pvlib.location import Location
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pvlib.location import Location
 
 
 class WeatherGenerator:

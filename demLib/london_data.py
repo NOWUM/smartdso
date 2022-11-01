@@ -1,7 +1,8 @@
+import connectorx as cx
 import pandas as pd
 from sqlalchemy import create_engine
 from tqdm import tqdm
-import connectorx as cx
+
 pd.options.mode.chained_assignment = None
 
 # change to your running timescaledb

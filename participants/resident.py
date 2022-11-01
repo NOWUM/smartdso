@@ -1,7 +1,11 @@
-from datetime import datetime, timedelta as td
+from datetime import datetime
+from datetime import timedelta as td
+
 import numpy as np
-from mobLib.mobility_demand import MobilityDemand
+
 from carLib.car import Car
+from mobLib.mobility_demand import MobilityDemand
+
 
 class Resident:
 

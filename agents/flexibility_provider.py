@@ -6,10 +6,10 @@ from datetime import timedelta as td
 
 import numpy as np
 import pandas as pd
-from participants.basic import BasicParticipant, DataType
 from sqlalchemy import create_engine
 
 from agents.utils import WeatherGenerator
+from participants.basic import BasicParticipant, DataType
 
 if 'profile' not in consumers.columns:
     consumers['profile'] = 'H0'

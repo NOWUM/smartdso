@@ -1,8 +1,10 @@
-from mobLib.utils import read_MIT_data
+import os
 from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
-import os
+
+from mobLib.utils import read_MIT_data
 
 pd.options.mode.chained_assignment = None
 

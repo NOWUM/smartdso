@@ -1,11 +1,12 @@
+import logging
+import os
+import warnings
+
+import geopandas as gpd
 import pandas as pd
 import pypsa
-import logging
 from shapely.wkt import loads
-import geopandas as gpd
-import os
 
-import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
@@ -143,8 +144,9 @@ class GridModel:
 
 if __name__ == "__main__":
     import cartopy.crs as ccrs
-    from gridLib.plotting import get_plot
     from shapely import wkt
+
+    from gridLib.plotting import get_plot
     model = GridModel()
     subs = [*model._invalid_sub_grids.values()]
     edges = []

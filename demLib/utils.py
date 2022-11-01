@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+
 import numpy as np
+
 
 def get_holidays(year):
     # -- get eastern

@@ -1,15 +1,15 @@
 import glob as gb
-import cimpy
 import logging
+import pickle
 from collections import defaultdict
+
+import cimpy
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, LineString
-import pickle
+from shapely.geometry import LineString, Point
 
-from gridLib.plotting import get_plot as show_figure
 from gridLib.geo_information import GeoInformation
-
+from gridLib.plotting import get_plot as show_figure
 
 
 def component_type(component):

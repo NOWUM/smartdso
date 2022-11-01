@@ -1,8 +1,9 @@
+import logging
+import pickle
+
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
-import logging
-import pickle
 
 from demLib.utils import get_holidays
 
