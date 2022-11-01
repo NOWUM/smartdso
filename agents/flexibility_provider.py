@@ -1,15 +1,14 @@
-import uuid
-import os
-import pandas as pd
-import numpy as np
 import logging
-from datetime import datetime, timedelta as td
+import os
+import uuid
+from datetime import datetime
+from datetime import timedelta as td
+
+import numpy as np
+import pandas as pd
+from participants.basic import BasicParticipant, DataType
 from sqlalchemy import create_engine
 
-from participants.residential import HouseholdModel
-from participants.business import BusinessModel
-from participants.industry import IndustryModel
-from participants.basic import BasicParticipant, DataType
 from agents.utils import WeatherGenerator
 
 if 'profile' not in consumers.columns:
@@ -21,10 +20,7 @@ if 'jeb' not in consumers.columns:
 if 'london_data' not in consumers.columns:
     consumers['london_data'] = 'MAC001844'
 
-# -> pandas frequency names
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
-# -> database uri to store the results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI, RESOLUTION
 
 logger = logging.getLogger('FlexibilityProvider')
 
@@ -32,9 +28,10 @@ logger = logging.getLogger('FlexibilityProvider')
 class FlexibilityProvider:
 
     def __init__(self, scenario: str, iteration: int, clients: dict[uuid.UUID, BasicParticipant],
-                 start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
+                 start_date: datetime, end_date: datetime, sub_grid: int,
+                 database_uri: str,
+                 ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
-                 database_uri: str = DATABASE_URI, sub_grid: int = -1,
                  number_consumers: int = 0, strategy: str = 'MaxPvCap', *args, **kwargs):
 
         # -> scenario name and iteration number

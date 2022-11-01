@@ -9,8 +9,7 @@ from pvlib.irradiance import get_total_irradiance
 from demLib.electric_profile import StandardLoadProfile
 from carLib.car import Car, CarData
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+from config import DATABASE_URI, RESOLUTION
 
 from enum import Enum
 class DataType(Enum):

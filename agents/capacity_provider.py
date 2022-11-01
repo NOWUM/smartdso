@@ -9,10 +9,7 @@ from gridLib.model import GridModel
 
 logging.getLogger('pypsa').setLevel('ERROR')
 
-# -> pandas frequency names
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
-# -> database uri to store the results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI, RESOLUTION
 
 logger = logging.getLogger('CapacityProvider')
 

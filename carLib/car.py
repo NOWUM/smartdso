@@ -1,20 +1,22 @@
-from datetime import datetime, timedelta as td
-import pandas as pd
-import numpy as np
 import os
-
-from mobLib.mobility_demand import MobilityDemand
+from datetime import datetime
+from datetime import timedelta as td
 from enum import Enum
+
+import numpy as np
+import pandas as pd
+from config import RESOLUTION
+from mobLib.mobility_demand import MobilityDemand
+
 # -> load electric vehicle data
 electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
 electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
+
 
 class CarData(Enum):
     usage = 1
     demand = 2
     soc = 4
-
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
 
 class Car:
 

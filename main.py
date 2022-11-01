@@ -13,7 +13,7 @@ logger = logging.getLogger('Simulation')
 logger.setLevel('INFO')
 
 # -> timescaledb connection to store the simulation results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI, SUB_GRID
 
 try:
     tables = TableCreator(create_tables=False, database_uri=DATABASE_URI)
@@ -26,6 +26,8 @@ except Exception as e:
 
 start_date = pd.to_datetime(os.getenv('START_DATE', '2022-05-01'))              # -> default start date
 end_date = pd.to_datetime(os.getenv('END_DATE', '2022-05-10'))                  # -> default end date
+GRID_DATA = os.getenv('GRID_DATA', 'dem')
+SEED = int(os.getenv('RANDOM_SEED', 2022))
 
 logger.info(f' -> initialize simulation for {start_date.date()} - {end_date.date()}')
 
@@ -50,11 +52,12 @@ input_set = {'london_data': (os.getenv('LONDON_DATA', 'False') == 'True'),      
              'scenario': scenario_name.split('_')[0],
              'iteration': sim,
              'strategy': strategy,
-             'sub_grid': int(os.getenv('SUB_GRID', 5)),
+             'sub_grid': SUB_GRID,
              'database_uri': DATABASE_URI}
 
-GRID_DATA = os.getenv('GRID_DATA', 'dem')
-SEED = int(os.getenv('RANDOM_SEED', 2022))
+from participants.business import BusinessModel
+from participants.industry import IndustryModel
+from participants.residential import HouseholdModel
 
 def read_agents(grid_series) -> dict[uuid.UUID, BasicParticipant]:
     clients: dict[uuid.UUID, BasicParticipant] = {}

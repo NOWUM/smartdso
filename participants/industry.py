@@ -5,7 +5,7 @@ import numpy as np
 from participants.basic import BasicParticipant
 from demLib.electric_profile import StandardLoadProfile
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI
 
 
 class IndustryModel(BasicParticipant):

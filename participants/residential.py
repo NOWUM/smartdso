@@ -8,16 +8,17 @@ from pvlib.pvsystem import PVSystem
 from pyomo.environ import Constraint, Var, Objective, SolverFactory, ConcreteModel, \
     Reals, Binary, minimize, maximize, value, quicksum, ConstraintList, Piecewise
 from carLib.car import CarData
+
 # example to Piecewise:
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
 # http://yetanothermathprogrammingconsultant.blogspot.com/2015/10/piecewise-linear-functions-in-mip-models.html
 
 from participants.basic import BasicParticipant
-from participants.utils import Resident, key_generator
+from participants.resident import Resident
 from demLib.electric_profile import StandardLoadProfile
 
+from config import DATABASE_URI, key_generator, RESOLUTION
 # -> set logging options
-# logging.basicConfig()
 LOG_LEVEL = "INFO"
 logger = logging.getLogger('residential')
 logger.setLevel(LOG_LEVEL)
@@ -27,10 +28,6 @@ BENEFIT_FUNCTIONS = pd.read_csv(r'./participants/data/benefit_function.csv', ind
 BENEFIT_FUNCTIONS += 0.10
 BENEFIT_FUNCTIONS *= 100
 CUM_PROB = np.cumsum([float(x) for x in BENEFIT_FUNCTIONS.columns])
-# -> steps and corresponding time resolution strings in pandas
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
-# -> timescaledb connection to store the simulation results
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
 # -> default prices EPEX-SPOT 2015
 TARIFF = pd.read_csv(r'./participants/data/2022_prices.csv', index_col=0, parse_dates=True)
 TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]

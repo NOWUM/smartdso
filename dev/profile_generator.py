@@ -12,6 +12,7 @@ input_set = {'employee_ratio': os.getenv('EMPLOYEE_RATIO', 0.7),
              'minimum_soc': int(os.getenv('MINIMUM_SOC', 50)),
              'start_date': start_date,
              'end_date': end_date,
+             'sub_grid': -1,
              'ev_ratio': int(os.getenv('EV_RATIO', 50))/100}
 
 FlexProvider = FlexibilityProvider(**input_set)
