@@ -18,19 +18,19 @@ def get_holidays(year):
     # -- holidays in germany
     holidays = []
     holidays.append(easter)
-    holidays.append(easter - timedelta(days=2))                 # -- Karfreitag
-    holidays.append(easter + timedelta(days=1))                 # -- Ostermontag
-    holidays.append(easter + timedelta(days=39))                # -- Christihimmelfahrt
-    holidays.append(easter + timedelta(days=49))                # -- Pfingstsonntag
-    holidays.append(easter + timedelta(days=50))                # -- Pfingstmontag
-    holidays.append(easter + timedelta(days=60))                # -- Fronleichnam
-    holidays.append(date(year, 12, 24))                         # -- 1. Weihnachtstag
-    holidays.append(date(year, 12, 25))                         # -- 1. Weihnachtstag
-    holidays.append(date(year, 12, 26))                         # -- 2. Weihnachtstag
-    holidays.append(date(year, 12, 31))                         # -- 2. Weihnachtstag
-    holidays.append(date(year, 1, 1))                           # -- Neujahr
-    holidays.append(date(year, 5, 1))                           # -- 1. Mai
-    holidays.append(date(year, 10, 3))                          # -- Tag der deutschen Einheit
-    holidays.append(date(year, 10, 31))                         # -- Reformationstag
+    holidays.append(easter - timedelta(days=2))  # -- Karfreitag
+    holidays.append(easter + timedelta(days=1))  # -- Ostermontag
+    holidays.append(easter + timedelta(days=39))  # -- Christihimmelfahrt
+    holidays.append(easter + timedelta(days=49))  # -- Pfingstsonntag
+    holidays.append(easter + timedelta(days=50))  # -- Pfingstmontag
+    holidays.append(easter + timedelta(days=60))  # -- Fronleichnam
+    holidays.append(date(year, 12, 24))  # -- 1. Weihnachtstag
+    holidays.append(date(year, 12, 25))  # -- 1. Weihnachtstag
+    holidays.append(date(year, 12, 26))  # -- 2. Weihnachtstag
+    holidays.append(date(year, 12, 31))  # -- 2. Weihnachtstag
+    holidays.append(date(year, 1, 1))  # -- Neujahr
+    holidays.append(date(year, 5, 1))  # -- 1. Mai
+    holidays.append(date(year, 10, 3))  # -- Tag der deutschen Einheit
+    holidays.append(date(year, 10, 31))  # -- Reformationstag
 
     return np.asarray([h.timetuple().tm_yday for h in holidays])

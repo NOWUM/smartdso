@@ -7,14 +7,17 @@ from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
 
-class GetNoInformation(Exception): pass
+class GetNoInformation(Exception):
+    pass
 
 
 class GeoInformation:
-
-    def __init__(self, api_endpoint: str = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"):
+    def __init__(
+        self,
+        api_endpoint: str = "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    ):
         self._geo_api = osm.API(endpoint=api_endpoint)
-        self._logger = logging.getLogger('GeoInformation')
+        self._logger = logging.getLogger("smartdso.geo")
         self.poi_s = []
 
         self._worker = mp.Pool(3)
@@ -27,10 +30,18 @@ class GeoInformation:
             return dict(features=[])
 
     def _get_nearest_feature(self, poi, features):
-        features_coords = [feature['geometry']['coordinates'] for feature in features]
+        features_coords = [feature["geometry"]["coordinates"] for feature in features]
         try:
-            shapes = [Polygon([Point(tuple(coord)) for coord in feature]) for feature in features_coords]
-            distances = np.asarray([poi.distance(shape.centroid) if not shape.is_empty else np.inf for shape in shapes])
+            shapes = [
+                Polygon([Point(tuple(coord)) for coord in feature])
+                for feature in features_coords
+            ]
+            distances = np.asarray(
+                [
+                    poi.distance(shape.centroid) if not shape.is_empty else np.inf
+                    for shape in shapes
+                ]
+            )
             index = np.argmin(distances)
             center = shapes[index].centroid
             return features[index], center
@@ -41,12 +52,16 @@ class GeoInformation:
     def _get_building_info(self, lat: float, lon: float):
         poi = Point(lon, lat)
         for distance in range(1, 11):
-            self._logger.info(f'start searching for point lon: {lon}, lat: {lat} with distance: {distance}m')
-            geojson = self._query_data(f"way(around:{distance}, {lat}, {lon})[building=yes];out qt geom;")
-            if len(geojson['features']) > 0:
-                feature, center = self._get_nearest_feature(poi, geojson['features'])
+            self._logger.info(
+                f"start searching for point lon: {lon}, lat: {lat} with distance: {distance}m"
+            )
+            geojson = self._query_data(
+                f"way(around:{distance}, {lat}, {lon})[building=yes];out qt geom;"
+            )
+            if len(geojson["features"]) > 0:
+                feature, center = self._get_nearest_feature(poi, geojson["features"])
                 if center is not None:
-                    self._logger.info(f'find feature for point lon: {lon}, lat: {lat}')
+                    self._logger.info(f"find feature for point lon: {lon}, lat: {lat}")
                     return feature, center
         return None, None
 
