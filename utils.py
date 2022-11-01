@@ -6,7 +6,7 @@ import os
 # CREATE EXTENSION postgis;
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/rmit_smartdso')
-DATABASE_HPFC = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/priceit')
+DATABASE_HPFC = os.getenv('DATABASE_HPFC', 'postgresql://opendata:opendata@10.13.10.41:5432/priceit')
 
 
 class PriceIT:

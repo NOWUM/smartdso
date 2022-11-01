@@ -6,18 +6,11 @@ import logging
 from datetime import datetime, timedelta as td
 from sqlalchemy import create_engine
 
-
 from participants.residential import HouseholdModel
 from participants.business import BusinessModel
 from participants.industry import IndustryModel
-from participants.basic import DataType
+from participants.basic import BasicParticipant, DataType
 from agents.utils import WeatherGenerator
-
-GRID_DATA = os.getenv('GRID_DATA', 'dem')
-SEED = int(os.getenv('RANDOM_SEED', 2022))
-
-# -> read known consumers and nodes
-consumers = pd.read_csv(fr'./gridLib/data/export/{GRID_DATA}/consumers.csv', index_col=0)
 
 if 'profile' not in consumers.columns:
     consumers['profile'] = 'H0'
@@ -38,7 +31,7 @@ logger = logging.getLogger('FlexibilityProvider')
 
 class FlexibilityProvider:
 
-    def __init__(self, scenario: str, iteration: int, grid_series: pd.Series,
+    def __init__(self, scenario: str, iteration: int, clients: dict[uuid.UUID, BasicParticipant],
                  start_date: datetime, end_date: datetime, ev_ratio: float = 0.5,
                  london_data: bool = False, pv_ratio: float = 0.3, T: int = 1440,
                  database_uri: str = DATABASE_URI, sub_grid: int = -1,
@@ -49,7 +42,7 @@ class FlexibilityProvider:
         self.iteration = iteration
         self.strategy = strategy
         # -> total clients
-        self.clients = {}
+        self.clients : dict[uuid.UUID, BasicParticipant]= clients
         # -> weather generator
         self.weather_generator = WeatherGenerator()
         # -> time range
@@ -61,61 +54,7 @@ class FlexibilityProvider:
 
         self.random = np.random.default_rng(SEED)
 
-        global consumers
-
-        consumers['sub_grid'] = [grid_series.loc[node] if node in grid_series.index else -1
-                                 for node in consumers['bus0'].values]
-        consumers = consumers.loc[consumers['sub_grid'] != -1]
-
-        if sub_grid != -1:
-            consumers = consumers.loc[consumers['sub_grid'] == str(sub_grid)]
-
         self.sub_grid = sub_grid
-
-        h0_consumers = consumers.loc[consumers['profile'] == 'H0']      # -> all h0 consumers
-        h0_consumers = h0_consumers.fillna(0)                           # -> without pv = 0
-        g0_consumers = consumers.loc[consumers['profile'] == 'G0']      # -> all g0 consumers
-        rlm_consumers = consumers.loc[consumers['profile'] == 'RLM']    # -> all rlm consumers
-
-        logger.info(f' -> found {len(consumers)} consumers in sub grid {sub_grid} '
-                    f'start building...')
-
-        if number_consumers > 0:
-            h0_consumers = h0_consumers.sample(number_consumers)
-
-        # -> create household clients
-        for _, consumer in h0_consumers.iterrows():
-            # -> check pv potential and add system corresponding to the pv ratio
-            if consumer['pv'] == 0:
-                pv_systems = []
-            elif self.random.choice(a=[True, False], p=[pv_ratio, 1 - pv_ratio]):
-                pv_systems = eval(consumer['pv'])
-            else:
-                pv_systems = []
-
-            # -> initialize h0 consumers
-            id_ = uuid.uuid1()
-            client = HouseholdModel(demandP=consumer['jeb'], consumer_id=str(id_), grid_node=consumer['bus0'],
-                                    residents=int(max(consumer['jeb'] / 1500, 1)), ev_ratio=ev_ratio,
-                                    london_data=london_data, l_id=consumer['london_data'],
-                                    pv_systems=pv_systems, random=self.random,
-                                    strategy=self.strategy, scenario=scenario,
-                                    start_date=start_date, end_date=end_date, T=T,
-                                    database_uri=database_uri, consumer_type='household')
-
-            self.clients[id_] = client
-
-        # -> create business clients
-        for _, consumer in g0_consumers.iterrows():
-            client = BusinessModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                   start_date=start_date, end_date=end_date, consumer_type='business')
-            self.clients[uuid.uuid1()] = client
-
-        # -> create industry clients
-        for _, consumer in rlm_consumers.iterrows():
-            client = IndustryModel(T=T, demandP=consumer['jeb'], grid_node=consumer['bus0'],
-                                   start_date=start_date, end_date=end_date, consumer_type='industry')
-            self.clients[uuid.uuid1()] = client
 
         self.keys = [key for key, value in self.clients.items() if value.consumer_type == 'household']
         self._commits = {key: False for key in self.keys}
@@ -168,7 +107,7 @@ class FlexibilityProvider:
                 empty += int(person.car.empty)
                 pool += person.car.virtual_source
 
-    def commit(self, price: pd.Series, consumer_id: uuid.uuid1) -> bool:
+    def commit(self, price: pd.Series, consumer_id: uuid.UUID) -> bool:
         commit_ = self.clients[consumer_id].commit(price=price)
         if commit_:
             self._commits[consumer_id] = self.clients[consumer_id].has_commit()

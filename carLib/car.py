@@ -159,11 +159,9 @@ class Car:
         self.soc = min(self.soc, 1)
 
         return self._data.loc[d_time, 'final_charge']
-    def get(self, data_type: CarData, time_range=None):
+    
+    def get(self, data_type: CarData, time_range=slice(None,None)):
         return self._data.loc[time_range, data_type.name]
-
-    def get_data(self, column: str) -> pd.Series:
-        return self._data[column]
 
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
         return self._data.loc[time_range]
