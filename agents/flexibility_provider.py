@@ -174,7 +174,7 @@ class FlexibilityProvider:
                 data['sub_id'] = self.sub_grid
                 data['id_'] = key
                 data['pv'] = client.get(DataType.final_pv_consumption)
-                data['pv_available'] = client.get(DataType.residual_generation
+                data['pv_available'] = client.get(DataType.residual_generation)
 
                 data.index.name = 'time'
                 data = data.reset_index()
