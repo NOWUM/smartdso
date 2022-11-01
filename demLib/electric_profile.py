@@ -71,14 +71,14 @@ class StandardLoadProfile:
             try:
                 demand = self.data.loc[self.data.index.dayofyear == doy]
                 demand = np.asarray([[d, d] for d in demand["power"].values]).flatten()
-                missing = max(96 - len(demand), 0)
-                demand = np.hstack([demand, np.ones(missing) * np.mean(demand)])[:96]
+                missing = max(self.resolution - len(demand), 0)
+                demand = np.hstack([demand, np.ones(missing) * np.mean(demand)])[:self.resolution]
             except Exception as e:
                 logger.warning(f"no data found {repr(e)}")
-                demand = 0.2 * np.ones(96)
+                demand = 0.2 * np.ones(self.resolution)
 
         else:
-            demand, f = np.zeros(96), self.demandP / 1e6
+            demand, f = np.zeros(self.resolution), self.demandP / 1e6
             if self.type == "household":
                 f *= (
                     -0.000000000392 * doy**4
@@ -107,11 +107,11 @@ class StandardLoadProfile:
                 )
         if self.resolution == 60:
             return np.asarray(
-                [np.mean(demand[i : i + 3]) for i in range(0, 96, 4)], np.float
+                [np.mean(demand[i : i + 3]) for i in range(0, self.resolution, 4)], np.float
             ).flatten()
         elif self.resolution == 1440:
             return np.asarray(
-                [demand[int(i)] for i in np.arange(0, 96, 1 / 15)], np.float
+                [demand[int(i)] for i in np.arange(0, self.resolution, 1 / 15)], np.float
             ).flatten()
         else:
             return demand

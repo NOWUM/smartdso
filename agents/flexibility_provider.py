@@ -11,15 +11,6 @@ from sqlalchemy import create_engine
 from agents.utils import WeatherGenerator
 from participants.basic import BasicParticipant, DataType
 
-if "profile" not in consumers.columns:
-    consumers["profile"] = "H0"
-if "pv" not in consumers.columns:
-    consumers["pv"] = 0
-if "jeb" not in consumers.columns:
-    consumers["jeb"] = 4500
-if "london_data" not in consumers.columns:
-    consumers["london_data"] = "MAC001844"
-
 from config import DATABASE_URI, RESOLUTION
 
 logger = logging.getLogger("smartdso.flexibilityprovider")
@@ -39,7 +30,6 @@ class FlexibilityProvider:
         london_data: bool = False,
         pv_ratio: float = 0.3,
         T: int = 1440,
-        number_consumers: int = 0,
         strategy: str = "MaxPvCap",
         *args,
         **kwargs,
@@ -61,8 +51,6 @@ class FlexibilityProvider:
         self._database = create_engine(database_uri)
 
         self.T = T
-
-        self.random = np.random.default_rng(SEED)
 
         self.sub_grid = sub_grid
 
@@ -109,12 +97,12 @@ class FlexibilityProvider:
     def get_commits(self) -> int:
         return sum([int(c) for c in self._commits.values()])
 
-    def get_requests(self, d_time: datetime) -> (pd.Series, str):
-        self.random.shuffle(self.keys)
+    def get_requests(self, d_time: datetime, random) -> (pd.Series, str):
+        random.shuffle(self.keys)
         for id_ in self.keys:
             self._commits[id_] = self.clients[id_].has_commit()
             if not self._commits[id_]:
-                request = self.clients[id_].get_request(d_time, strategy=self.strategy)
+                request = self.clients[id_].get_request(d_time)
                 if sum(request.values) > 0:
                     yield request, self.clients[id_].grid_node, id_
 
@@ -154,7 +142,7 @@ class FlexibilityProvider:
         )
         result = result.fillna(0)
 
-        total_demand, car_counter = np.zeros(96), 0
+        total_demand, car_counter = np.zeros(self.T), 0
 
         for id_, client in self.clients.items():
             # -> reset parameter for optimization for the next day
