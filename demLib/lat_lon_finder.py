@@ -63,3 +63,5 @@ if __name__ == "__main__":
 
     for consumer_id,  index in maps.items():
         total_consumers.loc[consumer_id, 'jeb'] += df.loc[index, 'Jahresverbrauch']
+
+    total_consumers.to_csv(fr'{data_path}/consumers.csv')
