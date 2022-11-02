@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, Point
 
-from gridLib.geo_information import GeoInformation
 from gridLib.plotting import get_plot as show_figure
 
 
@@ -77,7 +76,6 @@ class CGMESConverter:
 
         self._load_components()
 
-        self._geo_coder = GeoInformation()
 
     def _load_components(self):
         """
@@ -505,23 +503,6 @@ class CGMESConverter:
             generators, orient="index"
         )
 
-    def _build_geo_info(self):
-        coords = (
-            self.components["consumer"]
-            .loc[self.components["consumers"]["v_nom"] == 0.4, ["lon", "lat"]]
-            .values
-        )
-        self._geo_coder.poi_s = list(
-            set([(coords[i][0], coords[i][1]) for i in range(len(coords))])
-        )
-        for feature, point in self._geo_coder.get_information():
-            if point is not None:
-                self._components["layers"][(point.x, point.y)] = dict(
-                    source=feature,
-                    type="fill",
-                    below="traces",
-                    color="rgba(33,47,61,0.3)",
-                )
 
     def convert(self, voltage_level: float = 20):
         """
@@ -536,7 +517,6 @@ class CGMESConverter:
             self._build_transformer()
             self._build_consumers()
             self._build_generators()
-            # self._build_geo_info()
             self._logger.info("conversion complete -> dataframes are accessible")
         except Exception as e:
             self._logger.error("Error while conversion")
@@ -580,24 +560,3 @@ class CGMESConverter:
         except Exception as e:
             self._logger.error("cant plot data")
             print(repr(e))
-
-
-if __name__ == "__main__":
-    converter = CGMESConverter(path=r"./gridLib/data/import/dem/Export.xml", levels=())
-    converter.convert()
-    demand = pd.read_excel(r"./gridLib/data/import/dem/JEB.xlsx")
-    demand = demand.set_index("id_")
-    demand.columns = ["jeb"]
-    converter.components["consumers"] = converter.components["consumers"].join(
-        demand, on="id_"
-    )
-    converter.components["consumers"] = converter.components["consumers"].dropna()
-    l_ids = pd.read_csv(r"./gridLib/data/grid_allocations.csv", index_col=0)[
-        "london_data"
-    ].values
-    converter.components["consumers"]["london_data"] = np.random.choice(
-        l_ids, len(converter.components["consumers"])
-    )
-    converter.save(r"./gridLib/data/export/dem/")
-    fig = converter.plot()
-    fig.write_html(r"./gridLib/data/export/dem/grid.html")
