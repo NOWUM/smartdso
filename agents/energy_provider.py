@@ -1,23 +1,27 @@
-import numpy as np
-from sqlalchemy import create_engine
-import pandas as pd
 import os
-from matplotlib import pyplot as plt
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/mobsim')
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+from sqlalchemy import create_engine
+
+DATABASE_URI = os.getenv(
+    "DATABASE_URI", "postgresql://opendata:opendata@10.13.10.41:5432/mobsim"
+)
 
 
 class EnergyProvider:
-
-    def __init__(self, table: str = 'charging'):
+    def __init__(self, table: str = "charging"):
 
         self.engine = create_engine(DATABASE_URI)
         self.table = table
 
     def get_time_series(self, num: int = 200):
-        query = f"select time, iteration, power from {self.table} where iteration <= {num}"
+        query = (
+            f"select time, iteration, power from {self.table} where iteration <= {num}"
+        )
         df = pd.read_sql(query, self.engine)
-        df = df.set_index(['time', 'iteration'])
+        df = df.set_index(["time", "iteration"])
         return df
 
 
@@ -27,7 +31,9 @@ if __name__ == "__main__":
 
     ep = EnergyProvider()
     data = ep.get_time_series(omega_size)
-    data = np.asarray([data.loc[:, i, :].values.flatten() for i in range(1, omega_size)], dtype=float).T
+    data = np.asarray(
+        [data.loc[:, i, :].values.flatten() for i in range(1, omega_size)], dtype=float
+    ).T
 
     vars = [(np.var(data[:, list(range(k))], axis=0)).mean() for k in range(1, 50)]
     plt.plot(vars)

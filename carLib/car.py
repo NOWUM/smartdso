@@ -1,63 +1,106 @@
-from datetime import datetime, timedelta as td
-import pandas as pd
-import numpy as np
 import os
+from datetime import datetime
+from datetime import timedelta as td
+from enum import Enum
 
+import numpy as np
+import pandas as pd
+
+from config import RESOLUTION
 from mobLib.mobility_demand import MobilityDemand
 
 # -> load electric vehicle data
-electric_vehicles = pd.read_csv(r'./carLib/data/evs.csv', sep=';', decimal=',')
-electric_vehicles['maximal_charging_power'] = electric_vehicles['charge ac']
+electric_vehicles = pd.read_csv(r"./carLib/data/evs.csv", sep=";", decimal=",")
+electric_vehicles["maximal_charging_power"] = electric_vehicles["charge ac"]
 
-RESOLUTION = {1440: 'min', 96: '15min', 24: 'h'}
+
+class CarData(Enum):
+    usage = 1
+    demand = 2
+    soc = 4
+
 
 class Car:
-
-    def __init__(self, random: np.random.default_rng, car_type: str = 'ev', maximal_distance: float = 350, charging_limit: str = 'required',
-                 T: int = 1440):
+    def __init__(
+        self,
+        random: np.random.default_rng,
+        car_type: str = "ev",
+        maximal_distance: float = 350,
+        charging_limit: str = "required",
+        T: int = 1440,
+    ):
         self.type = car_type
         self.random = random
         # -> select car depending on type and distance
-        if self.type == 'ev':
+        if self.type == "ev":
             properties = self.get_electric_vehicle(maximal_distance)
         else:
-            properties = dict(model='Nowum Car', capacity=40, consumption=7, distance=40/7 * 100,
-                maximal_charging_power=None)
+            properties = dict(
+                model="Nowum Car",
+                capacity=40,
+                consumption=7,
+                distance=40 / 7 * 100,
+                maximal_charging_power=None,
+            )
 
         # -> time resolution information
-        self.T, self.t, self.dt = T, np.arange(T), 1/(T/24)        
+        self.T, self.t, self.dt = T, np.arange(T), 1 / (T / 24)
         # -> technical parameters
-        self.model = properties['model']                                        # -> model type
-        self.capacity = properties['capacity']                                  # -> capacity [kWh]
-        self.distance = round(properties['distance'], 2)                        # -> maximal distance [km]
-        self.consumption = properties['consumption'] / 100                      # -> consumption [kWh/km]
-        self.maximal_charging_power = properties['maximal_charging_power']      # -> rated power [kW]
-        self.soc = self.random.integers(low=10, high=90)/100                         # -> state of charge [0,..., 1]
-        self.odometer = 0                                                       # -> distance counter
+        self.model = properties["model"]  # -> model type
+        self.capacity = properties["capacity"]  # -> capacity [kWh]
+        self.distance = round(properties["distance"], 2)  # -> maximal distance [km]
+        self.consumption = properties["consumption"] / 100  # -> consumption [kWh/km]
+        self.maximal_charging_power = properties[
+            "maximal_charging_power"
+        ]  # -> rated power [kW]
+        self.soc = (
+            self.random.integers(low=10, high=90) / 100
+        )  # -> state of charge [0,..., 1]
+        self.odometer = 0  # -> distance counter
         # -> charging parameters
-        self.charging_limit = charging_limit                                    # -> default strategy
-        self.daily_limit = {}                                                   # -> limit @ day
+        self.charging_limit = charging_limit  # -> default strategy
+        self.daily_limit = {}  # -> limit @ day
 
-        self._data = pd.DataFrame(columns=['distance', 'total_distance', 'soc', 'planned_charge', 'final_charge',
-                                           'demand', 'usage', 'work', 'errand', 'hobby', 'tariff'])
+        self._data = pd.DataFrame(
+            columns=[
+                "distance",
+                "total_distance",
+                "soc",
+                "planned_charge",
+                "final_charge",
+                "demand",
+                "usage",
+                "work",
+                "errand",
+                "hobby",
+                "tariff",
+            ]
+        )
         # -> simulation monitoring
-        self.empty = False                                                      # -> True if car has not enough energy
-        self.virtual_source = 0                                                 # -> used energy if car is empty
+        self.empty = False  # -> True if car has not enough energy
+        self.virtual_source = 0  # -> used energy if car is empty
 
     # -> function to get the EV for the corresponding distance
     def get_electric_vehicle(self, distance):
-        possible_vehicles = electric_vehicles.loc[electric_vehicles['distance'] > distance]
+        possible_vehicles = electric_vehicles.loc[
+            electric_vehicles["distance"] > distance
+        ]
         if len(possible_vehicles) > 0:
-            probabilities = (1/possible_vehicles['weight'].sum() * possible_vehicles['weight']).values
+            probabilities = (
+                1 / possible_vehicles["weight"].sum() * possible_vehicles["weight"]
+            ).values
             index = self.random.choice(possible_vehicles.index, p=probabilities)
             vehicle = possible_vehicles.loc[index].to_dict()
         else:
-            vehicle = electric_vehicles.iloc[electric_vehicles['distance'].idxmax()].to_dict()
+            vehicle = electric_vehicles.iloc[
+                electric_vehicles["distance"].idxmax()
+            ].to_dict()
 
         return vehicle
 
-    def initialize_time_series(self, mobility: MobilityDemand, start_date: datetime, end_date: datetime):
-
+    def initialize_time_series(
+        self, mobility: MobilityDemand, start_date: datetime, end_date: datetime
+    ):
         def round_ts_to_base(ts: datetime, b: int):
             if b * round((ts.minute / b)) == 60:
                 ts = ts + td(hours=1)
@@ -68,8 +111,12 @@ class Car:
             return ts
 
         # -> initialize time stamps
-        time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T])[:-1]
-        date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq='d')
+        time_range = pd.date_range(
+            start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T]
+        )[:-1]
+        date_range = pd.date_range(
+            start=start_date, end=end_date + td(days=1), freq="d"
+        )
 
         base = int(60 / (self.T / 24))
 
@@ -84,14 +131,14 @@ class Car:
             demand_ = 0
             for mobility in mobilities:
                 # -> demand in [kWh]
-                demand = mobility['distance'] * self.consumption
-                demand_ += 2 * (mobility['distance'] * self.consumption)
+                demand = mobility["distance"] * self.consumption
+                demand_ += 2 * (mobility["distance"] * self.consumption)
 
-                travel_time = max(mobility['travel_time'], base)
+                travel_time = max(mobility["travel_time"], base)
                 # -> departure time
-                t1 = datetime.strptime(mobility['start_time'], '%H:%M:%S')
+                t1 = datetime.strptime(mobility["start_time"], "%H:%M:%S")
                 # -> arrival time
-                t2 = t1 + td(minutes=mobility['duration'] + travel_time)
+                t2 = t1 + td(minutes=mobility["duration"] + travel_time)
 
                 # -> set demand for mondays, tuesdays, ...
                 for day in days:
@@ -103,31 +150,39 @@ class Car:
                     destination = day.combine(day, t1.time())
                     destination = round_ts_to_base(destination, base)
 
-                    departure = round_ts_to_base((destination - td(minutes=travel_time)), base)
-                    steps = len(self._data.loc[departure:destination, 'demand'])
+                    departure = round_ts_to_base(
+                        (destination - td(minutes=travel_time)), base
+                    )
+                    steps = len(self._data.loc[departure:destination, "demand"])
                     if departure >= start_date and destination <= end_date:
-                        self._data.loc[departure:destination, 'demand'] = demand / steps / self.dt
+                        self._data.loc[departure:destination, "demand"] = (
+                            demand / steps / self.dt
+                        )
 
-                    destination = round_ts_to_base((arrival - td(minutes=travel_time)), base)
+                    destination = round_ts_to_base(
+                        (arrival - td(minutes=travel_time)), base
+                    )
                     if destination >= start_date and arrival <= end_date:
-                        self._data.loc[destination:arrival, 'demand'] = demand / steps / self.dt
-                        self._data.loc[departure:arrival, 'usage'] = 1
-                        self._data.loc[departure:arrival, mobility['type']] = 1
+                        self._data.loc[destination:arrival, "demand"] = (
+                            demand / steps / self.dt
+                        )
+                        self._data.loc[departure:arrival, "usage"] = 1
+                        self._data.loc[departure:arrival, mobility["type"]] = 1
                     elif destination < end_date:
-                        self._data.loc[destination:time_range[-1], 'demand'] = 1
-                        self._data.loc[departure:time_range[-1], mobility['type']] = 1
+                        self._data.loc[destination : time_range[-1], "demand"] = 1
+                        self._data.loc[departure : time_range[-1], mobility["type"]] = 1
 
             if len(days) > 0:
-                if self.charging_limit == 'max':
+                if self.charging_limit == "max":
                     self.daily_limit[days[0].weekday()] = 0.98
-                elif self.charging_limit == 'required':
+                elif self.charging_limit == "required":
                     self.daily_limit[days[0].weekday()] = demand_ / self.capacity
                 else:
                     self.daily_limit[days[0].weekday()] = 0.5
 
     def drive(self, d_time: datetime):
         # -> if no demand is set --> demand 1 % of Soc
-        demand = self._data.loc[d_time, 'demand'] * self.dt
+        demand = self._data.loc[d_time, "demand"] * self.dt
         distance = demand / self.consumption
         self.odometer += distance
         capacity = (self.capacity * self.soc) - demand
@@ -140,31 +195,33 @@ class Car:
         else:
             self.empty, self.soc = False, soc
 
-        self._data.at[d_time, 'soc'] = self.soc
-        self._data.at[d_time, 'distance'] = distance
-        self._data.at[d_time, 'total_distance'] = self.odometer
+        self._data.at[d_time, "soc"] = self.soc
+        self._data.at[d_time, "distance"] = distance
+        self._data.at[d_time, "total_distance"] = self.odometer
 
-        return self._data.loc[d_time, 'demand']
+        return self._data.loc[d_time, "demand"]
 
     def charge(self, d_time: datetime):
 
         # -> charge battery for 1 minute
-        capacity = self.capacity * self.soc + self._data.loc[d_time, 'final_charge'] * self.dt
+        capacity = (
+            self.capacity * self.soc + self._data.loc[d_time, "final_charge"] * self.dt
+        )
         self.soc = capacity / self.capacity
         self.soc = min(self.soc, 1)
 
-        return self._data.loc[d_time, 'final_charge']
+        return self._data.loc[d_time, "final_charge"]
 
-    def get_data(self, column: str) -> pd.Series:
-        return self._data[column]
+    def get(self, data_type: CarData, time_range=slice(None, None)):
+        return self._data.loc[time_range, data_type.name]
 
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
         return self._data.loc[time_range]
 
-    def get_limit(self, d_time: datetime, strategy: str = 'required') -> float:
-        if strategy == 'max':
+    def get_limit(self, d_time: datetime, strategy: str = "required") -> float:
+        if strategy == "max":
             limit = 0.98
-        elif strategy == 'required':
+        elif strategy == "required":
             today, l_today = d_time.weekday(), self.soc
             tomorrow, l_tomorrow = (d_time + td(days=1)).weekday(), self.soc
             if today in self.daily_limit.keys():
@@ -172,21 +229,20 @@ class Car:
             if tomorrow in self.daily_limit.keys():
                 l_tomorrow = self.daily_limit[tomorrow]
             t = (d_time.hour * 60 + d_time.minute) / 1440
-            limit = (l_tomorrow-l_today) * t + l_today
+            limit = (l_tomorrow - l_today) * t + l_today
         else:
             limit = 0.5
 
         return limit
 
     def set_planned_charging(self, time_series: pd.Series) -> None:
-        self._data.loc[time_series.index, 'planned_charge'] = time_series.values
+        self._data.loc[time_series.index, "planned_charge"] = time_series.values
 
     def set_final_charging(self, time_series: pd.Series) -> None:
-        self._data.loc[time_series.index, 'final_charge'] = time_series.values
+        self._data.loc[time_series.index, "final_charge"] = time_series.values
 
     def get_current_capacity(self):
         return self.soc * self.capacity
 
     def set_final_tariff(self, time_series: pd.Series) -> None:
-        self._data.loc[time_series.index, 'tariff'] = time_series.values
-
+        self._data.loc[time_series.index, "tariff"] = time_series.values

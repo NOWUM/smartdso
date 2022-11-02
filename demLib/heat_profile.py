@@ -4,10 +4,9 @@ from collections import deque
 from copy import copy
 
 
-REFERENCE_TEMPERATURE = np.load(r'./demLib/data/heat_demand/reference_temperature.bin')
-REFERENCE_TEMPERATURE = pd.DataFrame(data=dict(temp_air=REFERENCE_TEMPERATURE),
-                                     index=pd.date_range(start='2018-01-01', freq='h',
-                                                         periods=len(REFERENCE_TEMPERATURE)))
+REFERENCE_TEMPERATURE = np.load(r"./demLib/data/heat_demand/reference_temperature.bin")
+idx = pd.date_range(start="2018-01-01", freq="h", periods=len(REFERENCE_TEMPERATURE))
+REFERENCE_TEMPERATURE = pd.DataFrame(data=dict(temp_air=REFERENCE_TEMPERATURE), index= idx)
 
 HOURLY_FACTORS_EFH = pd.read_excel(r'./demLib/data/heat_demand/hourly_factors.xlsx', sheet_name='EFH')
 HOURLY_FACTORS_EFH = HOURLY_FACTORS_EFH.fillna(method='ffill')
@@ -120,7 +119,6 @@ class StandardLoadProfile:
 
         mean_temperature = float(np.mean(temperature))
         t1, t2, t3 = self.temperature
-
         temperature = (mean_temperature + 0.5 * t1 + 0.25 * t2 + 0.125 * t3) / (1 + 0.5 + 0.25 + 0.125)
         self.temperature.appendleft(temperature)
 

@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI
 
 class Results:
 

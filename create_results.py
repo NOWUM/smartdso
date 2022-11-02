@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import numpy as np
 
-DATABASE_URI = os.getenv('DATABASE_URI', 'postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+from config import DATABASE_URI
 ENGINE = create_engine(DATABASE_URI)
 
 SCENARIOS = ['EV100PV100PRC1.0', 'EV100PV100PRC1.7', 'EV100PV100PRC2.7', 'EV100PV100PRC4.0']

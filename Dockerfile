@@ -12,7 +12,7 @@ COPY ./requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # add user to start python script
 RUN useradd -s /bin/bash admin
-# make wokring directory
+# make working directory
 RUN mkdir /src
 RUN chown -R admin /src
 # fix pypsa error --> PermissionError: [Errno 13] Permission denied: '/home/admin'
