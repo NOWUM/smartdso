@@ -1,5 +1,4 @@
 import logging
-import os
 import uuid
 from datetime import datetime
 from datetime import timedelta as td
@@ -11,85 +10,69 @@ from sqlalchemy import create_engine
 from agents.utils import WeatherGenerator
 from participants.basic import BasicParticipant, DataType
 
-from config import DATABASE_URI, RESOLUTION
+logger = logging.getLogger("smartdso.flexibility_provider")
 
-logger = logging.getLogger("smartdso.flexibilityprovider")
+
+# -> default prices EPEX-SPOT 2015
+default_price = r"./agents/data/default_prices.csv"
+TARIFF = pd.read_csv(default_price, index_col=0, parse_dates=True)
+TARIFF = TARIFF / 10  # -> [€/MWh] in [ct/kWh]
+CHARGES = {"others": 2.9, "taxes": 8.0}
+for values in CHARGES.values():
+    TARIFF += values
 
 
 class FlexibilityProvider:
     def __init__(
         self,
-        scenario: str,
-        iteration: int,
-        clients: dict[uuid.UUID, BasicParticipant],
+        name: str,
+        sim: int,
         start_date: datetime,
         end_date: datetime,
-        sub_grid: int,
         database_uri: str,
-        T: int = 1440,
-        strategy: str = "MaxPvCap",
+        t: int = 96,
+        resolution: str = '15min',
+        tariff: str = 'flat',
         *args,
         **kwargs,
     ):
 
         # -> scenario name and iteration number
-        self.scenario = scenario
-        self.iteration = iteration
-        self.strategy = strategy
+        self.name = name
+        self.sim = sim
+        # -> simulation time range and steps per day
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[-1]
+        self.date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq="d")
+        self.T = t
         # -> total clients
-        self.clients: dict[uuid.UUID, BasicParticipant] = clients
+        self.clients: dict[uuid.UUID, BasicParticipant] = {}
         # -> weather generator
         self.weather_generator = WeatherGenerator()
-        # -> time range
-        self.time_range = pd.date_range(
-            start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T]
-        )[:-1]
-
+        # -> database connection
         self._database = create_engine(database_uri)
+        # -> set dynamic or flat enerhy price
+        if tariff == 'flat':  # -> use median
+            self.tariff[TARIFF.index, "tariff"] = TARIFF.values.mean()
+        else:
+            self.tariff = TARIFF
 
-        self.T = T
+        # -> initialize list with all residential clients
+        self.keys = []
+        self._commits = {}
+        for key, value in self.clients.items():
+            if value.consumer_type == "household":
+                self.keys.append(key)
 
-        self.sub_grid = sub_grid
+    def register(self, id_: uuid.uuid1, client: BasicParticipant):
+        self.clients[id_] = client
+        if client.consumer_type == "household":
+            self.keys.append(id_)
+            self._commits[id_] = False
 
-        self.keys = [
-            key
-            for key, value in self.clients.items()
-            if value.consumer_type == "household"
-        ]
-        self._commits = {key: False for key in self.keys}
-
-    def initialize_time_series(self) -> (pd.DataFrame, pd.DataFrame):
-        def build_dataframe(data, id_):
-            dataframe = pd.DataFrame({"power": data.values})
-            dataframe.index = self.time_range
-            dataframe["id_"] = str(id_)
-            dataframe["node_id"] = client.grid_node
-            dataframe = dataframe.rename_axis("t")
-            return dataframe
-
-        weather = pd.concat(
-            [
-                self.weather_generator.get_weather(date=date)
-                for date in pd.date_range(
-                    start=self.time_range[0],
-                    end=self.time_range[-1] + td(days=1),
-                    freq="d",
-                )
-            ]
-        )
-        weather = weather.resample("15min").ffill()
-        weather = weather.loc[weather.index.isin(self.time_range)]
-
-        demand_, generation_ = [], []
-        for id_, client in self.clients.items():
-            client.set_parameter(weather=weather.copy())
-            client.initial_time_series()
-            demand = client.get(DataType.residual_demand)
-            demand_.append(build_dataframe(demand, id_))
-            generation = client.get(DataType.residual_generation)
-            generation_.append(build_dataframe(generation, id_))
-
-        return pd.concat(demand_), pd.concat(generation_)
+    def get_tariff(self, time_range: pd.DatetimeIndex = None):
+        if time_range is None:
+            time_range = self.time_range
+        return self.tariff.loc[time_range]
 
     def get_commits(self) -> int:
         return sum([int(c) for c in self._commits.values()])

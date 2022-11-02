@@ -10,30 +10,33 @@ from sqlalchemy import create_engine
 from gridLib.model import GridModel
 
 logging.getLogger("pypsa").setLevel("ERROR")
-
-from config import DATABASE_URI, RESOLUTION
-
-logger = logging.getLogger("smartdso.capacityprovider")
+logger = logging.getLogger("smartdso.capacity_provider")
 
 
 class CapacityProvider:
     def __init__(
         self,
-        scenario: str,
-        iteration: int,
+        name: str,
+        sim: int,
         start_date: datetime,
         end_date: datetime,
-        database_uri: str = DATABASE_URI,
-        T: int = 1440,
-        write_geo: bool = True,
+        database_uri: str,
+        grid_data: str,
+        t: int = 1440,
+        write_grid_to_gis: bool = True,
         sub_grid: int = -1,
         *args,
         **kwargs,
     ):
-        self.scenario = scenario
-        self.iteration = iteration
+        self.name = name
+        self.sim = sim
         # -> build grid model and set simulation horizon
-        self.grid = GridModel()
+        self.grid = GridModel(
+            nodes=pd.read_csv(fr"./gridLib/data/export/{grid_data}/nodes.csv", index_col=0),
+            transformers=pd.read_csv(fr"./gridLib/data/export/{grid_data}/transformers.csv", index_col=0),
+            lines=pd.read_csv(fr"./gridLib/data/export/{grid_data}/edges.csv", index_col=0),
+            consumers=pd.read_csv(fr"./gridLib/data/export/{grid_data}/consumers.csv", index_col=0)
+        )
         self.mapper = self.grid.model.buses["sub_network"]
         self.mapper = self.mapper[
             self.mapper.index.isin(self.grid.data["connected"].index)
@@ -86,6 +89,13 @@ class CapacityProvider:
                     df.to_postgis(
                         name=f"{asset_type}_geo", con=self._database, if_exists="append"
                     )
+
+        self.grid_fee = pd.Series(data=2.6 * np.ones_like(self.time_range), index=self.time_range)
+
+    def get_grid_fee(self, time_range: pd.DatetimeIndex = None):
+        if time_range is None:
+            time_range = self.time_range
+        return self.grid_fee.loc[time_range]
 
     def _line_utilization(self, sub_id: str) -> pd.DataFrame:
         lines = self.grid.sub_networks[sub_id]["model"].lines_t.p0
