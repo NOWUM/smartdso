@@ -15,7 +15,7 @@ class SimulationConfig:
     DATABASE_URI: str = os.getenv(
         "DATABASE_URI", "postgresql://opendata:opendata@10.13.10.41:5432/smartdso"
     )
-    # -> select grid data in ./gridLib/export/
+    # -> select grid data in ./gridLib/data/export/
     GRID_DATA: str = os.getenv("GRID_DATA", "dem")
     # -> select sub grid: -1 correspond to total grid, an integer > 0 select the grid
     SUB_GRID: int = int(os.getenv("SUB_GRID", 5))
