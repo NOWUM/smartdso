@@ -14,6 +14,8 @@ base_scenarios = ['F-PlugInCap-PV80-PriceFlat', 'F-MaxPvCap-PV80-PriceFlat',
 pv_scenarios = [scenario for scenario in getter.scenarios
                 if ('MaxPvCap' in scenario) and ('Flat' in scenario) and ('F-' in scenario)]
 
+control_scenarios = ['F-PlugInCap-PV25-PriceFlat', 'F-PlugInInf-PV25-PriceFlat']
+
 
 def get_case(scenario: str):
     pv = scenario.split('-')[-2]
@@ -232,15 +234,24 @@ def export_strategy_impact_on_grid_level():
 
 
 if __name__ == "__main__":
+    con_impact = {sc: getter.get_aggregated_utilization_values(scenario=sc, asset='line')
+                  for sc in control_scenarios}
+    rs = {}
+    data = np.sort(con_impact['F-PlugInInf-PV25-PriceFlat'].max(axis=1).values)[::-1]
+    rs['Ohne dynamischen Netzentgelten'] = pd.DataFrame(dict(utilization=data))
+    data = np.sort(con_impact['F-PlugInCap-PV25-PriceFlat'].max(axis=1).values)[::-1]
+    rs['Mit dynamischen Netzentgelten'] = pd.DataFrame(dict(utilization=data))
+    f = plotter.plot_impact(rs)
+    f.show()
 
-    export_charging_compare()
-    export_market_pv_availability()
-    export_economic_table()
-    export_strategy_impact_on_transformer_level()
-    export_pv_impact_on_transformer_level()
-    export_benefit_function()
-    export_grid_fee_function()
-    export_pv_impact_on_grid_level()
+    # export_charging_compare()
+    # export_market_pv_availability()
+    # export_economic_table()
+    # export_strategy_impact_on_transformer_level()
+    # export_pv_impact_on_transformer_level()
+    # export_benefit_function()
+    # export_grid_fee_function()
+    # export_pv_impact_on_grid_level()
     # export_strategy_impact_on_grid_level()
     # #
     # t_impact, total_charged = get_impact_grid_level(scenarios=base_scenarios)
