@@ -10,28 +10,18 @@ from shapely.wkt import loads
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
-GRID_DATA = os.getenv("GRID_DATA", "dem")
-
-data_path = rf"./gridLib/data/export/{GRID_DATA}"
-# -> read nodes
-total_nodes = pd.read_csv(rf"{data_path}/nodes.csv", index_col=0)
-total_nodes["geometry"] = total_nodes["shape"].apply(loads)
-# -> read transformers
-total_transformers = pd.read_csv(rf"{data_path}/transformers.csv", index_col=0)
-total_transformers["geometry"] = total_transformers["shape"].apply(loads)
-# -> read edges
-total_edges = pd.read_csv(rf"{data_path}/edges.csv", index_col=0)
-total_edges["geometry"] = total_edges["shape"].apply(loads)
-# -> read known consumers
-# total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
-total_consumers = pd.read_csv(rf"{data_path}/consumers.csv", index_col=0)
-
 
 class GridModel:
-    def __init__(self):
+    def __init__(
+            self,
+            nodes: pd.DataFrame,
+            lines: pd.DataFrame,
+            transformers: pd.DataFrame,
+            consumers: pd.DataFrame):
+
         logging.getLogger("pypsa").setLevel("ERROR")
         # --> set logger
-        self._logger = logging.getLogger("smartdso.gridmodel")
+        self._logger = logging.getLogger("smartdso.grid_model")
         self._logger.setLevel(logging.WARNING)
 
         self.model = pypsa.Network()  # -> total grid model
@@ -39,31 +29,35 @@ class GridModel:
 
         # -> build grid data
         grid_data = {
-            "nodes": total_nodes,
-            "transformers": total_transformers,
-            "edges": total_edges,
-            "consumers": total_consumers,
+            "nodes": nodes,
+            "transformers": transformers,
+            "edges": lines,
+            "consumers": consumers,
         }
+
         # -> used by a least one consumer
-        grid_data["connected"] = grid_data["nodes"].loc[
-            grid_data["nodes"].index.isin(grid_data["consumers"]["bus0"])
-        ]
-        grid_data["voltage_ids"] = grid_data["connected"]["voltage_id"].unique()
+        idx = grid_data["nodes"].index.isin(grid_data["consumers"]["bus0"])
+        grid_data["consumer_nodes"] = grid_data["nodes"].loc[idx]
+        grid_data["voltage_ids"] = grid_data["consumer_nodes"]["voltage_id"].unique()
+
         self.data = grid_data.copy()
 
         # -> add busses to network --> each node is a bus
-        nodes = self.data["nodes"].loc[
-            self.data["nodes"]["voltage_id"].isin(self.data["voltage_ids"])
-        ]
+        idx = self.data["nodes"]["voltage_id"].isin(self.data["voltage_ids"])
+        nodes = self.data["nodes"].loc[idx]
         self.model.madd(
-            "Bus", names=nodes.index, v_nom=nodes.v_nom, x=nodes.lon, y=nodes.lat
+            "Bus",
+            names=nodes.index,
+            v_nom=nodes.v_nom,
+            x=nodes.lon,
+            y=nodes.lat
         )
 
         # -> add edges to network to connect the busses
+        idx = lines["bus0"].isin(nodes.index) | lines["bus1"].isin(nodes.index)
         edges = self.data["edges"]
-        edges = edges.loc[
-            edges["bus0"].isin(nodes.index) | edges["bus1"].isin(nodes.index)
-        ]
+        edges = edges.loc[idx]
+
         self.model.madd(
             "Line",
             names=edges.index,
@@ -75,18 +69,24 @@ class GridModel:
         )
 
         # -> add slack generators for each transformer with higher voltage
+        idx = transformers["bus0"].isin(nodes.index) | transformers["bus1"].isin(nodes.index)
         transformers = self.data["transformers"]
-        transformers = transformers.loc[
-            transformers["bus0"].isin(nodes.index)
-            | transformers["bus1"].isin(nodes.index)
-        ]
+        transformers = transformers.loc[idx]
         slack_nodes = transformers["bus0"].unique()
         for node in slack_nodes:
-            self.model.add("Generator", name=f"{node}_slack", bus=node, control="Slack")
+            self.model.add(
+                "Generator",
+                name=f"{node}_slack",
+                bus=node,
+                control="Slack"
+            )
 
         # -> add consumers to node
-        for node, consumer in self.data["connected"].iterrows():
-            self.model.add("Load", name=f"{node}_consumer", bus=node)
+        for node, consumer in self.data["consumer_nodes"].iterrows():
+            self.model.add(
+                "Load",
+                name=f"{node}_consumer",
+                bus=node)
 
         # -> determine sub networks and check consistency
         self.model.determine_network_topology()
@@ -97,11 +97,19 @@ class GridModel:
         for index in self.model.sub_networks.index:
             try:
                 model = pypsa.Network()
-                nodes = self.model.buses.loc[self.model.buses["sub_network"] == index]
+                # -> add busses to network
+                idx = self.model.buses["sub_network"] == index
+                nodes = self.model.buses.loc[idx]
                 model.madd(
-                    "Bus", names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y
+                    "Bus",
+                    names=nodes.index,
+                    v_nom=nodes.v_nom,
+                    x=nodes.x,
+                    y=nodes.y
                 )
-                lines = self.model.lines.loc[self.model.lines["sub_network"] == index]
+                # -> add lines to network
+                idx = self.model.lines["sub_network"] == index
+                lines = self.model.lines.loc[idx]
                 model.madd(
                     "Line",
                     names=lines.index,
@@ -111,48 +119,39 @@ class GridModel:
                     r=lines.r,
                     s_nom=lines.s_nom,
                 )
-
+                # -> add slack generator to network
                 generators = nodes["generator"].dropna()
                 name = generators.values[0]
                 generator = self.model.generators.loc[name]
-                model.add("Generator", name=name, bus=generator.bus, control="Slack")
-                consumers = self.model.loads.loc[
-                    self.model.loads["bus"].isin(nodes.index)
-                ]
-                model.madd("Load", names=consumers.index, bus=consumers.bus)
+                model.add(
+                    "Generator",
+                    name=name,
+                    bus=generator.bus,
+                    control="Slack"
+                )
+                # -> add consumers to network
+                idx = self.model.loads["bus"].isin(nodes.index)
+                consumers = self.model.loads.loc[idx]
+                model.madd(
+                    "Load",
+                    names=consumers.index,
+                    bus=consumers.bus
+                )
 
                 model.determine_network_topology()
                 model.consistency_check()
 
-                transformer = transformers.loc[
-                    transformers["bus0"].isin(model.buses.index), "s_nom"
-                ]
+                # -> get s nom from transformer
+                idx = transformers["bus0"].isin(model.buses.index)
+                transformer = transformers.loc[idx, "s_nom"]
 
-                self.sub_networks[index] = {
+                self.sub_networks[int(index)] = {
                     "model": model,
                     "s_max": transformer.values[0],
                 }
 
             except Exception as e:
                 self._logger.info(f"no valid sub grid " f"{repr(e)}")
-
-                model = pypsa.Network()
-                nodes = self.model.buses.loc[self.model.buses["sub_network"] == index]
-                model.madd(
-                    "Bus", names=nodes.index, v_nom=nodes.v_nom, x=nodes.x, y=nodes.y
-                )
-                lines = self.model.lines.loc[self.model.lines["sub_network"] == index]
-                model.madd(
-                    "Line",
-                    names=lines.index,
-                    bus0=lines.bus0,
-                    bus1=lines.bus1,
-                    x=lines.x,
-                    r=lines.r,
-                    s_nom=lines.s_nom,
-                )
-
-                self._invalid_sub_grids[index] = model
 
     def get_components(
         self, type_: str = "edges", grid: str = "total"
@@ -192,24 +191,41 @@ class GridModel:
 
 
 if __name__ == "__main__":
-    import cartopy.crs as ccrs
-    from shapely import wkt
 
-    from gridLib.plotting import get_plot
+    GRID_DATA = os.getenv("GRID_DATA", "dem")
 
-    model = GridModel()
-    subs = [*model._invalid_sub_grids.values()]
-    edges = []
-    nodes = []
-    for sub in subs:
-        e = total_edges.loc[sub.lines.index]
-        e["shape"] = [wkt.loads(val) for val in e["shape"].values]
-        busses = list(e["bus0"].values) + list(e["bus1"].values)
-        n = total_nodes.loc[busses]
-        edges.append(e)
-        nodes.append(n)
-    edges = pd.concat(edges)
-    nodes = pd.concat(nodes)
+    data_path = rf"./gridLib/data/export/{GRID_DATA}"
+    # -> read nodes
+    total_nodes = pd.read_csv(rf"{data_path}/nodes.csv", index_col=0)
+    total_nodes["geometry"] = total_nodes["shape"].apply(loads)
+    # -> read transformers
+    total_transformers = pd.read_csv(rf"{data_path}/transformers.csv", index_col=0)
+    total_transformers["geometry"] = total_transformers["shape"].apply(loads)
+    # -> read edges
+    total_edges = pd.read_csv(rf"{data_path}/edges.csv", index_col=0)
+    total_edges["geometry"] = total_edges["shape"].apply(loads)
+    # -> read known consumers
+    # total_consumers = pd.read_csv(fr'{data_path}/grid_allocations.csv', index_col=0)
+    total_consumers = pd.read_csv(rf"{data_path}/consumers.csv", index_col=0)
 
-    plt = get_plot(edges=edges, nodes=nodes)
-    plt.write_html("test.html")
+    model = GridModel(nodes=total_nodes, lines=total_edges, transformers=total_transformers,
+                      consumers=total_consumers)
+    b = total_consumers['bus0'].values[0]
+    get_sub_grid = lambda x: int(model.model.buses.loc[x, 'sub_network'])
+    total_consumers['sub_grid'] = total_consumers['bus0'].apply(get_sub_grid)
+
+    # subs = [*model._invalid_sub_grids.values()]
+    # edges = []
+    # nodes = []
+    # for sub in subs:
+    #     e = total_edges.loc[sub.lines.index]
+    #     e["shape"] = [wkt.loads(val) for val in e["shape"].values]
+    #     busses = list(e["bus0"].values) + list(e["bus1"].values)
+    #     n = total_nodes.loc[busses]
+    #     edges.append(e)
+    #     nodes.append(n)
+    # edges = pd.concat(edges)
+    # nodes = pd.concat(nodes)
+    #
+    # plt = get_plot(edges=edges, nodes=nodes)
+    # plt.write_html("test.html")
