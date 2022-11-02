@@ -59,6 +59,7 @@ CASES = {
     "b3": build_compose_file(strategy='MaxPvCap', prices='Flat', pv_ratio=100),
     "c": build_compose_file(strategy='MaxPvCap', prices='Spot', pv_ratio=80),
     "d": build_compose_file(strategy='MaxPvSoc', prices='Spot', pv_ratio=80),
+    "e": build_compose_file(strategy='PlugInInf', prices='Flat', pv_ratio=25),
 }
 
 
