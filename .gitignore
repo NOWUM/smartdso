@@ -4,3 +4,5 @@
 venv
 *.svg
 /agents/data/spotprice.csv
+/gridLib/data/import/archiv/
+*.xml
