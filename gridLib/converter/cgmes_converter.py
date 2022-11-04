@@ -22,7 +22,7 @@ class CGMESConverter:
             convert xml file, which are located in the directory path, to csv files.
             The converter creates four files to build up a pypsa network.
             - nodes.csv with columns: [id, v_nom, voltage_id, lon, lat, shape, injection]
-            - edges.csv with columns: [id, bus0, bus1, s_nom, r, x, len,voltage_id, lon_coords, lat_coords, shape]
+            - lines.csv with columns: [id, bus0, bus1, s_nom, r, x, len,voltage_id, lon_coords, lat_coords, shape]
             - transformers.csv with columns [id, bus0, v0, bus1, v1, s_nom, r, x, b, g voltage_id, lat, lon, shape]
             - consumers.csv with columns []
         Parameters
@@ -525,7 +525,7 @@ class CGMESConverter:
     def save(self, path: str = r"./data/export/"):
         try:
             self.components["nodes"].to_csv(f"{path}nodes.csv")
-            self.components["edges"].to_csv(f"{path}edges.csv")
+            self.components["edges"].to_csv(f"{path}lines.csv")
             self.components["transformers"].to_csv(f"{path}transformers.csv")
             self.components["consumers"].to_csv(f"{path}consumers.csv")
             self.components["generators"].to_csv(f"{path}generators.csv")

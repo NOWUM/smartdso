@@ -30,7 +30,7 @@ class FlexibilityProvider:
         start_date: datetime,
         end_date: datetime,
         database_uri: str,
-        t: int = 96,
+        steps: int = 96,
         resolution: str = '15min',
         tariff: str = 'flat',
         *args,
@@ -41,9 +41,9 @@ class FlexibilityProvider:
         self.name = name
         self.sim = sim
         # -> simulation time range and steps per day
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[-1]
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
         self.date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq="d")
-        self.T = t
+        self.T = steps
         # -> total clients
         self.clients: dict[uuid.UUID, BasicParticipant] = {}
         # -> weather generator
@@ -55,6 +55,7 @@ class FlexibilityProvider:
             self.tariff[TARIFF.index, "tariff"] = TARIFF.values.mean()
         else:
             self.tariff = TARIFF
+        self.tariff = self.tariff.resample(resolution).ffill()
 
         # -> initialize list with all residential clients
         self.keys = []

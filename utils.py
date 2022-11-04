@@ -5,7 +5,6 @@ import os
 
 # CREATE EXTENSION postgis;
 
-from config import DATABASE_URI
 DATABASE_HPFC = 'postgresql://opendata:opendata@10.13.10.41:5432/priceit'
 
 
@@ -56,7 +55,7 @@ class PriceIT:
 
 class TableCreator:
 
-    def __init__(self, create_tables: bool = False, database_uri: str = DATABASE_URI):
+    def __init__(self, database_uri: str, create_tables: bool = False):
         self.engine = create_engine(database_uri)
         self.tables = inspect(self.engine).get_table_names()
         if create_tables:

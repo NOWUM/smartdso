@@ -153,28 +153,22 @@ class GridModel:
             except Exception as e:
                 self._logger.info(f"no valid sub grid " f"{repr(e)}")
 
-    def get_components(
-        self, type_: str = "edges", grid: str = "total"
-    ) -> gpd.GeoDataFrame:
-        if grid == "total":
-            model = self.model
-        else:
-            model = self.sub_networks[str(grid)]["model"]
-
+    def get_components(self, grid: int, type_: str = "edges") -> gpd.GeoDataFrame:
+        model = self.sub_networks[grid]["model"]
         if type_ == "nodes":
             data = self.data[type_].loc[self.data[type_].index.isin(model.buses.index)]
         elif type_ == "edges":
             data = self.data[type_].loc[self.data[type_].index.isin(model.lines.index)]
         else:
-            i = self.data[type_]["bus0"].isin(model.buses.index) | self.data[type_][
-                "bus1"
-            ].isin(model.buses.index)
-            data = self.data[type_].loc[i]
+            idx1 = self.data[type_]["bus0"].isin(model.buses.index)
+            idx2 = self.data[type_]["bus1"].isin(model.buses.index)
+            idx =  idx1 | idx2
+            data = self.data[type_].loc[idx]
         data.index.name = "name"
         df = data.reset_index()
         return gpd.GeoDataFrame(df.loc[:, ["name", "geometry"]], geometry="geometry")
 
-    def run_power_flow(self, sub_id: str):
+    def run_power_flow(self, sub_id: int):
 
         try:
             result_summary = self.sub_networks[sub_id]["model"].pf()

@@ -71,8 +71,8 @@ class BasicParticipant:
 
         # -> time resolution information
         self.T, self.t, self.dt = steps, np.arange(steps), 1 / (steps/ 24)
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[-1]
-        self.date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq="d")
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
+        self.date_range = pd.date_range(start=start_date, end=end_date, freq="d")
         # -> input parameters and time series for the optimization
         self.weather = pd.DataFrame(index=self.time_range)
         self.tariff = pd.DataFrame(index=self.time_range)
@@ -82,7 +82,7 @@ class BasicParticipant:
         else:
             self._demand_p = profile_generator
         self._pv_systems = {'systems': pv_systems, 'radiation': []}
-        self.pv_capacity = sum([s["pdc0"] for s in pv_systems])
+        self.pv_capacity = sum([s.arrays[0].module_parameters["pdc0"] for s in pv_systems if s is not None])
 
         # -> random with set seed
         self.random = random
@@ -132,7 +132,8 @@ class BasicParticipant:
         for day in self.date_range:
             demand = self._demand_p.run_model(day)
             demand_at_each_day.append(resample_time_series(demand, self.T))
-        self._data.loc[self.time_range, "demand"] = np.hstack(demand_at_each_day)
+        demand_at_each_day = np.hstack(demand_at_each_day)
+        self._data.loc[self.time_range, "demand"] = demand_at_each_day
 
         # -> calculate generation at each day
         generation_at_each_day = np.zeros(self._steps)

@@ -406,7 +406,7 @@ if __name__ == "__main__":
     consumers["jeb"] = 4500
     consumers.to_csv("./Gridlib/data/export/alliander/consumers.csv")
     lines["shape"] = lines["shape"].apply(converter.loads)
-    lines.to_csv(r"./Gridlib/data/export/alliander/edges.csv")
+    lines.to_csv(r"./Gridlib/data/export/alliander/lines.csv")
 
     fig = get_plot(nodes=n, edges=lines, transformers=transformers, consumers=consumers)
     fig.write_html(r"./Gridlib/data/export/alliander/grid.html")

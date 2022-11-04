@@ -6,7 +6,6 @@ from enum import Enum
 import numpy as np
 import pandas as pd
 
-from config import RESOLUTION
 from mobLib.mobility_demand import MobilityDemand
 
 # -> load electric vehicle data
@@ -27,7 +26,8 @@ class Car:
         car_type: str = "ev",
         maximal_distance: float = 350,
         charging_limit: str = "required",
-        T: int = 1440,
+        steps: int = 96,
+        resolution: str = '15min'
     ):
         self.type = car_type
         self.random = random
@@ -44,7 +44,8 @@ class Car:
             )
 
         # -> time resolution information
-        self.T, self.t, self.dt = T, np.arange(T), 1 / (T / 24)
+        self.T, self.t, self.dt = steps, np.arange(steps), 1 / (steps / 24)
+        self.resolution = resolution
         # -> technical parameters
         self.model = properties["model"]  # -> model type
         self.capacity = properties["capacity"]  # -> capacity [kWh]
@@ -111,12 +112,8 @@ class Car:
             return ts
 
         # -> initialize time stamps
-        time_range = pd.date_range(
-            start=start_date, end=end_date + td(days=1), freq=RESOLUTION[self.T]
-        )[:-1]
-        date_range = pd.date_range(
-            start=start_date, end=end_date + td(days=1), freq="d"
-        )
+        time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=self.resolution)[:-1]
+        date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq="d")
 
         base = int(60 / (self.T / 24))
 

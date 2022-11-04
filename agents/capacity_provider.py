@@ -6,6 +6,7 @@ from datetime import timedelta as td
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
+from shapely.wkt import loads
 
 from gridLib.model import GridModel
 
@@ -22,7 +23,8 @@ class CapacityProvider:
         end_date: datetime,
         database_uri: str,
         grid_data: str,
-        t: int = 1440,
+        steps: int = 96,
+        resolution: str = '15min',
         write_grid_to_gis: bool = True,
         sub_grid: int = -1,
         *args,
@@ -30,67 +32,62 @@ class CapacityProvider:
     ):
         self.name = name
         self.sim = sim
+
+        components = {}
+        for component in ['nodes', 'transformers', 'lines', 'consumers']:
+            c = pd.read_csv(fr"./gridLib/data/export/{grid_data}/{component}.csv", index_col=0)
+            c["geometry"] = c["shape"].apply(loads)
+            components[component] = c
+
         # -> build grid model and set simulation horizon
-        self.grid = GridModel(
-            nodes=pd.read_csv(fr"./gridLib/data/export/{grid_data}/nodes.csv", index_col=0),
-            transformers=pd.read_csv(fr"./gridLib/data/export/{grid_data}/transformers.csv", index_col=0),
-            lines=pd.read_csv(fr"./gridLib/data/export/{grid_data}/edges.csv", index_col=0),
-            consumers=pd.read_csv(fr"./gridLib/data/export/{grid_data}/consumers.csv", index_col=0)
-        )
-        self.mapper = self.grid.model.buses["sub_network"]
-        self.mapper = self.mapper[
-            self.mapper.index.isin(self.grid.data["connected"].index)
-        ]
-        # -> get valid sub grid, which are build successfully
-        valid_sub_grid = [
-            value in self.grid.sub_networks.keys() for value in self.mapper.values
-        ]
+        self.grid = GridModel(**components)
+
         # self.mapper = self.mapper.loc[valid_sub_grid]
         self.sub_grid = sub_grid
         if self.sub_grid != -1:
-            self.sub_ids = [str(self.sub_grid)]
+            self.sub_ids = [sub_grid]
         else:
-            self.sub_ids = self.mapper.unique()
+            consumers = pd.read_csv(fr"./gridLib/data/export/{grid_data}/consumers.csv", index_col=0)
+            sub_grids = consumers['sub_grid'].unique()
+            self.sub_ids = list(sub_grids)
 
-        self.time_range = pd.date_range(
-            start=start_date, end=end_date + td(days=1), freq=RESOLUTION[T]
-        )[:-1]
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
 
         self.line_utilization = {
             sub_id: pd.DataFrame(
                 columns=self.grid.sub_networks[sub_id]["model"].lines.index,
                 index=self.time_range,
             )
-            for sub_id in self.mapper.unique()
+            for sub_id in self.sub_ids
         }
 
         self.transformer_utilization = {
             sub_id: pd.DataFrame(columns=["utilization"], index=self.time_range)
-            for sub_id in self.mapper.unique()
+            for sub_id in self.sub_ids
         }
         self.demand = pd.DataFrame()
 
         self._rq_l_util = pd.DataFrame()
         self._rq_t_util = pd.DataFrame()
 
-        self.T = T
+        self.T = steps
         self._database = create_engine(database_uri)
 
         self._geo_info = dict(edges=[], nodes=[], transformers=[])
 
-        for sub_id in self.mapper.unique():
+        for sub_id in self.sub_ids:
             for asset_type in self._geo_info.keys():
-                df = self.grid.get_components(asset_type, grid=sub_id)
+                df = self.grid.get_components(type_=asset_type, grid=sub_id)
                 df.set_crs(crs="EPSG:4326", inplace=True)
                 self._geo_info[asset_type] += [df]
-                if write_geo:
+                if write_grid_to_gis:
                     df["asset"] = asset_type
                     # df.set_index('name', inplace=True)
                     df.to_postgis(
                         name=f"{asset_type}_geo", con=self._database, if_exists="append"
                     )
 
-        self.grid_fee = pd.Series(data=2.6 * np.ones_like(self.time_range), index=self.time_range)
+        self.grid_fee = pd.Series(data=2.6 * np.ones(len(self.time_range)), index=self.time_range)
 
     def get_grid_fee(self, time_range: pd.DatetimeIndex = None):
         if time_range is None:

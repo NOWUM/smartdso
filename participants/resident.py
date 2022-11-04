@@ -43,7 +43,7 @@ class Resident:
                 car_type=car_type,
                 maximal_distance=max_distance,
                 charging_limit=charging_limit,
-                T=self.T,
+                steps=self.T,
             )
             self.car.initialize_time_series(self.mobility, start_date, end_time)
         else:

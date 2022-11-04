@@ -36,7 +36,7 @@ except Exception as e:
 
 logger.info(f" -> initialize simulation for {Config.START_DATE.date()} - {Config.END_DATE.date()}")
 # -> simulation time range and steps per day
-time_range = pd.date_range(start=Config.START_DATE, end=Config.END_DATE + td(days=1), freq=Config.RESOLUTION)[-1]
+time_range = pd.date_range(start=Config.START_DATE, end=Config.END_DATE + td(days=1), freq=Config.RESOLUTION)[:-1]
 date_range = pd.date_range(start=Config.START_DATE, end=Config.END_DATE + td(days=1), freq="d")
 
 logger.info(f" -> and scenario {Config.NAME} with simulation no.: {Config.SIM} ")
@@ -56,21 +56,21 @@ try:
     # -> resample to quarter hour values
     weather_at_each_day = weather_at_each_day.resample("15min").ffill()
     # -> remove not used time steps
-    idx = weather_at_each_day.index.isin(time_range)
+    idx = weather_at_each_day.index.isin(list(time_range))
     weather_at_each_day = weather_at_each_day.loc[idx]
     logger.info(" -> weather data simulation completed")
 
     # -> start capacity provider
     logger.info(" -> starting Capacity Provider")
-    # CapProvider = CapacityProvider(**config_dict)
-    # grid_fee = CapProvider.get_grid_fee()
+    CapProvider = CapacityProvider(**config_dict)
+    grid_fee = CapProvider.get_grid_fee(time_range=time_range)
     logger.info(" -> started Capacity Provider")
     logging.getLogger("smartdso.capacity_provider").setLevel("DEBUG")
 
     # -> start flexibility provider
     logger.info(" -> starting Flexibility Provider")
     FlexProvider = FlexibilityProvider(**config_dict)
-    tariff = FlexProvider.get_tariff()
+    tariff = FlexProvider.get_tariff(time_range=time_range)
     logger.info(" -> started Flexibility Provider")
     logging.getLogger("smartdso.flexibility_provider").setLevel("DEBUG")
 

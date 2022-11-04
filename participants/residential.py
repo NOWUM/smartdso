@@ -69,7 +69,7 @@ class HouseholdModel(BasicParticipant):
         grid_node: str = None,
         start_date: datetime = datetime(2022, 1, 1),
         end_date: datetime = datetime(2022, 1, 2),
-        t: int = 1440,
+        steps: int = 1440,
         consumer_id: str = "nowum",
         strategy: str = "MaxPvCap",
         scenario: str = "Flat",
@@ -80,12 +80,12 @@ class HouseholdModel(BasicParticipant):
 
         # -> initialize profile generator
         p_gen = StandardLoadProfile(demandP=demand_power, london_data=london_data,
-                                    l_id=london_id, resolution=self.T)
+                                    l_id=london_id, resolution=steps)
         # -> initialize pv systems
         pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
         super().__init__(
-            t=t,
+            steps=steps,
             consumer_id=consumer_id,
             sub_grid=sub_grid,
             grid_node=grid_node,
@@ -101,7 +101,7 @@ class HouseholdModel(BasicParticipant):
         )
 
         # -> generate driver and cars
-        logger.info('generate drivers and cars')
+        logger.info(" -> generate drivers and cars")
         self.drivers: list[Resident] = []
         self.cars: dict[str, Car] = {}
         self._car_power: dict[str, pd.Series] = {}
@@ -128,26 +128,24 @@ class HouseholdModel(BasicParticipant):
             car_demand_at_each_day += car_demand
         self._data.loc[self.time_range, "car_demand"] = car_demand_at_each_day
 
-        logger.info(f"generated {len(self.cars)} EV with corresponding drivers")
+        logger.info(f" -> generated {len(self.cars)} EV with corresponding drivers")
 
 
         # -> setting strategy options
-        logger.info("setting strategy options")
-        self.price_limit = 45
-        if "Inf" in strategy:
+        logger.info(" -> setting strategy options")
+        if "Cap" in strategy:
+            self.price_limit = 45
+            logger.info(f" -> set price limit to {self.price_limit} ct/kWh")
+        elif "Inf" in strategy:
             self.price_limit = np.inf
-        if 'MaxPv' in strategy:
+            logger.info(f" -> no price limit is set")
+        else:
             col = np.argwhere(np.random.uniform() * 100 > CUM_PROB).flatten()
             col = col[-1] if len(col) > 0 else 0
             self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
-        else:
-            col = None
-            self.b_fnc = None
-        self._benefit_value = 0
-        logger.info(f"set price limit to {self.price_limit} and benefit function {col}")
-
-        self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
-        self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity * 0.05))
+            self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
+            self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity * 0.05))
+            logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
 
         self._max_requests = 5
         self.finished = False

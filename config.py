@@ -3,14 +3,14 @@ import pandas as pd
 from dataclasses import dataclass
 
 TIME_MAPPER: dict = {1440: "min", 96: "15min", 24: "h"}
-T: int = int(os.getenv("STEPS_PER_DAY", 96))
+steps: int = int(os.getenv("STEPS_PER_DAY", 96))
 
 
 @dataclass
 class SimulationConfig:
     # -> steps and corresponding time resolution strings in pandas
-    RESOLUTION: str = TIME_MAPPER[T]
-    T: int = T
+    RESOLUTION: str = TIME_MAPPER[steps]
+    STEPS: int = steps
     # -> timescaledb connection to store the simulation results
     DATABASE_URI: str = os.getenv(
         "DATABASE_URI", "postgresql://opendata:opendata@10.13.10.41:5432/smartdso"
