@@ -1,136 +1,207 @@
+from datetime import datetime
+from datetime import timedelta as td
+import pandas as pd
+import numpy as np
 
-def _optimize_photovoltaic_usage(
-        self, d_time: datetime, strategy: str = "required"
-):
+from pyomo.environ import (
+    Expression,
+    ConcreteModel,
+    Constraint,
+    ConstraintList,
+    Objective,
+    Piecewise,
+    Reals,
+    Binary,
+    SolverFactory,
+    Var,
+    maximize,
+    minimize,
+    quicksum,
+    value,
+)
 
-    capacity = 0
-    for car in self.cars.values():
-        capacity += car.get_current_capacity()
+from carLib.car import Car, CarData
 
-    # -> get residual generation and determine possible opt. time steps
-    generation = self._data.loc[d_time:, "residual_generation"].values
-    steps = range(min(self.T, len(generation)))
-    demand = {
-        key: car.get(CarData.demand, slice(d_time, None)).values[steps]
-        for key, car in self.cars.items()
-    }
-    # -> get prices
-    tariff = self._data.loc[d_time:, "tariff"].values.flatten()[steps]
-    grid_fee = self._data.loc[d_time:, "grid_fee"].values.flatten()[steps]
-    prices = tariff + grid_fee
-    if self._max_requests == 0:
-        prices += 1e6
 
-    # -> clear model
-    self._model.clear()
-    # -> declare variables
-    self._model.power = Var(self.cars.keys(), steps, within=Reals, bounds=(0, None))
-    self._model.grid = Var(steps, within=Reals, bounds=(0, None))
-    self._model.pv = Var(steps, within=Reals, bounds=(0, None))
-    self._model.capacity = Var(within=Reals, bounds=(0, self._total_capacity))
-    self._model.volume = Var(self.cars.keys(), steps, within=Reals)
-    self._model.benefit = Var(within=Reals, bounds=(0, None))
+class EnergySystemDispatch:
 
-    if "Soc" in self.strategy:
-        if self._solver_type == "glpk":
+    def __int__(
+            self,
+            steps: int = 96,
+            resolution: str = '15min',
+            strategy: str = 'soc',
+            benefit_function: pd.Series = None,
+            electric_vehicles: list[Car] = None,
+            generation: pd.Series = None,
+            tariff: pd.Series = None,
+            grid_fee: pd.Series = None,
+            solver: str = 'glpk'
+    ):
 
-            segments = dict(low=[], up=[], coeff=[], low_=[])
-            for i in range(0, len(self._y_data) - 1):
-                segments["low"].append(self._x_data[i])
-                segments["up"].append(self._x_data[i + 1])
-                dy = self._y_data[i + 1] - self._y_data[i]
-                dx = self._x_data[i + 1] - self._x_data[i]
-                segments["coeff"].append(dy / dx)
-                segments["low_"].append(self._y_data[i])
+        self.resolution = resolution
+        self.T = steps
+        self.t = range(steps)
+        self.dt = 1 / (steps / 24)
 
-            s = len(segments["low"])
-            self._model.z = Var(range(s), within=Binary)
-            self._model.q = Var(range(s), within=Reals)
+        self.ev = electric_vehicles
+        self.num_ev = range(len(self.ev))
+
+        self.generation = generation
+
+        self.tariff = tariff
+        self.grid_fee = grid_fee
+
+        self.m = ConcreteModel()
+        self.s = SolverFactory(solver)
+
+        self.strategy = strategy
+        if self.strategy == 'soc':
+            maximal_capacity = sum([car.capacity for car in self.ev])
+            soc_s = list(benefit_function.index / 100 * maximal_capacity)
+            benefits = list(np.cumsum(benefit_function.values * maximal_capacity * 0.05))
+
+            self.segments = dict(low=[], up=[], coeff=[], low_=[])
+            for i in range(0, len(benefits) - 1):
+                self.segments["low"].append(soc_s[i])
+                self.segments["up"].append(soc_s[i + 1])
+                dy = benefits[i + 1] - benefits[i]
+                dx = soc_s[i + 1] - soc_s[i]
+                self.segments["coeff"].append(dy / dx)
+                self.segments["low_"].append(benefits[i])
+        else:
+            self.price_limit = benefit_function.values[0]
+
+    def get_actual_ev_capacity(self, ev: Car = None):
+        capacity = 0
+        if ev is None:
+            for car in self.ev:
+                capacity += car.get_current_capacity()
+            return capacity
+        else:
+            return ev.get_current_capacity()
+
+    def get_ev_soc_limit(self, d_time: datetime, ev: Car):
+        s1, s2 = d_time, d_time + td(days=1)
+        return ev.get_limit(s2, strategy='required')
+
+    def get_maximal_ev_power(self, ev:Car = None):
+        power = 0
+        if ev is None:
+            for car in self.ev:
+                power += car.maximal_charging_power
+            return power
+        else:
+            return ev.maximal_charging_power
+
+    def get_maximal_ev_capacity(self, ev: Car = None):
+        capacity = 0
+        if ev is None:
+            for car in self.ev:
+                capacity += car.capacity
+            return capacity
+        else:
+            return ev.capacity
+
+    def get_ev_demand(self, d_time: datetime, ev: Car = None):
+        s1, s2 = d_time, d_time + td(days=1)
+        if ev is None:
+            demand = np.zeros(self.T)
+            for car in self.ev:
+                demand += car.get(CarData.demand, slice(s1, s2)).values
+            return demand
+        else:
+            return ev.get(CarData.demand, slice(s1, s2)).values
+
+    def get_ev_usage(self, d_time: datetime, ev: Car):
+        s1, s2 = d_time, d_time + td(days=1)
+        return ev.get(CarData.usage, slice(s1, s2)).values
+
+    def optimal_solution(self, d_time: datetime):
+        s1, s2 = d_time, d_time + td(days=1)
+
+        ev_capacity = self.get_actual_ev_capacity()
+        ev_demand = self.get_ev_demand(d_time)
+
+        generation = self.generation.loc[slice(s1, s2)].values
+
+        tariff = self.tariff.loc[slice(s1, s2)].values
+        grid_fee = self.grid_fee.loc[slice(s1, s2)].values
+        total_price = tariff + grid_fee
+
+        # -> clear model
+        self.m.clear()
+        # -> declare variables
+        self.m.power = Var(self.num_ev, self.t, within=Reals, bounds=(0, None))
+        self.m.grid = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.pv = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.capacity = Var(within=Reals, bounds=(0, self.get_maximal_ev_capacity()))
+        self.m.volume = Var(self.num_ev, self.t, within=Reals)
+        self.m.benefit = Var(within=Reals, bounds=(0, None))
+
+        if self.strategy == 'soc':
+            s = range(len(self.segments["low"]))
+            self.m.z = Var(s, within=Binary)
+            self.m.q = Var(s, within=Reals)
 
             # -> segment selection
-            self._model.choose_segment = Constraint(
-                expr=quicksum(self._model.z[k] for k in range(s)) == 1
-            )
+            self.m.choose_segment = Constraint(quicksum(self.m.z[k] for k in s) == 1)
 
-            self._model.choose_segment_low = ConstraintList()
-            self._model.choose_segment_up = ConstraintList()
-            for k in range(s):
-                self._model.choose_segment_low.add(
-                    expr=self._model.q[k] >= segments["low"][k] * self._model.z[k]
-                )
-                self._model.choose_segment_up.add(
-                    expr=self._model.q[k] <= segments["up"][k] * self._model.z[k]
-                )
+            self.m.s_segment_low = ConstraintList()
+            self.m.s_segment_up = ConstraintList()
+            for k in s:
+                self.m.s_segment_low.add(self.m.q[k] >= self.segments["low"][k] * self.m.z[k])
+                self.m.s_segment_up.add(self.m.q[k] <= self.segments["up"][k] * self.m.z[k])
 
-            self._model.benefit_fct = Constraint(
-                expr=quicksum(
-                    segments["low_"][k] * self._model.z[k]
-                    + segments["coeff"][k]
-                    * (self._model.q[k] - segments["low"][k] * self._model.z[k])
-                    for k in range(s)
-                )
-                     == self._model.benefit
-            )
-            self._model.capacity_ct = Constraint(
-                expr=quicksum(self._model.q[k] for k in range(s))
-                     == self._model.capacity
-            )
+            self.m.benefit_fct = Constraint(quicksum(self.segments["low_"][k] * self.m.z[k]
+                                                     + self.segments["coeff"][k]
+                                                     * (self.m.q[k] - self.segments["low"][k] * self.m.z[k])
+                                                     for k in s) == self.m.benefit)
 
-        elif self._solver_type == "gurobi":
-            self._model.n_soc = Piecewise(
-                self._model.benefit,
-                self._model.capacity,
-                pw_pts=self._x_data,
-                f_rule=self._y_data,
-                pw_constr_type="EQ",
-                pw_repn="SOS2",
-            )
-    else:
-        self._model.benefit_fct = Constraint(
-            expr=self._model.benefit == self.price_limit * self._model.capacity
-        )
+            self.m.capacity_ct = Constraint(quicksum(self.m.q[k] for k in s) == self.m.capacity)
 
-    # -> limit maximal charging power
-    self._model.power_limit = ConstraintList()
+        else:
+            self.m.benefit_fct = Constraint(self.m.benefit == self.price_limit * self.m.capacity)
 
-    max_power_sum = 0
-    for key, car in self.cars.items():
-        usage = car.get(CarData.usage, slice(d_time, None)).values
-        for t in steps:
-            if usage[t] > 0:
-                self._model.power_limit.add(self._model.power[key, t] <= 0)
-            else:
-                self._model.power_limit.add(
-                    self._model.power[key, t] <= car.maximal_charging_power
-                )
+        # -> limit maximal charging power
+        self.m.power_limit = ConstraintList()
+        # -> limit volume to range
+        self.m.capacity_limit = ConstraintList()
+        # -> max value for grid supply
+        total_grid_power = 0
+        for i, car in zip(self.num_ev, self.ev):
+            usage = self.get_ev_usage(d_time, car)
+            demand = self.get_ev_demand(d_time, car)
+            # -> set power limits
+            for t in self.t:
+                if usage[t] > 0:
+                    self.m.power_limit.add(self.m.power[i, t] <= 0)
+                else:
+                    self.m.power_limit.add(self.m.power[i, t] <= self.get_maximal_ev_power(car))
 
-        soc = (car.soc * car.capacity) - self.dt * demand[key].sum()
-        if soc < car.get_limit(d_time + td(days=1), strategy):
-            max_power_sum += car.maximal_charging_power
+            end_of_day_capacity = self.get_actual_ev_capacity(car) - demand.sum()
+            end_of_day_soc = end_of_day_capacity / self.get_maximal_ev_capacity(car)
 
-    self._model.grid_power_limit = ConstraintList()
+            if end_of_day_soc < self.get_ev_soc_limit(d_time, car):
+                total_grid_power += self.get_maximal_ev_power(car)
+            # -> set capacity limits
 
-    for t in steps:
-        self._model.grid_power_limit.add(self._model.grid[t] <= max_power_sum)
+            for t in self.t:
+                eq = self.m.power[i, t] * self.dt - demand[t]
 
-    # -> set range for soc
-    self._model.soc_limit = ConstraintList()
-    for key, car in self.cars.items():
+                if t == 0:
+                    eq += self.get_actual_ev_capacity(car)
+                else:
+                    eq += self.m.volume[i, t - 1]
+
+                self.m.capacity_limit.add(self.m.volume[i, t] == eq)
+                self.m.soc_limit.add(self.m.volume[i, t] >= 0)
+                self.m.soc_limit.add(self.m.volume[i, t] <= self.get_maximal_ev_capacity(car))
+
+        self.m.grid_power_limit = ConstraintList()
         for t in self.t:
-            balance = self.dt * (self._model.power[key, t] - demand[key][t])
-            if t > 0:
-                self._model.soc_limit.add(
-                    self._model.volume[key, t]
-                    == self._model.volume[key, t - 1] + balance
-                )
-            else:
-                capacity = car.soc * car.capacity
-                self._model.soc_limit.add(
-                    self._model.volume[key, t] == capacity + balance
-                )
+            self.m.grid_power_limit.add(self.m.grid[t] <= total_grid_power)
 
-            self._model.soc_limit.add(self._model.volume[key, t] >= 0)
-            self._model.soc_limit.add(self._model.volume[key, t] <= car.capacity)
+
 
     self._model.total_capacity = Constraint(
         expr=self._model.capacity
@@ -214,10 +285,11 @@ def _optimize_photovoltaic_usage(
         self._finished = True
         self._initial_plan = True
 
+
 def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = "required"):
     remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
     generation = self._data.loc[
-                 d_time : d_time + td(hours=(remaining_steps - 1) * self.dt),
+                 d_time: d_time + td(hours=(remaining_steps - 1) * self.dt),
                  "residual_generation",
                  ]
     self._request = pd.Series(

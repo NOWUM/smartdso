@@ -77,6 +77,7 @@ class HouseholdModel(BasicParticipant):
         weather: pd.DataFrame = None,
         tariff: pd.Series = None,
         grid_fee: pd.Series = None,
+        max_request: int = 5,
         *args,
         **kwargs,
     ):
@@ -104,7 +105,7 @@ class HouseholdModel(BasicParticipant):
             pv_systems=pv_systems,
             weather=weather,
             tariff=tariff,
-            grid_fee=grid_fee
+            grid_fee=grid_fee,
         )
 
         # -> generate driver and cars
@@ -137,7 +138,6 @@ class HouseholdModel(BasicParticipant):
 
         logger.info(f" -> generated {len(self.cars)} EV with corresponding drivers")
 
-
         # -> setting strategy options
         logger.info(" -> setting strategy options")
         if "Cap" in strategy:
@@ -150,16 +150,10 @@ class HouseholdModel(BasicParticipant):
             col = np.argwhere(np.random.uniform() * 100 > CUM_PROB).flatten()
             col = col[-1] if len(col) > 0 else 0
             self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
-            self._x_data = list(self.b_fnc.index / 100 * self._total_capacity)
-            self._y_data = list(np.cumsum(self.b_fnc.values * self._total_capacity * 0.05))
             logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
-
-        self._max_requests = 5
-        self.finished = False
-
-        self._model = ConcreteModel()
-        self._solver_type = "glpk"
-        self._solver = SolverFactory(self._solver_type)
+        # self._maximal_benefit = self._y_data[-1]
+        logger.info(f" -> set maximal iteration to {max_request}")
+        self._max_requests = max_request
 
     def get_request(self, d_time: datetime):
         if self._total_capacity > 0 and d_time > self._commit:
