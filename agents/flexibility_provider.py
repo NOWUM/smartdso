@@ -44,6 +44,7 @@ class FlexibilityProvider:
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
         self.date_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq="d")
         self.T = steps
+        self.resolution = resolution
         # -> total clients
         self.clients: dict[uuid.UUID, BasicParticipant] = {}
         # -> weather generator

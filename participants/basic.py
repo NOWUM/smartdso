@@ -103,9 +103,9 @@ class BasicParticipant:
             columns=[
                 "consumer_id",
                 "demand",
-                "residual_demand"
+                "residual_demand",
                 "generation",
-                "residual_generation"
+                "residual_generation",
                 "grid_fee",
                 "car_demand",
                 "planned_grid_consumption",
