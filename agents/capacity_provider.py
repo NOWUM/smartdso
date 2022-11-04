@@ -33,6 +33,10 @@ class CapacityProvider:
         self.name = name
         self.sim = sim
 
+        self.T = steps
+        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
+        self.resolution = resolution
+
         components = {}
         for component in ['nodes', 'transformers', 'lines', 'consumers']:
             c = pd.read_csv(fr"./gridLib/data/export/{grid_data}/{component}.csv", index_col=0)
@@ -51,26 +55,19 @@ class CapacityProvider:
             sub_grids = consumers['sub_grid'].unique()
             self.sub_ids = list(sub_grids)
 
-        self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
+        self.line_utilization = {}
+        self.transformer_utilization = {}
+        for sub_id in self.sub_ids:
+            line_names = self.grid.sub_networks[sub_id]["model"].lines.index
+            index = self.time_range
+            self.line_utilization[sub_id] = pd.DataFrame(columns=line_names, index=index)
+            self.transformer_utilization[sub_id] = pd.DataFrame(columns=["utilization"], index=index)
 
-        self.line_utilization = {
-            sub_id: pd.DataFrame(
-                columns=self.grid.sub_networks[sub_id]["model"].lines.index,
-                index=self.time_range,
-            )
-            for sub_id in self.sub_ids
-        }
-
-        self.transformer_utilization = {
-            sub_id: pd.DataFrame(columns=["utilization"], index=self.time_range)
-            for sub_id in self.sub_ids
-        }
         self.demand = pd.DataFrame()
 
         self._rq_l_util = pd.DataFrame()
         self._rq_t_util = pd.DataFrame()
 
-        self.T = steps
         self._database = create_engine(database_uri)
 
         self._geo_info = dict(edges=[], nodes=[], transformers=[])
@@ -107,22 +104,15 @@ class CapacityProvider:
         transformer = transformer / s_max * 100
         return transformer
 
-    def run_power_flow(
-        self,
-        data: pd.DataFrame,
-        sub_id: str,
-        end_of_day: bool = False,
-        d_time: datetime = None,
-    ) -> None:
-        nodes_in_grid = self.mapper[self.mapper.values == sub_id].index
-        demand_data = data.loc[
-            data.index.get_level_values("node_id").isin(nodes_in_grid)
-        ]
+    def run_power_flow(self, data: pd.DataFrame, sub_id: int, end_of_day: bool = False, d_time: datetime = None):
+        idx = self.grid.data['consumers']['sub_grid'] == sub_id
+        nodes_in_grid = self.grid.data['consumers'].loc[idx, 'bus0']
+        idx = data.index.get_level_values("node_id").isin(nodes_in_grid)
+        demand_data = data.loc[idx]
         demand_data = demand_data.reset_index()
         if end_of_day:
-            snapshots = list(
-                pd.date_range(start=d_time, periods=self.T, freq=RESOLUTION[self.T])
-            )
+            steps = pd.date_range(start=d_time, periods=self.T, freq=self.resolution)
+            snapshots = list(steps)
         else:
             demand_unique = demand_data.drop_duplicates(subset=["node_id", "power"])
             snapshots = list(demand_unique["t"].unique())
@@ -130,33 +120,29 @@ class CapacityProvider:
         self.grid.sub_networks[sub_id]["model"].set_snapshots(snapshots)
         for node in demand_data["node_id"].unique():
             # -> demand time series in [kW] to [MW]
+            name = f"{node}_consumer"
             demand = demand_data.loc[demand_data["node_id"] == node, ["t", "power"]]
             demand["power"] /= 1000
             demand = demand.set_index("t")
-            self.grid.sub_networks[sub_id]["model"].loads_t.p_set[
-                f"{node}_consumer"
-            ] = demand.loc[snapshots]
+            consumers_series = self.grid.sub_networks[sub_id]["model"].loads_t
+            consumers_series['p_set'].loc[snapshots, name] = demand.loc[snapshots].values.flatten()
         self.grid.run_power_flow(sub_id=sub_id)
 
     def set_fixed_power(self, data: pd.DataFrame) -> None:
         self.demand = data.groupby(["node_id", "t"]).sum()
         for sub_id in self.sub_ids:
             for date in np.unique(self.time_range.date):
-                self.run_power_flow(
-                    data=self.demand.copy(), sub_id=sub_id, end_of_day=True, d_time=date
-                )
-
-                snapshots = self.grid.sub_networks[sub_id]["model"].snapshots
+                demand = self.demand.copy()
+                self.run_power_flow(data=demand, sub_id=sub_id, end_of_day=True,        d_time=date)
 
                 self._rq_l_util = self._line_utilization(sub_id=sub_id)
                 self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
 
-                self.line_utilization[sub_id].loc[
-                    snapshots, self._rq_l_util.columns
-                ] = self._rq_l_util.values
-                self.transformer_utilization[sub_id].loc[
-                    snapshots, "utilization"
-                ] = self._rq_t_util.values.flatten()
+                steps = self.grid.sub_networks[sub_id]["model"].snapshots
+                line_names = self._rq_l_util.columns
+
+                self.line_utilization[sub_id].loc[steps, line_names] = self._rq_l_util.values
+                self.transformer_utilization[sub_id].loc[steps, "utilization"] = self._rq_t_util.values.flatten()
 
     def get_price(self, request: pd.Series = None, node_id: str = "") -> pd.Series:
         def price_func(util):
