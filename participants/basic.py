@@ -59,7 +59,7 @@ class BasicParticipant:
     ):
 
         # -> connection to database
-        self._database = create_engine(database_uri)
+        # self._database = create_engine(database_uri)
         # -> grid connection node
         self.grid_node = grid_node
         self.sub_grid = sub_grid
@@ -76,6 +76,7 @@ class BasicParticipant:
         self.T, self.t, self.dt = steps, np.arange(steps), 1 / (steps/ 24)
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
         self.date_range = pd.date_range(start=start_date, end=end_date, freq="d")
+        self.resolution = resolution
         # -> input parameters and time series for the optimization
         self.weather = pd.DataFrame(index=self.time_range)
         self.tariff = pd.DataFrame(index=self.time_range)
@@ -117,7 +118,7 @@ class BasicParticipant:
         )
 
         for column in self._data.columns:
-            self._data[column] = np.zeros(len(self.time_range))
+            self._data[column] = np.zeros(self._steps)
 
         # -> set consumer id
         self._data.loc[self.time_range, "consumer_id"] = [consumer_id] * self._steps
@@ -192,21 +193,18 @@ class BasicParticipant:
             self._initial_plan = True
         return pd.Series(dtype=float, index=[d_time], data=[0])
 
-    def get(self, data_type: DataType, time_range=None):
+    def get(self, data_type: DataType, time_range=None, build_dataframe: bool = False):
         time_range = time_range or self.time_range
-        return self._data.loc[time_range, data_type.name]
+        result = self._data.loc[time_range, data_type.name]
+        if build_dataframe:
+            dataframe = pd.DataFrame({"power": result.values})
+            dataframe.index = self.time_range
+            dataframe["id_"] = str(self.id_)
+            dataframe["node_id"] = self.grid_node
+            dataframe = dataframe.rename_axis("t")
+            return dataframe
+        return result
 
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
         time_range = time_range or self.time_range
         return self._data.loc[time_range]
-
-    def get_initial_power(self, data_type: DataType):
-        data = self.get(data_type=data_type)
-
-        dataframe = pd.DataFrame({"power": data.values})
-        dataframe.index = self.time_range
-        dataframe["id_"] = str(self.id_)
-        dataframe["node_id"] = self.grid_node
-        dataframe = dataframe.rename_axis("t")
-
-        return dataframe
