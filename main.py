@@ -88,7 +88,8 @@ try:
     # -> all residential consumers
     residential_consumers = consumers.loc[consumers["profile"] == "H0"]
     logger.info(f" -> starting residential clients")
-    for _, consumer in residential_consumers.iterrows():
+    num_ = len(residential_consumers)
+    for _, consumer in tqdm(residential_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
         id_ = uuid.uuid1()
         # -> check pv potential and add system corresponding to the pv ratio
@@ -117,14 +118,15 @@ try:
     # -> all business consumers
     business_consumers = consumers.loc[consumers["profile"] == "G0"]
     logger.info(f" -> starting business clients")
-    for _, consumer in business_consumers.iterrows():
+    num_ = len(business_consumers)
+    for _, consumer in tqdm(business_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
         id_ = uuid.uuid1()
         clients[id_] = IndustryModel(
             demandP=consumer['demand_power'],
             consumer_id=str(id_),
             consumer_type="business",
-            weater=weather_at_each_day,
+            weather=weather_at_each_day,
             grid_fee=grid_fee,
             **config_dict
         )
@@ -135,14 +137,15 @@ try:
     # -> all industry consumers
     industry_consumers = consumers.loc[consumers["profile"] == "RLM"]
     logger.info(f" -> starting industry clients")
-    for _, consumer in industry_consumers.iterrows():
+    num_ = len(industry_consumers)
+    for _, consumer in tqdm(industry_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
         id_ = uuid.uuid1()
         clients[id_] = BusinessModel(
             demandP=consumer['demand_power'],
             consumer_id=str(id_),
             consumer_type="industry",
-            weater=weather_at_each_day,
+            weather=weather_at_each_day,
             grid_fee=grid_fee,
             **config_dict
         )
