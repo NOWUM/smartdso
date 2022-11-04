@@ -18,7 +18,7 @@ class SimulationConfig:
     # -> select grid data in ./gridLib/data/export/
     GRID_DATA: str = os.getenv("GRID_DATA", "dem")
     # -> select sub grid: -1 correspond to total grid, an integer > 0 select the grid
-    SUB_GRID: int = int(os.getenv("SUB_GRID", 5))
+    SUB_GRID: int = int(os.getenv("SUB_GRID", 1))
     # -> default start date
     START_DATE: pd.Timestamp = pd.to_datetime(os.getenv("START_DATE", "2022-05-01"))
     # -> default end date
