@@ -51,6 +51,9 @@ class BasicParticipant:
         pv_systems: list = None,
         sub_grid: int = -1,
         residents: int = 0,
+        weather: pd.DataFrame = None,
+        tariff: pd.Series = None,
+        grid_fee: pd.Series = None,
         *args,
         **kwargs
     ):
@@ -116,17 +119,35 @@ class BasicParticipant:
         for column in self._data.columns:
             self._data[column] = np.zeros(len(self.time_range))
 
+        # -> set consumer id
         self._data.loc[self.time_range, "consumer_id"] = [consumer_id] * self._steps
+        # -> set tariff data
+        if tariff is None:
+            tariff = pd.Series(data=30 * np.ones(self._steps), index=self.time_range)
+        self._data.loc[tariff.index, "tariff"] = tariff.values.flatten()
+        self.tariff = tariff.copy()
+        # -> set grid fee data
+        if grid_fee is None:
+            grid_fee = pd.Series(data=5 * np.ones(self._steps), index=self.time_range)
+        self._data.loc[grid_fee.index, "tariff"] = grid_fee.values.flatten()
+        self.grid_fee = grid_fee.copy()
+        # -> set weather data
+        self.weather = weather.copy()
 
-    def has_commit(self) -> bool:
-        return self._finished
+        # -> generate radiation series for each pv system
+        for system in self._pv_systems['systems']:
+            # -> irradiance unit [W/m²]
+            rad = get_total_irradiance(
+                solar_zenith=self.weather["zenith"],
+                solar_azimuth=self.weather["azimuth"],
+                dni=self.weather["dni"],
+                ghi=self.weather["ghi"],
+                dhi=self.weather["dhi"],
+                surface_tilt=system.arrays[0].module_parameters["surface_tilt"],
+                surface_azimuth=system.arrays[0].module_parameters["surface_azimuth"],
+            )
+            self._pv_systems['radiation'].append(rad)
 
-    def reset_commit(self) -> None:
-        self._finished = False
-        if self.strategy == "optimized":
-            self._initial_plan = True
-
-    def _initialize_time_series(self):
         # -> calculate demand at each day
         demand_at_each_day = []
         for day in self.date_range:
@@ -151,32 +172,14 @@ class BasicParticipant:
         residual_generation[residual_generation < 0] = 0
         self._data.loc[self.time_range, "residual_generation"] = residual_generation
 
-    def set_parameter(self, weather: pd.DataFrame, tariff: pd.DataFrame, grid_fee: pd.DataFrame):
-        # -> set weather data
-        self.weather = weather
-        # -> set economic parameter
-        self.tariff = tariff
-        self.grid_fee = grid_fee
-        # -> store data in result dataframe
-        self._data.loc[tariff.index, "tariff"] = tariff.values.flatten()
-        self._data.loc[grid_fee.index, "tariff"] = grid_fee.values.flatten()
-        # -> generate radiation series for each pv system
-        radiation = self._pv_systems['radiation']
-        for system in self._pv_systems['systems']:
-            # -> irradiance unit [W/m²]
-            rad = get_total_irradiance(
-                solar_zenith=self.weather["zenith"],
-                solar_azimuth=self.weather["azimuth"],
-                dni=self.weather["dni"],
-                ghi=self.weather["ghi"],
-                dhi=self.weather["dhi"],
-                surface_tilt=system.arrays[0].module_parameters["surface_tilt"],
-                surface_azimuth=system.arrays[0].module_parameters["surface_azimuth"],
-            )
-            radiation.append(rad)
+    def has_commit(self) -> bool:
+        return self._finished
 
-        self._initialize_time_series()
-    #
+    def reset_commit(self) -> None:
+        self._finished = False
+        if self.strategy == "optimized":
+            self._initial_plan = True
+
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == "ev"]:
             person.car.charge(d_time)   # -> do charging

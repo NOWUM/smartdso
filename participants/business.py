@@ -1,7 +1,6 @@
 from datetime import datetime
 
-import numpy as np
-
+import pandas as pd
 from demLib.electric_profile import StandardLoadProfile
 from participants.basic import BasicParticipant
 
@@ -16,6 +15,9 @@ class BusinessModel(BasicParticipant):
         end_date: datetime = datetime(2022, 1, 2),
         steps: int = 96,
         resolution: str = '15min',
+        weather: pd.DataFrame = None,
+        tariff: pd.Series = None,
+        grid_fee: pd.Series = None,
         *args,
         **kwargs
     ):
@@ -28,7 +30,10 @@ class BusinessModel(BasicParticipant):
             database_uri=database_uri,
             consumer_type="business",
             random=None,
-            pv_systems=[]
+            pv_systems=[],
+            weather=weather,
+            tariff=tariff,
+            grid_fee=grid_fee
         )
 
         self._profile_generator = StandardLoadProfile(

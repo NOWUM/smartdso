@@ -19,6 +19,7 @@ import uuid
 # -> timescaledb connection to store the simulation results
 from config import SimulationConfig as Config
 logging.basicConfig()
+logging.getLogger("smartdso.residential").setLevel("WARNING")
 logger = logging.getLogger("smartdso")
 logger.setLevel("INFO")
 
@@ -73,7 +74,7 @@ try:
     tariff = FlexProvider.get_tariff(time_range=time_range)
     logger.info(" -> started Flexibility Provider")
     logging.getLogger("smartdso.flexibility_provider").setLevel("DEBUG")
-
+    config_dict['tariff'] = tariff
     # -> start consumer agents
     consumer_path = rf"./gridLib/data/export/{Config.GRID_DATA}/consumers.csv"
     consumers = pd.read_csv(consumer_path, index_col=0)
@@ -105,12 +106,9 @@ try:
             pv_systems=pv_systems,
             consumer_type="household",
             random=random,
+            weather=weather_at_each_day,
+            grid_fee=grid_fee,
             **config_dict
-        )
-        clients[id_].set_parameter(
-            weather=weather_at_each_day.copy(),
-            tariff=tariff.copy(),
-            grid_fee=grid_fee.copy()
         )
         FlexProvider.register(id_, clients[id_])
 
@@ -126,12 +124,9 @@ try:
             demandP=consumer['demand_power'],
             consumer_id=str(id_),
             consumer_type="business",
+            weater=weather_at_each_day,
+            grid_fee=grid_fee,
             **config_dict
-        )
-        clients[id_].set_parameter(
-            weather=weather_at_each_day.copy(),
-            tariff=tariff.copy(),
-            grid_fee=grid_fee.copy()
         )
         FlexProvider.register(id_, clients[id_])
 
@@ -147,12 +142,9 @@ try:
             demandP=consumer['demand_power'],
             consumer_id=str(id_),
             consumer_type="industry",
+            weater=weather_at_each_day,
+            grid_fee=grid_fee,
             **config_dict
-        )
-        clients[id_].set_parameter(
-            weather=weather_at_each_day.copy(),
-            tariff=tariff.copy(),
-            grid_fee=grid_fee.copy()
         )
         FlexProvider.register(id_, clients[id_])
     logger.info(f" -> started {len(industry_consumers)} industry clients")

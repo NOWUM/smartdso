@@ -69,11 +69,14 @@ class HouseholdModel(BasicParticipant):
         grid_node: str = None,
         start_date: datetime = datetime(2022, 1, 1),
         end_date: datetime = datetime(2022, 1, 2),
-        steps: int = 1440,
+        steps: int = 96,
+        resolution:str = "15min",
         consumer_id: str = "nowum",
         strategy: str = "MaxPvCap",
-        scenario: str = "Flat",
         sub_grid: int = -1,
+        weather: pd.DataFrame = None,
+        tariff: pd.Series = None,
+        grid_fee: pd.Series = None,
         *args,
         **kwargs,
     ):
@@ -86,6 +89,7 @@ class HouseholdModel(BasicParticipant):
 
         super().__init__(
             steps=steps,
+            resolution=resolution,
             consumer_id=consumer_id,
             sub_grid=sub_grid,
             grid_node=grid_node,
@@ -97,7 +101,10 @@ class HouseholdModel(BasicParticipant):
             strategy=strategy,
             random=random,
             profile_generator=p_gen,
-            pv_systems=pv_systems
+            pv_systems=pv_systems,
+            weather=weather,
+            tariff=tariff,
+            grid_fee=grid_fee
         )
 
         # -> generate driver and cars
