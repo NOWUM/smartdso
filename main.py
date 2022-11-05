@@ -161,7 +161,8 @@ except Exception as e:
 
 if __name__ == "__main__":
     pass
-
+    client = [*clients.values()][0]
+    client.dispatcher.optimal_solution(date_range[0])
 #     try:
 #         # -> run SLPs for each day in simulation horizon
 #         logger.info(f" -> running photovoltaic and slp generation")

@@ -1,30 +1,15 @@
 import logging
 from datetime import datetime
 from datetime import timedelta as td
-from math import exp
 
 import numpy as np
 import pandas as pd
 from pvlib.pvsystem import PVSystem
-from pyomo.environ import (
-    Binary,
-    ConcreteModel,
-    Constraint,
-    ConstraintList,
-    Objective,
-    Piecewise,
-    Reals,
-    SolverFactory,
-    Var,
-    maximize,
-    minimize,
-    quicksum,
-    value,
-)
 
 from carLib.car import CarData, Car
 from demLib.electric_profile import StandardLoadProfile
-from participants.basic import BasicParticipant
+from participants.strategy.system_dispatch import EnergySystemDispatch
+from participants.basic import BasicParticipant, DataType
 from participants.resident import Resident
 
 # example to Piecewise:
@@ -56,30 +41,30 @@ def key_generator(sub_grid: int, pv_capacity: float, ev_capacity: float):
 
 class HouseholdModel(BasicParticipant):
     def __init__(
-        self,
-        residents: int,
-        demand_power: float,
-        demand_heat: float,
-        database_uri: str,
-        random: np.random.default_rng,
-        london_data: bool = False,
-        london_id: str = "MAC002957",
-        ev_ratio: float = 0.5,
-        pv_systems: list = None,
-        grid_node: str = None,
-        start_date: datetime = datetime(2022, 1, 1),
-        end_date: datetime = datetime(2022, 1, 2),
-        steps: int = 96,
-        resolution:str = "15min",
-        consumer_id: str = "nowum",
-        strategy: str = "MaxPvCap",
-        sub_grid: int = -1,
-        weather: pd.DataFrame = None,
-        tariff: pd.Series = None,
-        grid_fee: pd.Series = None,
-        max_request: int = 5,
-        *args,
-        **kwargs,
+            self,
+            residents: int,
+            demand_power: float,
+            demand_heat: float,
+            database_uri: str,
+            random: np.random.default_rng,
+            london_data: bool = False,
+            london_id: str = "MAC002957",
+            ev_ratio: float = 0.5,
+            pv_systems: list = None,
+            grid_node: str = None,
+            start_date: datetime = datetime(2022, 1, 1),
+            end_date: datetime = datetime(2022, 1, 2),
+            steps: int = 96,
+            resolution: str = "15min",
+            consumer_id: str = "nowum",
+            strategy: str = "MaxPvCap",
+            sub_grid: int = -1,
+            weather: pd.DataFrame = None,
+            tariff: pd.Series = None,
+            grid_fee: pd.Series = None,
+            max_request: int = 5,
+            *args,
+            **kwargs,
     ):
 
         # -> initialize profile generator
@@ -142,9 +127,11 @@ class HouseholdModel(BasicParticipant):
         logger.info(" -> setting strategy options")
         if "Cap" in strategy:
             self.price_limit = 45
+            self.b_fnc = pd.Series(data=[self.price_limit] * 20, index=[*range(5, 105, 5)])
             logger.info(f" -> set price limit to {self.price_limit} ct/kWh")
         elif "Inf" in strategy:
-            self.price_limit = np.inf
+            self.price_limit = 9_999
+            self.b_fnc = pd.Series(data=[self.price_limit] * 20, index=[*range(5, 105, 5)])
             logger.info(f" -> no price limit is set")
         else:
             col = np.argwhere(np.random.uniform() * 100 > CUM_PROB).flatten()
@@ -154,6 +141,17 @@ class HouseholdModel(BasicParticipant):
         # self._maximal_benefit = self._y_data[-1]
         logger.info(f" -> set maximal iteration to {max_request}")
         self._max_requests = max_request
+
+        self.dispatcher = EnergySystemDispatch(
+            steps=self.T,
+            resolution=self.resolution,
+            strategy=strategy,
+            benefit_function=self.b_fnc,
+            generation=self.get(DataType.residual_generation),
+            tariff=tariff,
+            grid_fee=grid_fee,
+            electric_vehicles=list(self.cars.values())
+        )
 
     def get_request(self, d_time: datetime):
         if self._total_capacity > 0 and d_time > self._commit:
@@ -188,8 +186,8 @@ class HouseholdModel(BasicParticipant):
                 price.index
             ].copy()
             self._data.loc[:, "final_pv_consumption"] = self._data.loc[
-                :, "planned_pv_consumption"
-            ].copy()
+                                                        :, "planned_pv_consumption"
+                                                        ].copy()
             self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
             self._data.loc[price.index, "grid_fee"] = price.values
             self._data = self._data.fillna(0)
