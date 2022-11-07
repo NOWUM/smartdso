@@ -172,12 +172,11 @@ class GridModel:
 
         try:
             result_summary = self.sub_networks[sub_id]["model"].pf()
-            converged = result_summary.converged
-            for col in converged.columns:
-                if any(converged[col]):
-                    self._logger.warning(f"pfc for subgrid {col} not converged")
-                else:
-                    self._logger.info(f"pfc for subgrid {col} converged")
+            converged = result_summary.converged.values
+            if any(~converged):
+                self._logger.warning(f"pfc for subgrid {sub_id} not converged")
+            else:
+                self._logger.info(f"pfc for subgrid {sub_id} converged")
 
         except Exception as e:
             self._logger.error(repr(e))
