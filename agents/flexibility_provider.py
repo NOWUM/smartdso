@@ -1,5 +1,5 @@
 import logging
-import uuid
+from tqdm import tqdm
 from datetime import datetime
 from datetime import timedelta as td
 
@@ -8,7 +8,8 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 from agents.utils import WeatherGenerator
-from participants.basic import BasicParticipant, DataType
+from participants.basic import BasicParticipant
+from carLib.car import CarData
 
 logger = logging.getLogger("smartdso.flexibility_provider")
 
@@ -47,29 +48,25 @@ class FlexibilityProvider:
         self.T = steps
         self.resolution = resolution
         # -> total clients
-        self.clients: dict[uuid.UUID, BasicParticipant] = {}
+        self.clients: dict[str, BasicParticipant] = {}
         # -> weather generator
         self.weather_generator = WeatherGenerator()
         # -> database connection
         self._database = create_engine(database_uri)
         # -> set dynamic or flat enerhy price
         if tariff == 'flat':  # -> use median
-            self.tariff[TARIFF.index, "tariff"] = TARIFF.values.mean()
+            self.tariff = TARIFF.loc[:, 'price']
         else:
             self.tariff = TARIFF
         self.tariff = self.tariff.resample(resolution).ffill()
 
-        # -> initialize list with all residential clients
         self.keys = []
         self._commits = {}
-        for key, value in self.clients.items():
-            if value.consumer_type == "household":
-                self.keys.append(key)
 
         self.random = random
-        self.consumer_handler = self.clients[self.keys[0]]
+        self.consumer_handler = None
 
-    def register(self, id_: uuid.uuid1, client: BasicParticipant):
+    def register(self, id_: str, client: BasicParticipant):
         self.clients[id_] = client
         if client.consumer_type == "household":
             self.keys.append(id_)
@@ -85,22 +82,16 @@ class FlexibilityProvider:
 
     def get_requests(self, d_time: datetime) -> (pd.Series, str):
         self.random.shuffle(self.keys)
-        for id_ in self.keys:
-            self._commits[id_] = self.clients[id_].has_commit()
-            if not self._commits[id_]:
+        for id_ in tqdm(self.keys):
+            self.consumer_handler = self.clients[id_]
+            has_commit = self.consumer_handler.has_commit(d_time)
+            if not has_commit:
+                self._commits[id_] = has_commit
                 request = self.clients[id_].get_request(d_time)
                 if sum(request.values) > 0:
-                    self.consumer_handler = self.clients[id_]
                     yield request, self.clients[id_].grid_node
-
-    def simulate(self, d_time: datetime) -> None:
-        capacity, empty, pool = 0, 0, 0
-        for participant in self.clients.values():
-            participant.simulate(d_time)
-            for person in [p for p in participant.persons if p.car.type == "ev"]:
-                capacity += person.car.soc * person.car.capacity
-                empty += int(person.car.empty)
-                pool += person.car.virtual_source
+                else:
+                    self._commits[id_] = True
 
     def commit(self, price: pd.Series) -> bool:
         commit = self.consumer_handler.commit(price=price)
@@ -109,11 +100,9 @@ class FlexibilityProvider:
             self._commits[id_] = True
         return commit
 
-    def _save_summary(self, d_time: datetime) -> None:
+    def save_consumer_summary(self, d_time: datetime) -> None:
 
-        time_range = pd.date_range(
-            start=d_time, freq=RESOLUTION[self.T], periods=self.T
-        )
+        time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
 
         result = pd.DataFrame(
             index=time_range,
@@ -132,9 +121,10 @@ class FlexibilityProvider:
 
         total_demand, car_counter = np.zeros(self.T), 0
 
+        result["sub_id"] = -1
+
         for id_, client in self.clients.items():
             # -> reset parameter for optimization for the next day
-            client.reset_commit()
             self._commits[id_] = False
             # -> get results for current day
             data = client.get_result(time_range)
@@ -163,16 +153,16 @@ class FlexibilityProvider:
 
             for key, car in client.cars.items():
                 car_counter += 1
-                result["availability"].loc[time_range] += 1 - car.get(
-                    CarDataType.usage, time_range
-                )
+                result["availability"].loc[time_range] += 1 - car.get(CarData.usage, time_range)
+
+            result[time_range, 'sub_grid'] = client.sub_grid
 
         result["availability"] /= car_counter
         result["grid_fee"] /= total_demand
 
-        result["scenario"] = self.scenario
-        result["iteration"] = self.iteration
-        result["sub_id"] = self.sub_grid
+        result["scenario"] = self.name
+        result["iteration"] = self.sim
+
         result = result.fillna(value=0)
         result.index.name = "time"
         result = result.reset_index()
@@ -189,60 +179,3 @@ class FlexibilityProvider:
             )
         except Exception as e:
             logger.warning(f"server closed the connection {repr(e)}")
-
-    def _save_electric_vehicles(self, d_time: datetime):
-        time_range = pd.date_range(
-            start=d_time, freq=RESOLUTION[self.T], periods=self.T
-        )
-
-        for id_, client in self.clients.items():
-            for key, car in client.cars.items():
-                data = car.get_result(time_range)
-                data = data.loc[
-                    :,
-                    [
-                        "soc",
-                        "usage",
-                        "planned_charge",
-                        "final_charge",
-                        "demand",
-                        "distance",
-                        "tariff",
-                    ],
-                ]
-                data.columns = [
-                    "soc",
-                    "usage",
-                    "initial_charging",
-                    "final_charging",
-                    "demand",
-                    "distance",
-                    "tariff",
-                ]
-                data["scenario"] = self.scenario
-                data["iteration"] = self.iteration
-                data["sub_id"] = self.sub_grid
-                data["id_"] = key
-                data["pv"] = client.get(DataType.final_pv_consumption)
-                data["pv_available"] = client.get(DataType.residual_generation)
-
-                data.index.name = "time"
-                data = data.reset_index()
-                data = data.set_index(
-                    ["time", "scenario", "iteration", "sub_id", "id_"]
-                )
-
-                try:
-                    data.to_sql(
-                        name="electric_vehicle",
-                        con=self._database,
-                        if_exists="append",
-                        method="multi",
-                    )
-                except Exception as e:
-                    logger.warning(f"server closed the connection {repr(e)}")
-
-    def save_results(self, d_time: datetime) -> None:
-        self._save_summary(d_time)
-        if self.iteration == 0:
-            self._save_electric_vehicles(d_time)
