@@ -1,4 +1,5 @@
 import logging
+import secrets
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -14,7 +15,6 @@ from participants.industry import IndustryModel
 from participants.residential import HouseholdModel
 
 from utils import TableCreator
-import uuid
 
 # -> timescaledb connection to store the simulation results
 from config import SimulationConfig as Config
@@ -27,7 +27,11 @@ config_dict = Config().get_config_dict()
 
 try:
     tables = TableCreator(create_tables=Config.RESET_DATABASE, database_uri=Config.DATABASE_URI)
-    logger.info(" -> connected to database")
+    logger.info(f" -> connected to database")
+    logger.info(f" -> deleting scenario: {Config.NAME}")
+    if Config.DELETE_SCENARIO:
+        tables.delete_scenario(scenario=Config.NAME)
+    logger.info(f" -> deleted scenario: {Config.NAME}")
 except Exception as e:
     logger.error(f" -> can't connect to {Config.DATABASE_URI}")
     logger.error(repr(e))
@@ -70,7 +74,7 @@ try:
 
     # -> start flexibility provider
     logger.info(" -> starting Flexibility Provider")
-    FlexProvider = FlexibilityProvider(**config_dict)
+    FlexProvider = FlexibilityProvider(random=random, **config_dict)
     tariff = FlexProvider.get_tariff(time_range=time_range)
     logger.info(" -> started Flexibility Provider")
     logging.getLogger("smartdso.flexibility_provider").setLevel("DEBUG")
@@ -84,14 +88,14 @@ try:
         idx = consumers['sub_grid'] == Config.SUB_GRID
         consumers = consumers.loc[idx]
     logger.info(f" -> starting {len(consumers)} clients in sub grid {Config.SUB_GRID}")
-    clients: dict[uuid.UUID, BasicParticipant] = {}
+    clients: dict[str, BasicParticipant] = {}
     # -> all residential consumers
     residential_consumers = consumers.loc[consumers["profile"] == "H0"]
     logger.info(f" -> starting residential clients")
     num_ = len(residential_consumers)
     for _, consumer in tqdm(residential_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
-        id_ = uuid.uuid1()
+        id_ = secrets.token_urlsafe(8)
         # -> check pv potential and add system corresponding to the pv ratio
         pv_systems = []
         if random.choice(a=[True, False], p=[Config.PV_RATIO, 1 - Config.PV_RATIO]):
@@ -100,7 +104,7 @@ try:
         clients[id_] = HouseholdModel(
             demand_power=consumer['demand_power'],
             demand_heat=consumer['demand_heat'],
-            consumer_id=str(id_),
+            consumer_id=id_,
             grid_node=consumer["bus0"],
             residents=int(max(consumer["demand_power"] / 1500, 1)),
             london_id=consumer["london_data"],
@@ -121,10 +125,10 @@ try:
     num_ = len(business_consumers)
     for _, consumer in tqdm(business_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
-        id_ = uuid.uuid1()
-        clients[id_] = IndustryModel(
+        id_ = secrets.token_urlsafe(8)
+        clients[id_] = BusinessModel(
             demandP=consumer['demand_power'],
-            consumer_id=str(id_),
+            consumer_id=id_,
             consumer_type="business",
             weather=weather_at_each_day,
             grid_fee=grid_fee,
@@ -140,10 +144,10 @@ try:
     num_ = len(industry_consumers)
     for _, consumer in tqdm(industry_consumers.iterrows(), total=num_):
         # -> create unique identifier for each consumer
-        id_ = uuid.uuid1()
-        clients[id_] = BusinessModel(
+        id_ = secrets.token_urlsafe(8)
+        clients[id_] = IndustryModel(
             demandP=consumer['demand_power'],
-            consumer_id=str(id_),
+            consumer_id=id_,
             consumer_type="industry",
             weather=weather_at_each_day,
             grid_fee=grid_fee,
@@ -174,64 +178,36 @@ if __name__ == "__main__":
         print(repr(e))
         logger.error(f" -> error in power flow calculation: {repr(e)}")
 
-        # -> start simulation for date range start_date till end_date
-        for day in date_range:
-            logger.info(f" -> running day {day.date()}")
-            logger.info(" -> consumers plan charging...")
+    # -> start simulation for date range start_date till end_date
+    for day in date_range:
+        logger.info(f" -> running day {day.date()}")
+        number_clients = len(FlexProvider.keys)
+        for d_time in time_range[time_range.date == day]:
+            try:
+                logger.info(f" -> consumers plan charging...")
+                logger.info(f" -> {d_time}")
+                number_commits = 0
+                while number_commits < number_clients:
+                    for request, node_id in FlexProvider.get_requests(d_time=d_time):
+                        price = CapProvider.get_price(request=request, node_id=node_id)
+                        if FlexProvider.commit(price):
+                            CapProvider.commit(request=request, node_id=node_id)
 
-            for d_time in tqdm(time_range):
-                try:
-                    number_commits = 0
-                    while number_commits < len(clients):
-                        for request, node_id in FlexProvider.get_requests(d_time=d_time):
-                            price = CapProvider.get_price(request=request, node_id=node_id)
-                            if FlexProvider.commit(price):
-                                CapProvider.commit(request=request, node_id=node_id)
+                    if 'optimize' in Config.STRATEGY:
+                        number_commits = FlexProvider.get_commits()
+                        logger.debug(f" -> {number_commits} consumers commit charging")
+                    elif 'heuristic' in Config.STRATEGY:
+                        logger.debug("set commit charging for clients")
+                        number_commits = len(clients)
 
-                    for client in clients.values():
-                        client.simulate(d_time)
+                for client in clients.values():
+                    client.simulate(d_time)
 
-                except Exception as e:
-                    logger.exception(f" -> error during simulation: {repr(e)}")
+            except Exception as e:
+                logger.exception(f" -> error during simulation: {repr(e)}")
 
-
-#     # -> start simulation for date range start_date till end_date
-#     logger.info(" -> starting simulation")
-#     for day in pd.date_range(start=start_date, end=end_date, freq="d"):
-#         logger.info(f" -> running day {day.date()}")
-#         logger.info(" -> consumers plan charging...")
-#         try:
-#             for d_time in tqdm(pd.date_range(start=day, periods=T, freq=RESOLUTION[T])):
-#                 number_commits = 0
-#                 while number_commits < len(FlexProvider.keys):
-#                     for request, node_id, consumer_id in FlexProvider.get_requests(
-#                         d_time=d_time, random=random
-#                     ):
-#                         if analyse_grid:
-#                             price = CapProvider.get_price(
-#                                 request=request, node_id=node_id
-#                             )
-#                             if FlexProvider.commit(price, consumer_id):
-#                                 CapProvider.commit(request=request, node_id=node_id)
-#                         else:
-#                             price = pd.Series(
-#                                 index=request.index, data=[0] * len(request)
-#                             )
-#                             FlexProvider.commit(price, consumer_id)
-#
-#                     if "MaxPv" in STRATEGY:
-#                         number_commits = FlexProvider.get_commits()
-#                         logger.debug(
-#                             f" -> {FlexProvider.get_commits()} consumers commit charging"
-#                         )
-#                     elif "PlugIn" in STRATEGY:
-#                         logger.debug("set commit charging for clients")
-#                         number_commits = len(FlexProvider.keys)
-#                 FlexProvider.simulate(d_time)
-#             FlexProvider.save_results(day)
-#             if analyse_grid:
-#                 CapProvider.save_results(day)
-#                 pass
-#
-#         except Exception as e:
-#             logger.exception(f"Error during simulation")
+        if Config.WRITE_EV:
+            for client in clients.values():
+                client.save_ev_data(day)
+        if Config.WRITE_CONSUMER_SUMMARY:
+            FlexProvider.save_consumer_summary(day)
