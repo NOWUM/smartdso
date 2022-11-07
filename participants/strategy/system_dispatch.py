@@ -5,26 +5,28 @@ import numpy as np
 import logging
 
 from pyomo.environ import (
-    Expression,
     ConcreteModel,
     Constraint,
     ConstraintList,
     Objective,
-    Piecewise,
     Reals,
     Binary,
     SolverFactory,
     Var,
     maximize,
-    minimize,
     quicksum,
     value,
-    Param
+)
+
+from pyomo.opt import (
+    SolverStatus,
+    TerminationCondition
 )
 
 from carLib.car import Car, CarData
 
 logger = logging.getLogger("samrtdso.energy_system_dispatch")
+logger.setLevel('ERROR')
 
 
 class EnergySystemDispatch:
@@ -59,7 +61,7 @@ class EnergySystemDispatch:
         self.benefits = list(np.cumsum(benefit_function.values * maximal_capacity * 0.05))
 
         self.strategy = strategy
-        if self.strategy == 'soc':
+        if "soc" in self.strategy:
             self.segments = dict(low=[], up=[], coeff=[], low_=[])
             for i in range(0, len(self.benefits) - 1):
                 self.segments["low"].append(self.soc_s[i])
@@ -146,13 +148,13 @@ class EnergySystemDispatch:
         self.m.benefit = Var(initialize=self.get_actual_ev_benefit())
 
         self.m.capacity_eq = ConstraintList()
-        if self.strategy == 'soc':
+        if 'soc' in self.strategy:
             s = range(len(self.segments["low"]))
             self.m.z = Var(s, within=Binary)
             self.m.q = Var(s, within=Reals)
 
             # -> segment selection
-            self.m.choose_segment = Constraint(quicksum(self.m.z[k] for k in s) == 1)
+            self.m.choose_segment = Constraint(expr=quicksum(self.m.z[k] for k in s) == 1)
 
             self.m.s_segment_low = ConstraintList()
             self.m.s_segment_up = ConstraintList()
@@ -221,27 +223,49 @@ class EnergySystemDispatch:
         self.m.obj = Objective(expr=self.m.benefit - costs, sense=maximize)
 
         try:
-            self.s.solve(self.m)
-            grid_consumption = np.array([self.m.grid[t].value for t in self.t])
-            pv_charge = np.array([self.m.pv[t].value for t in self.t])
+            results = self.s.solve(self.m)
+            status = results.solver.status
+            termination = results.solver.termination_condition
+            if (status == SolverStatus.ok) and (termination == TerminationCondition.optimal):
+                logger.info(f" -> found optimal solution")
 
-            for i, car in zip(self.num_ev, self.ev):
-                car_charging = np.array([self.m.power[i, t].value for t in self.t])
-                car_charging = pd.Series(data=car_charging, index=time_range)
-                car.set_planned_charging(car_charging)
+                grid_consumption = np.array([self.m.grid[t].value for t in self.t])
+                pv_charge = np.array([self.m.pv[t].value for t in self.t])
 
-            if self.strategy == 'soc':
-                benefit = value(self.m.benefit) - self.get_actual_ev_benefit()
+                for i, car in zip(self.num_ev, self.ev):
+                    car_charging = np.array([self.m.power[i, t].value for t in self.t])
+                    car_charging = pd.Series(data=car_charging, index=time_range)
+                    car.set_planned_charging(car_charging)
+
+                if "soc" in self.strategy:
+                    benefit = value(self.m.benefit) - self.get_actual_ev_benefit()
+                else:
+                    benefit = value(self.m.benefit) - self.price_limit * self.get_actual_ev_capacity()
+                # -> set benefit value to compare it later with total charging costs
+                self.benefit = benefit
+                # -> set grid consumption or request series which is send to the Capacity Provider
+                self.request = pd.Series(data=grid_consumption, index=time_range)
+                self.request = self.request.round(2)
+                # -> set pv charging time series
+                self.pv_charge = pd.Series(data=pv_charge, index=time_range)
+                self.pv_charge = self.pv_charge.round(2)
+
+            elif termination == TerminationCondition.infeasible:
+                raise Exception(' -> model infeasible')
             else:
-                benefit = value(self.m.benefit) - self.price_limit * self.get_actual_ev_capacity()
-
-            self.benefit = benefit
-            self.request = pd.Series(data=grid_consumption, index=time_range)
-            self.pv_charge = pd.Series(data=pv_charge, index=time_range)
+                raise Exception(' -> model error')
 
         except Exception as e:
             logger.warning(f"can not solve optimization problem")
             logger.warning(f"{repr(e)}")
+            # -> set benefit to zero
+            if "soc" in self.strategy:
+                self.benefit = self.get_actual_ev_benefit()
+            else:
+                self.benefit = self.price_limit * self.get_actual_ev_capacity()
+            # -> set grid consumption and pv charging to zero
+            self.request = pd.Series(data=np.zeros(self.T), index=time_range)
+            self.pv_charge = pd.Series(data=np.zeros(self.T), index=time_range)
 
     def get_heuristic_solution(self, d_time: datetime):
         pass
