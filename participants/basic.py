@@ -97,7 +97,7 @@ class BasicParticipant:
         self.strategy = strategy
 
         self._finished, self._initial_plan = False, True
-        self._commit = self.time_range[0] - td(minutes=1)
+        self.next_request = self.time_range[0] - td(minutes=1)
 
         # -> dataframe to store simulation results
         self._data = pd.DataFrame(
@@ -173,13 +173,9 @@ class BasicParticipant:
         residual_generation[residual_generation < 0] = 0
         self._data.loc[self.time_range, "residual_generation"] = residual_generation
 
-    def has_commit(self) -> bool:
-        return self._finished
-
     def reset_commit(self) -> None:
         self._finished = False
-        if self.strategy == "optimized":
-            self._initial_plan = True
+        self._initial_plan = True
 
     def simulate(self, d_time):
         for person in [p for p in self.persons if p.car.type == "ev"]:
