@@ -44,7 +44,7 @@ class SimulationConfig:
     # -> delete scenario
     DELETE_SCENARIO: bool = os.getenv("DELETE_SCENARIO", "True") == "True"
     # -> write GIS information for grid
-    WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "True") == "True"
+    WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "False") == "True"
     # -> write electric vehicle data
     WRITE_EV: bool = os.getenv("WRITE_EV", "True") == "True"
     # -> write consumer summary
