@@ -1,7 +1,7 @@
-import numpy as np
+from tqdm import tqdm
 import pandas as pd
 from sqlalchemy import create_engine, inspect
-import os
+
 
 # CREATE EXTENSION postgis;
 
@@ -167,12 +167,13 @@ class TableCreator:
                             "PRIMARY KEY (name));")
 
     def delete_scenario(self, scenario: str):
-        for table in self.tables:
+        for table in tqdm(self.tables):
             query = f"DELETE FROM {table} WHERE scenario='{scenario}';"
             try:
                 self.engine.execute(query)
             except Exception as e:
-                print(repr(e))
+                pass
+                # print(repr(e))
 
     def delete_time_range(self, t: str, sign: str = '>'):
         for table in self.tables:
