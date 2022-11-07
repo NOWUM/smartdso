@@ -140,7 +140,7 @@ class HouseholdModel(BasicParticipant):
             logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
         # self._maximal_benefit = self._y_data[-1]
         logger.info(f" -> set maximal iteration to {max_request}")
-        self._max_requests = max_request
+        self._max_requests = [max_request, max_request]
 
         self.dispatcher = EnergySystemDispatch(
             steps=self.T,
@@ -154,16 +154,23 @@ class HouseholdModel(BasicParticipant):
         )
 
     def get_request(self, d_time: datetime):
-        if self._total_capacity > 0 and d_time > self._commit:
-            if "MaxPv" in self.strategy:
-                pass
-                # self._optimize_photovoltaic_usage(d_time=d_time)
-            elif "PlugIn" in self.strategy:
-                pass
-                # self._plan_without_photovoltaic(d_time=d_time)
+        if self._total_capacity > 0 and d_time > self.next_request:
+            if "optimal" in self.strategy:
+                self.dispatcher.get_optimal_solution(d_time)
+            elif "heuristic" in self.strategy:
+                self.dispatcher.get_heuristic_solution(d_time)
             else:
                 logger.error(f"invalid strategy {self.strategy}")
                 raise Exception(f"invalid strategy {self.strategy}")
+
+            if self._initial_plan:
+                self._initial_plan = False
+                # -> set initial grid consumption
+                initial_grid = self.dispatcher.request
+                self._data.loc[initial_grid.index, "planned_grid_consumption"] = initial_grid.copy()
+                # -> set final pv consumption
+                initial_pv = self.dispatcher.pv_charge
+                self._data.loc[:, "planned_pv_consumption"] = initial_pv.copy()
 
         elif self._total_capacity == 0:
             self._finished = True
@@ -172,35 +179,45 @@ class HouseholdModel(BasicParticipant):
         return self._request
 
     def commit(self, price: pd.Series):
+        # -> calculate total charging costs
         tariff = self._data.loc[price.index, "tariff"].values.flatten()
         grid_fee = price.values.flatten()
         total_price = sum((tariff + grid_fee) * self._request.values) * self.dt
-        final_tariff = self._data.loc[price.index, "tariff"] + price
-        # print(final_tariff)
-        if self._benefit_value > total_price or self._max_requests == 0:
+        # -> get benefit value
+        benefit = self.dispatcher.benefit
+        # -> compare benefit and costs
+        if benefit > total_price or self._max_requests[0] == 0:
+            # -> calculate final tariff time series
+            final_tariff = self._data.loc[price.index, "tariff"] + price
+            # -> set charging power for each car
             for key, car in self.cars.items():
                 car.set_final_charging(self._car_power[key])
                 car.set_final_tariff(final_tariff)
-            self._commit = price.index.max()
-            self._data.loc[price.index, "final_grid_consumption"] = self._request.loc[
-                price.index
-            ].copy()
-            self._data.loc[:, "final_pv_consumption"] = self._data.loc[
-                                                        :, "planned_pv_consumption"
-                                                        ].copy()
-            self._request = pd.Series(data=np.zeros(len(price)), index=price.index)
+            # -> set next request time
+            self.next_request = price.index.max()
+            # -> set final grid consumption
+            final_grid = self.dispatcher.request.loc[price.index]
+            self._data.loc[price.index, "final_grid_consumption"] = final_grid.copy()
+            # -> set final pv consumption
+            final_pv = self.dispatcher.pv_charge.loc[price.index]
+            self._data.loc[:, "final_pv_consumption"] = final_pv.copy()
+            # -> set final grid fee
             self._data.loc[price.index, "grid_fee"] = price.values
+            # -> fill na with any went wrong
             self._data = self._data.fillna(0)
-            self._max_requests = 5
-            if "MaxPv" in self.strategy:
-                self._finished = True
+            # -> reset request counter
+            self._max_requests[0] = self._max_requests[1]
+
+            self._finished = True
             self._initial_plan = True
+
             return True
         else:
-            if "MaxPv" in self.strategy:
+            if "optimize" in self.strategy:
                 self._data.loc[price.index, "grid_fee"] = price.values
             else:
-                self._commit += td(minutes=np.random.randint(low=1, high=3))
-            self._max_requests -= 1
+                self.next_request += td(minutes=np.random.randint(low=1, high=3))
+
+            self._max_requests[0] -= 1
 
             return False
