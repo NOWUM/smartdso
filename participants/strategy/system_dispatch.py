@@ -125,7 +125,7 @@ class EnergySystemDispatch:
         s1, s2 = d_time, d_time + td(days=1)
         return ev.get(CarData.usage, slice(s1, s2)).values
 
-    def optimal_solution(self, d_time: datetime):
+    def get_optimal_solution(self, d_time: datetime):
         s1, s2 = d_time, d_time + td(days=1)
         time_range = pd.date_range(start=s1, periods=self.T, freq=self.resolution)
 
@@ -242,6 +242,9 @@ class EnergySystemDispatch:
         except Exception as e:
             logger.warning(f"can not solve optimization problem")
             logger.warning(f"{repr(e)}")
+
+    def get_heuristic_solution(self, d_time: datetime):
+        pass
 
 # def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = "required"):
 #     remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
