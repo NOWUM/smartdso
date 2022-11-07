@@ -29,6 +29,7 @@ class FlexibilityProvider:
         sim: int,
         start_date: datetime,
         end_date: datetime,
+        random: np.random.default_rng,
         database_uri: str,
         steps: int = 96,
         resolution: str = '15min',
@@ -65,6 +66,9 @@ class FlexibilityProvider:
             if value.consumer_type == "household":
                 self.keys.append(key)
 
+        self.random = random
+        self.consumer_handler = self.clients[self.keys[0]]
+
     def register(self, id_: uuid.uuid1, client: BasicParticipant):
         self.clients[id_] = client
         if client.consumer_type == "household":
@@ -79,14 +83,15 @@ class FlexibilityProvider:
     def get_commits(self) -> int:
         return sum([int(c) for c in self._commits.values()])
 
-    def get_requests(self, d_time: datetime, random) -> (pd.Series, str):
-        random.shuffle(self.keys)
+    def get_requests(self, d_time: datetime) -> (pd.Series, str):
+        self.random.shuffle(self.keys)
         for id_ in self.keys:
             self._commits[id_] = self.clients[id_].has_commit()
             if not self._commits[id_]:
                 request = self.clients[id_].get_request(d_time)
                 if sum(request.values) > 0:
-                    yield request, self.clients[id_].grid_node, id_
+                    self.consumer_handler = self.clients[id_]
+                    yield request, self.clients[id_].grid_node
 
     def simulate(self, d_time: datetime) -> None:
         capacity, empty, pool = 0, 0, 0
@@ -97,11 +102,12 @@ class FlexibilityProvider:
                 empty += int(person.car.empty)
                 pool += person.car.virtual_source
 
-    def commit(self, price: pd.Series, consumer_id: uuid.UUID) -> bool:
-        commit_ = self.clients[consumer_id].commit(price=price)
-        if commit_:
-            self._commits[consumer_id] = self.clients[consumer_id].has_commit()
-        return commit_
+    def commit(self, price: pd.Series) -> bool:
+        commit = self.consumer_handler.commit(price=price)
+        if commit:
+            id_ = self.consumer_handler.id_
+            self._commits[id_] = True
+        return commit
 
     def _save_summary(self, d_time: datetime) -> None:
 
