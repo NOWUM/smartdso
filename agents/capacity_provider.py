@@ -91,6 +91,11 @@ class CapacityProvider:
             time_range = self.time_range
         return self.grid_fee.loc[time_range]
 
+    def get_sub_id_to_node_id(self, node_id: str):
+        idx = self.grid.data['consumers']['bus0'] == node_id
+        sub_id = self.grid.data['consumers'].loc[idx, 'sub_grid'].values[0]
+        return sub_id
+
     def _line_utilization(self, sub_id: str) -> pd.DataFrame:
         lines = self.grid.sub_networks[sub_id]["model"].lines_t.p0
         s_max = self.grid.sub_networks[sub_id]["model"].lines.loc[:, "s_nom"]
@@ -149,9 +154,8 @@ class CapacityProvider:
             if util >= 100:
                 return 100
             else:
-                return min(
-                    ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100, 100
-                )
+                price = ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
+                return min(price, 100)
 
         # -> set current demand at each node
         data = self.demand.copy()
@@ -166,7 +170,7 @@ class CapacityProvider:
         data = data.groupby(["node_id", "t"]).sum()
         data = data.sort_index(level="t")
 
-        sub_id = self.mapper[node_id]
+        sub_id = self.get_sub_id_to_node_id(node_id)
         self.run_power_flow(data=data, sub_id=sub_id)
         self._rq_l_util = self._line_utilization(sub_id=sub_id)
         self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
@@ -190,7 +194,8 @@ class CapacityProvider:
         node = self.demand.index.get_level_values(0) == node_id
         time = self.demand.index.get_level_values(1).isin(request.index)
         self.demand.loc[node & time, "power"] += request.values
-        sub_id = self.mapper.loc[node_id]
+
+        sub_id = self.get_sub_id_to_node_id(node_id)
         snapshots = self.grid.sub_networks[sub_id]["model"].snapshots
         self.line_utilization[sub_id].loc[
             snapshots, self._rq_l_util.columns
