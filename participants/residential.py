@@ -54,6 +54,8 @@ class HouseholdModel(BasicParticipant):
             grid_node: str = None,
             start_date: datetime = datetime(2022, 1, 1),
             end_date: datetime = datetime(2022, 1, 2),
+            name: str = "testing",
+            sim: int = 0,
             steps: int = 96,
             resolution: str = "15min",
             consumer_id: str = "nowum",
@@ -91,6 +93,8 @@ class HouseholdModel(BasicParticipant):
             weather=weather,
             tariff=tariff,
             grid_fee=grid_fee,
+            name=name,
+            sim=sim
         )
 
         # -> generate driver and cars
@@ -138,24 +142,29 @@ class HouseholdModel(BasicParticipant):
             col = col[-1] if len(col) > 0 else 0
             self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
             logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
-        # self._maximal_benefit = self._y_data[-1]
+
         logger.info(f" -> set maximal iteration to {max_request}")
         self._max_requests = [max_request, max_request]
 
-        self.dispatcher = EnergySystemDispatch(
-            steps=self.T,
-            resolution=self.resolution,
-            strategy=strategy,
-            benefit_function=self.b_fnc,
-            generation=self.get(DataType.residual_generation),
-            tariff=tariff,
-            grid_fee=grid_fee,
-            electric_vehicles=list(self.cars.values())
-        )
+        self.dispatcher = None
+        if self._total_capacity > 0:
+            self.dispatcher = EnergySystemDispatch(
+                steps=self.T,
+                resolution=self.resolution,
+                strategy=strategy,
+                benefit_function=self.b_fnc,
+                generation=self.get(DataType.residual_generation),
+                tariff=tariff,
+                grid_fee=grid_fee,
+                electric_vehicles=list(self.cars.values())
+            )
 
     def get_request(self, d_time: datetime):
+
+        grid = super().get_request(d_time)
+
         if self._total_capacity > 0 and d_time > self.next_request:
-            if "optimal" in self.strategy:
+            if "optimize" in self.strategy:
                 self.dispatcher.get_optimal_solution(d_time)
             elif "heuristic" in self.strategy:
                 self.dispatcher.get_heuristic_solution(d_time)
@@ -163,26 +172,31 @@ class HouseholdModel(BasicParticipant):
                 logger.error(f"invalid strategy {self.strategy}")
                 raise Exception(f"invalid strategy {self.strategy}")
 
-            if self._initial_plan:
-                self._initial_plan = False
-                # -> set initial grid consumption
-                initial_grid = self.dispatcher.request
-                self._data.loc[initial_grid.index, "planned_grid_consumption"] = initial_grid.copy()
-                # -> set final pv consumption
-                initial_pv = self.dispatcher.pv_charge
-                self._data.loc[:, "planned_pv_consumption"] = initial_pv.copy()
+            # -> get grid consumption
+            grid = self.dispatcher.request
+            # -> get pv consumption
+            pv = self.dispatcher.pv_charge
+            if self.initial_plan:
+                self.initial_plan = False
+                self._data.loc[grid.index, "planned_grid_consumption"] = grid.copy()
+                self._data.loc[pv.index, "planned_pv_consumption"] = pv.copy()
+
+            if grid.sum() == 0:
+                index = pd.date_range(start=d_time, periods=self.T, freq=self.resolution)
+                price = pd.Series(index=index, data=np.zeros(self.T))
+                self.commit(price=price)
 
         elif self._total_capacity == 0:
-            self._finished = True
-            self._initial_plan = True
+            self.finished = True
 
-        return self._request
+        return grid
 
     def commit(self, price: pd.Series):
         # -> calculate total charging costs
+        power = self.dispatcher.request.values
         tariff = self._data.loc[price.index, "tariff"].values.flatten()
         grid_fee = price.values.flatten()
-        total_price = sum((tariff + grid_fee) * self._request.values) * self.dt
+        total_price = sum((tariff + grid_fee) * power) * self.dt
         # -> get benefit value
         benefit = self.dispatcher.benefit
         # -> compare benefit and costs
@@ -208,8 +222,7 @@ class HouseholdModel(BasicParticipant):
             # -> reset request counter
             self._max_requests[0] = self._max_requests[1]
 
-            self._finished = True
-            self._initial_plan = True
+            self.finished = True
 
             return True
         else:
@@ -221,3 +234,44 @@ class HouseholdModel(BasicParticipant):
             self._max_requests[0] -= 1
 
             return False
+
+    def save_ev_data(self, d_time: datetime):
+        time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
+
+        columns = {
+            "soc": "soc",
+            "usage": "usage",
+            "planned_charge": "initial_charging",
+            "final_charge": "final_charging",
+            "demand": "demand",
+            "distance": "distance",
+            "tariff": "tariff"
+        }
+
+        index_columns = ["time", "scenario", "iteration", "sub_id", "id_"]
+
+        for key, car in self.cars.items():
+            data = car.get_result(time_range)
+            data = data.loc[time_range, list(columns.keys())]
+            data = data.rename(columns=columns)
+            data["scenario"] = self.name
+            data['iteration'] = self.sim
+            data["sub_id"] = self.sub_grid
+            data["id_"] = key
+            data["pv"] = self.get(DataType.final_pv_consumption)
+            data["pv_available"] = self.get(DataType.residual_generation)
+
+            data.index.name = "time"
+            data = data.reset_index()
+            data = data.set_index(index_columns)
+
+            try:
+                data.to_sql(
+                    name="electric_vehicle",
+                    con=self._database,
+                    if_exists="append",
+                    method="multi",
+                )
+            except Exception as e:
+                logger.warning(f"server closed the connection {repr(e)}")
+
