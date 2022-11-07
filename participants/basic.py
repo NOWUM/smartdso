@@ -39,6 +39,8 @@ class BasicParticipant:
         self,
         database_uri: str,
         random: np.random.default_rng,
+        name: str = "testing",
+        sim: int = 0,
         steps: int = 96,
         resolution: str = "15min",
         grid_node: str = None,
@@ -71,7 +73,9 @@ class BasicParticipant:
         # -> consumer identifier and type
         self.id_ = consumer_id
         self.consumer_type = consumer_type
-
+        # -> set scenario name and iteration number
+        self.name = name
+        self.sim = sim
         # -> time resolution information
         self.T, self.t, self.dt = steps, np.arange(steps), 1 / (steps/ 24)
         self.time_range = pd.date_range(start=start_date, end=end_date + td(days=1), freq=resolution)[:-1]
@@ -93,11 +97,12 @@ class BasicParticipant:
         # -> optimization output time series
         self._steps = len(self.time_range)
 
-        self._request = pd.Series(dtype=float)
         self.strategy = strategy
 
-        self._finished, self._initial_plan = False, True
+        self.finished, self.initial_plan = False, True
         self.next_request = self.time_range[0] - td(minutes=1)
+
+        self._database = create_engine(database_uri)
 
         # -> dataframe to store simulation results
         self._data = pd.DataFrame(
@@ -127,11 +132,13 @@ class BasicParticipant:
             tariff = pd.Series(data=30 * np.ones(self._steps), index=self.time_range)
         self._data.loc[tariff.index, "tariff"] = tariff.values.flatten()
         self.tariff = tariff.copy()
+
         # -> set grid fee data
         if grid_fee is None:
             grid_fee = pd.Series(data=5 * np.ones(self._steps), index=self.time_range)
         self._data.loc[grid_fee.index, "tariff"] = grid_fee.values.flatten()
         self.grid_fee = grid_fee.copy()
+
         # -> set weather data
         self.weather = weather.copy()
 
@@ -173,20 +180,21 @@ class BasicParticipant:
         residual_generation[residual_generation < 0] = 0
         self._data.loc[self.time_range, "residual_generation"] = residual_generation
 
-    def reset_commit(self) -> None:
-        self._finished = False
-        self._initial_plan = True
+    def has_commit(self, d_time: datetime):
+        if d_time > self.next_request:
+            self.finished = False
+            self.initial_plan = True
+        return self.finished
 
     def simulate(self, d_time):
-        for person in [p for p in self.persons if p.car.type == "ev"]:
-            person.car.charge(d_time)   # -> do charging
-            person.car.drive(d_time)    # -> do driving
+        for driver in self.drivers:
+            if driver.car == "ev":
+                # -> do charging
+                driver.car.charge(d_time)
+                # -> do driving
+                driver.car.drive(d_time)
 
     def get_request(self, d_time: datetime) -> pd.Series:
-        if d_time > self._commit:
-            self._commit = d_time + td(days=1)
-            self._finished = True
-            self._initial_plan = True
         return pd.Series(dtype=float, index=[d_time], data=[0])
 
     def get(self, data_type: DataType, time_range=None, build_dataframe: bool = False):
@@ -204,3 +212,6 @@ class BasicParticipant:
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
         time_range = time_range or self.time_range
         return self._data.loc[time_range]
+
+    def save_ev_data(self, d_time: datetime):
+        pass
