@@ -30,9 +30,9 @@ class SimulationConfig:
     # -> use historic london data or slp data
     LONDON_DATA: bool = os.getenv("LONDON_DATA", "False") == "True"
     # -> set consumer charging strategy
-    STRATEGY: str = os.getenv("STRATEGY", "PlugInCap")
+    STRATEGY: str = os.getenv("STRATEGY", "optimize_soc")
     # -> set tariff for flexibility provider
-    TARIFF: str = os.getenv("TARIFF", "Flat")
+    TARIFF: str = os.getenv("TARIFF", "flat")
     # -> set seed to avoid monte carlo error
     SEED: int = int(os.getenv("RANDOM_SEED", 2022))
     # -> set name for simulation
@@ -41,8 +41,14 @@ class SimulationConfig:
     SIM: int = 0
     # -> reset/initialize database
     RESET_DATABASE: bool = os.getenv("RESET_DATABASE", "False") == "True"
+    # -> delete scenario
+    DELETE_SCENARIO: bool = os.getenv("DELETE_SCENARIO", "True") == "True"
     # -> write GIS information for grid
-    WRITE_GRID_TO_GIS: bool = False
+    WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "True") == "True"
+    # -> write electric vehicle data
+    WRITE_EV: bool = os.getenv("WRITE_EV", "True") == "True"
+    # -> write consumer summary
+    WRITE_CONSUMER_SUMMARY: bool = os.getenv("WRITE_CONSUMER_SUMMARY", "True") == "True"
 
     # https://stackoverflow.com/questions/69090253/how-to-iterate-over-attributes-of-dataclass-in-python
     def get_config_dict(self):
