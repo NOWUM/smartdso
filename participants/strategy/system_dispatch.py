@@ -131,12 +131,12 @@ class EnergySystemDispatch:
 
         generation = self.generation.loc[slice(s1, s2)].values
 
-        tariff = self.tariff.loc[slice(s1, s2)].values
-        grid_fee = self.grid_fee.loc[slice(s1, s2)].values
+        tariff = self.tariff.loc[slice(s1, s2)].values.flatten()
+        grid_fee = self.grid_fee.loc[slice(s1, s2)].values.flatten()
         total_price = tariff + grid_fee
-
         # -> clear model
         self.m.clear()
+
         # -> declare variables
         self.m.power = Var(self.num_ev, self.t, within=Reals, bounds=(0, None))
         self.m.grid = Var(self.t, within=Reals, bounds=(0, None))
@@ -145,6 +145,7 @@ class EnergySystemDispatch:
         self.m.volume = Var(self.num_ev, self.t)
         self.m.benefit = Var(initialize=self.get_actual_ev_benefit())
 
+        self.m.capacity_eq = ConstraintList()
         if self.strategy == 'soc':
             s = range(len(self.segments["low"]))
             self.m.z = Var(s, within=Binary)
@@ -159,14 +160,15 @@ class EnergySystemDispatch:
                 self.m.s_segment_low.add(self.m.q[k] >= self.segments["low"][k] * self.m.z[k])
                 self.m.s_segment_up.add(self.m.q[k] <= self.segments["up"][k] * self.m.z[k])
 
-            self.m.benefit = quicksum(self.segments["low_"][k] * self.m.z[k]
-                                      + self.segments["coeff"][k]
-                                      * (self.m.q[k] - self.segments["low"][k] * self.m.z[k])
-                                      for k in s)
-            self.m.capacity = quicksum(self.m.q[k] for k in s)
+            self.m.benefit_eq = Constraint(expr=self.m.benefit == quicksum(self.segments["low_"][k] * self.m.z[k]
+                                                                           + self.segments["coeff"][k]
+                                                                           * (self.m.q[k] - self.segments["low"][k] *
+                                                                              self.m.z[k])
+                                                                           for k in s))
+            self.m.capacity_eq.add(self.m.capacity == quicksum(self.m.q[k] for k in s))
 
         else:
-            self.m.benefit = self.price_limit * self.m.capacity
+            self.m.benefit_eq = Constraint(expr=self.m.benefit == self.price_limit * self.m.capacity)
 
         # -> limit maximal charging power
         self.m.power_limit = ConstraintList()
@@ -196,16 +198,18 @@ class EnergySystemDispatch:
                 in_out = self.m.power[i, t] * self.dt - demand[t]
                 if t > 0:
                     volume = self.m.volume[i, t - 1]
-                self.m.volume[i, t] = in_out + volume
+                self.m.capacity_limit.add(self.m.volume[i, t] == in_out + volume)
 
         self.m.grid_power_limit = ConstraintList()
         for t in self.t:
             self.m.grid_power_limit.add(self.m.grid[t] <= total_grid_power)
 
-        self.m.capacity = quicksum(self.m.volume[:, self.T - 1])
+        self.m.capacity_eq.add(self.m.capacity == quicksum(self.m.volume[:, self.T - 1]))
 
+        # -> set grid consumption
+        self.m.grid_limit = ConstraintList()
         for t in self.t:
-            self.m.grid[t] = - self.m.pv[t] + quicksum(self.m.power[:, t])
+            self.m.grid_limit.add(self.m.grid[t] == - self.m.pv[t] + quicksum(self.m.power[:, t]))
 
         # -> limit pv range
         self.m.pv_limit = ConstraintList()
@@ -213,7 +217,8 @@ class EnergySystemDispatch:
             self.m.pv_limit.add(self.m.pv[t] <= generation[t])
 
         costs = quicksum(total_price[t] * self.m.grid[t] * self.dt for t in self.t)
-        self.m.obj = Objective(self.m.benefit - costs, sense=maximize)
+
+        self.m.obj = Objective(expr=self.m.benefit - costs, sense=maximize)
 
         try:
             self.s.solve(self.m)
@@ -237,7 +242,6 @@ class EnergySystemDispatch:
         except Exception as e:
             logger.warning(f"can not solve optimization problem")
             logger.warning(f"{repr(e)}")
-
 
 # def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = "required"):
 #     remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
