@@ -160,28 +160,41 @@ except Exception as e:
 
 
 if __name__ == "__main__":
-    pass
-    client = [*clients.values()][0]
-    client.dispatcher.optimal_solution(date_range[0])
-#     try:
-#         # -> run SLPs for each day in simulation horizon
-#         logger.info(f" -> running photovoltaic and slp generation")
-#         fixed_demand = []
-#         fixed_generation = []
-#         for client in clients.values():
-#             fixed_demand.append(client.get_initial_power(DataType.residual_demand))
-#             fixed_generation.append(client.get_initial_power(DataType.residual_generation))
-#         fixed_demand = pd.concat(fixed_demand)
-#         fixed_generation = pd.concat(fixed_generation)
-#
-#         if analyse_grid:
-#             # -> forward the slp data to the Capacity Provider
-#             logger.info(f" -> running initial power flow calculation")
-#             CapProvider.set_fixed_power(data=fixed_demand)
-#     except Exception as e:
-#         print(repr(e))
-#         logger.error(f" -> error while slp or power flow calculation: {repr(e)}")
-#
+
+    try:
+        # -> collect demand for each day in simulation horizon
+        logger.info(f" -> running photovoltaic and slp generation")
+        fixed_demand = []
+        for client in clients.values():
+            fixed_demand.append(client.get(DataType.residual_demand, build_dataframe=True))
+        # -> forward demand data to the Capacity Provider
+        logger.info(f" -> running initial power flow calculation")
+        CapProvider.set_fixed_power(data=pd.concat(fixed_demand))
+    except Exception as e:
+        print(repr(e))
+        logger.error(f" -> error in power flow calculation: {repr(e)}")
+
+        # -> start simulation for date range start_date till end_date
+        for day in date_range:
+            logger.info(f" -> running day {day.date()}")
+            logger.info(" -> consumers plan charging...")
+
+            for d_time in tqdm(time_range):
+                try:
+                    number_commits = 0
+                    while number_commits < len(clients):
+                        for request, node_id in FlexProvider.get_requests(d_time=d_time):
+                            price = CapProvider.get_price(request=request, node_id=node_id)
+                            if FlexProvider.commit(price):
+                                CapProvider.commit(request=request, node_id=node_id)
+
+                    for client in clients.values():
+                        client.simulate(d_time)
+
+                except Exception as e:
+                    logger.exception(f" -> error during simulation: {repr(e)}")
+
+
 #     # -> start simulation for date range start_date till end_date
 #     logger.info(" -> starting simulation")
 #     for day in pd.date_range(start=start_date, end=end_date, freq="d"):
