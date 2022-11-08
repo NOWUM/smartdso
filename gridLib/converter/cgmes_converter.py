@@ -76,7 +76,6 @@ class CGMESConverter:
 
         self._load_components()
 
-
     def _load_components(self):
         """
         convert and split the xml data in different dictionary to enable a better building process
@@ -502,7 +501,6 @@ class CGMESConverter:
         self.components["generators"] = pd.DataFrame.from_dict(
             generators, orient="index"
         )
-
 
     def convert(self, voltage_level: float = 20):
         """
