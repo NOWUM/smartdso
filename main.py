@@ -189,9 +189,9 @@ if __name__ == "__main__":
                 number_commits = 0
                 while number_commits < number_clients:
                     for request, node_id in FlexProvider.get_requests(d_time=d_time):
-                        price = CapProvider.get_price(request=request, node_id=node_id)
+                        price = CapProvider.handle_request(request=request, node_id=node_id)
                         if FlexProvider.commit(price):
-                            CapProvider.commit(request=request, node_id=node_id)
+                            CapProvider.set_demand(request=request, node_id=node_id)
 
                     if 'optimize' in Config.STRATEGY:
                         number_commits = FlexProvider.get_commits()

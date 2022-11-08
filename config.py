@@ -42,7 +42,7 @@ class SimulationConfig:
     # -> reset/initialize database
     RESET_DATABASE: bool = os.getenv("RESET_DATABASE", "False") == "True"
     # -> delete scenario
-    DELETE_SCENARIO: bool = os.getenv("DELETE_SCENARIO", "True") == "True"
+    DELETE_SCENARIO: bool = os.getenv("DELETE_SCENARIO", "False") == "True"
     # -> write GIS information for grid
     WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "False") == "True"
     # -> write electric vehicle data
