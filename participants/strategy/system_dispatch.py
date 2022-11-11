@@ -24,6 +24,7 @@ from pyomo.opt import (
 )
 
 from carLib.car import Car, CarData
+from participants.utils import HeatStorage
 
 logger = logging.getLogger("samrtdso.energy_system_dispatch")
 logger.setLevel('ERROR')
@@ -34,8 +35,10 @@ class EnergySystemDispatch:
                  resolution: str = '15min',
                  strategy: str = 'soc',
                  benefit_function: pd.Series = None,
-                 electric_vehicles: list[Car] = None,
+                 electric_vehicles: dict[str, Car] = None,
+                 heat_storages: dict[str, HeatStorage] = None,
                  generation: pd.Series = None,
+                 heat_demand: pd.DataFrame = None,
                  tariff: pd.Series = None,
                  grid_fee: pd.Series = None,
                  solver: str = 'glpk'):
@@ -45,8 +48,10 @@ class EnergySystemDispatch:
         self.t = range(steps)
         self.dt = 1 / (steps / 24)
 
+        self.heat_storages = heat_storages
+        self.heat_demand = heat_demand
+
         self.ev = electric_vehicles
-        self.num_ev = range(len(self.ev))
 
         self.generation = generation
 
@@ -140,12 +145,20 @@ class EnergySystemDispatch:
         self.m.clear()
 
         # -> declare variables
-        self.m.power = Var(self.num_ev, self.t, within=Reals, bounds=(0, None))
+        self.m.ev_power = Var(self.ev.keys(), self.t, within=Reals, bounds=(0, None))
+        self.m.ev_capacity = Var(within=Reals, bounds=(0, self.get_maximal_ev_capacity()))
+        self.m.benefit = Var(within=Reals, bounds=(0, None))
+        self.m.ev_volume = Var(self.ev.keys(), self.t)
+
+        self.m.hp_power = Var(self.t,  within=Reals, bounds=(0, None))
+        self.m.hs_volume = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
+        self.m.hs_power = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
+
         self.m.grid = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.power_grid_in = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.power_grid_out = Var(self.t, within=Reals, bounds=(0, None))
+
         self.m.pv = Var(self.t, within=Reals, bounds=(0, None))
-        self.m.capacity = Var(within=Reals, bounds=(0, self.get_maximal_ev_capacity()))
-        self.m.volume = Var(self.num_ev, self.t)
-        self.m.benefit = Var(initialize=self.get_actual_ev_benefit())
 
         self.m.capacity_eq = ConstraintList()
         if 'soc' in self.strategy:
@@ -178,7 +191,7 @@ class EnergySystemDispatch:
         self.m.capacity_limit = ConstraintList()
         # -> max value for grid supply
         total_grid_power = 0
-        for i, car in zip(self.num_ev, self.ev):
+        for i, car in self.ev.items():
             usage = self.get_ev_usage(d_time, car)
             demand = self.get_ev_demand(d_time, car)
 
@@ -232,7 +245,7 @@ class EnergySystemDispatch:
                 grid_consumption = np.array([self.m.grid[t].value for t in self.t])
                 pv_charge = np.array([self.m.pv[t].value for t in self.t])
 
-                for i, car in zip(self.num_ev, self.ev):
+                for i, car in self.ev.items():
                     car_charging = np.array([self.m.power[i, t].value for t in self.t])
                     car_charging = pd.Series(data=car_charging, index=time_range)
                     car.set_planned_charging(car_charging)
