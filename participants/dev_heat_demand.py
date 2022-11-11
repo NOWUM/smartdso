@@ -86,7 +86,10 @@ class HouseholdWithHeat(BasicParticipant):
         self._solver = SolverFactory(self._solver_type)
 
         self.volume_hw = (400 * 0.997 * 4.19 * (50-20)) / 3600
+        self._heat_loss_hw = (12.54 * 400 / 3600) / self.T
+
         self.volume_sh = (600 * 0.997 * 4.19 * 15) / 3600
+        self._heat_loss_sh = (8.36 * 600 / 3600) / self.T
 
     def get_heat_demand(self, d_time: pd.Timestamp):
         time_range = pd.date_range(start=d_time, periods=self.T, freq=self.resolution)
@@ -147,6 +150,8 @@ class HouseholdWithHeat(BasicParticipant):
 
         self._model.volume_constraint_hw = ConstraintList()
         for t in self.t:
+            self._model.volume_constraint_hw.add(self._model.v_in_hw[t] ==
+                                                 self._model.heat_wp_hw[t] - 4 * self._heat_loss_hw)
             if t > 0:
                 self._model.volume_constraint_hw.add(self._model.volume_hw[t] ==
                                                      self._model.volume_hw[t-1]
@@ -157,6 +162,8 @@ class HouseholdWithHeat(BasicParticipant):
 
         self._model.volume_constraint_sh = ConstraintList()
         for t in self.t:
+            self._model.volume_constraint_hw.add(self._model.v_in_sh[t] ==
+                                                 self._model.heat_wp_sh[t] - 4 * self._heat_loss_sh)
             if t > 0:
                 self._model.volume_constraint_sh.add(self._model.volume_sh[t] ==
                                                      self._model.volume_sh[t-1]
@@ -167,16 +174,20 @@ class HouseholdWithHeat(BasicParticipant):
 
         self._model.demand_hw = ConstraintList()
         for t in self.t:
-            self._model.demand_hw.add(demand_hw[t] + self._model.v_in_hw[t] ==
-                                      self._model.heat_wp_hw[t] + self._model.v_out_hw[t])
+            self._model.demand_hw.add(demand_hw[t] == self._model.v_out_hw[t])
+
+            #self._model.demand_hw.add(demand_hw[t] + self._model.v_in_hw[t] ==
+            #                          self._model.heat_wp_hw[t] + self._model.v_out_hw[t])
 
         self._model.demand_sh = ConstraintList()
         for t in self.t:
-            self._model.demand_sh.add(demand_sh[t] + self._model.v_in_sh[t] ==
-                                      self._model.heat_wp_sh[t] + self._model.v_out_sh[t])
+            self._model.demand_hw.add(demand_sh[t] == self._model.v_out_sh[t])
+            #self._model.demand_sh.add(demand_sh[t] + self._model.v_in_sh[t] ==
+            #                          self._model.heat_wp_sh[t] + self._model.v_out_sh[t])
 
-        self._model.objective = Objective(expr=quicksum(40 * self._model.power_grid_out[t] * self.dt
-                                                        + 7* self._model.power_grid_in[t] * self.dt
+        prices = np.random.normal(loc=40, size=self.T)
+        self._model.objective = Objective(expr=quicksum(prices[t] * self._model.power_grid_out[t] * self.dt
+                                                        + 7 * self._model.power_grid_in[t] * self.dt
                                                         for t in self.t), sense=minimize)
 
         self._solver.solve(self._model)
@@ -243,7 +254,7 @@ if __name__ == "__main__":
 
     plt.legend(['WP', 'V_in', 'V_out', 'demand', 'volume', 'pv'])
 
-
+    plt.show()
 
     # grid = [m.power_grid[t].value for t in steps]
     # plt.plot(grid)
