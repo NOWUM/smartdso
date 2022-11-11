@@ -1,67 +1,69 @@
-import os
 import secrets
-
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
-from matplotlib import pyplot as plt
 from shapely.geometry import Point
 from shapely.wkt import loads
 
-geolocator = Nominatim(user_agent=secrets.token_urlsafe(8))
-geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1.2)
+tqdm.pandas()
 
 
-GRID_DATA = os.getenv("GRID_DATA", "alliander")
+class LonLatFinder:
 
-data_path = rf"./gridLib/data/export/{GRID_DATA}"
-total_consumers = pd.read_csv(rf"{data_path}/consumers.csv", index_col=0)
+    def __init__(self, consumers: pd.DataFrame):
 
+        geo_locator = Nominatim(user_agent=secrets.token_urlsafe(8))
+        self.geocode = RateLimiter(geo_locator.geocode, min_delay_seconds=1.2)
 
-def convert_address(a: str):
-    a_parts = a.split(" ")
-    convert = True
-    a = ""
-    for part in a_parts:
-        try:
-            num = float(part)
-            a += " " + part
-            break
-        except Exception as e:
-            a += " " + part
-    # a = a_parts[0] + ' ' + a_parts[1]
-    adr_str = f"{a} 52525 Heinsberg"
-    return adr_str
+        def convert_address(a: str):
+            a_parts = a.split(" ")
+            a = ""
+            for part in a_parts:
+                try:
+                    _ = float(part)
+                    a += " " + part
+                    break
+                except Exception as e:
+                    a += " " + part
+            # a = a_parts[0] + ' ' + a_parts[1]
+            adr_str = f"{a} 52525 Heinsberg"
+            return adr_str
 
+        used_profiles = ["H01", "G01", "G11", "G21", "G31", "G41", "G51", "G61"]
+        self.consumers = consumers.loc[consumers['profile'].isin(used_profiles)]
+        self.consumers = self.consumers.reset_index()
+        self.consumers['address'] = self.consumers['id_'].apply(convert_address)
 
-if __name__ == "__main__":
+    def find_coords(self):
+        print('searching for address data')
+        self.consumers["location"] = self.consumers["address"].progress_apply(self.geocode)
+        self.consumers["lat"] = self.consumers["location"].apply(lambda x: x.latitude if x else None)
+        self.consumers["lon"] = self.consumers["location"].apply(lambda x: x.longitude if x else None)
+        self.consumers["shape"] = [Point(row.lon, row.lat) for _, row in self.consumers.iterrows()]
 
-    df = pd.read_excel(r"./gridLib/data/import/alliander/comsumer_data.xlsx", sheet_name="Tabelle1")
-    df = df.loc[df["KUGR_NAME"].isin(["H01", "G01", "G11", "G21", "G31", "G41", "G51", "G61"])]
-    df["ADRESSE"] = df["OBJEKTBEZEICHNUNG"].apply(convert_address)
+    def map_to_grid(self, grid_consumers: pd.DataFrame):
 
-    df["location"] = df["ADRESSE"].apply(geocode)
-    df["lat"] = df["location"].apply(lambda x: x.latitude if x else None)
-    df["lon"] = df["location"].apply(lambda x: x.longitude if x else None)
-    df["shape"] = [Point(row.lon, row.lat) for _, row in df.iterrows()]
+        def map_profile(pr):
+            if "H" in pr:
+                return "H0"
+            if "G" in pr:
+                return "G0"
 
-    maps = {}
-    for consumer_id, consumer in total_consumers.iterrows():
-        consumer_point = loads(consumer["shape"])
-        distance = np.inf
-        idx = None
-        for index, row in df.iterrows():
-            compare_point = row["shape"]
-            current_distance = consumer_point.distance(compare_point)
-            if current_distance < distance:
-                distance = current_distance
-                idx = index
-        maps[consumer_id] = idx
+        grid_consumers["jeb"] = 0
 
-    total_consumers["jeb"] = 0
+        consumers = self.consumers.set_index(['id_'])
 
-    for consumer_id, index in maps.items():
-        total_consumers.loc[consumer_id, "jeb"] += df.loc[index, "Jahresverbrauch"]
+        for consumer_id, consumer in grid_consumers.iterrows():
+            min_distance, idx = np.inf, None
+            for index, row in consumers.iterrows():
+                distance = consumer["shape"].distance(row["shape"])
+                if distance < min_distance:
+                    min_distance = distance
+                    idx = index
 
-    total_consumers.to_csv(fr'{data_path}/consumers.csv')
+            grid_consumers.at[consumer_id, 'jeb'] = consumers.loc[idx, 'jeb']
+            grid_consumers.at[consumer_id, 'profile'] = map_profile(consumers.loc[idx, 'profile'])
+
+        return grid_consumers
