@@ -9,7 +9,8 @@ from pvlib.irradiance import get_total_irradiance
 from sqlalchemy import create_engine
 
 from carLib.car import Car, CarData
-from demLib.electric_profile import StandardLoadProfile
+from demLib.electric_profile import StandardLoadProfile as PowerProfile
+from demLib.heat_profile import StandardLoadProfile as HeatProfile
 from participants.resident import Resident
 
 
@@ -49,7 +50,7 @@ class BasicParticipant:
         consumer_type: str = "household",
         consumer_id: str = "nowum",
         strategy: str = "optimized",
-        profile_generator: StandardLoadProfile = None,
+        profile_generator: dict = None,
         pv_systems: list = None,
         sub_grid: int = -1,
         residents: int = 0,
@@ -86,9 +87,12 @@ class BasicParticipant:
         self.tariff = pd.DataFrame(index=self.time_range)
         self.grid_fee = pd.DataFrame(index=self.time_range)
         if profile_generator is None:
-            self._demand_p = StandardLoadProfile(demandP=1000, type=consumer_type, resolution=self.T)
+            self._demand_p = PowerProfile(demandP=1000, type=consumer_type, resolution=self.T)
+            self._demand_q = HeatProfile(demandQ=10000)
         else:
-            self._demand_p = profile_generator
+            self._demand_p = profile_generator['power']
+            self._demand_q = profile_generator['heat']
+
         self._pv_systems = {'systems': pv_systems, 'radiation': []}
         self.pv_capacity = sum([s.arrays[0].module_parameters["pdc0"] for s in pv_systems if s is not None])
 
@@ -109,6 +113,10 @@ class BasicParticipant:
             columns=[
                 "consumer_id",
                 "demand",
+                "heat_hot_water",
+                "COP_hot_water",
+                "heat_space",
+                "COP_space",
                 "residual_demand",
                 "generation",
                 "residual_generation",
@@ -164,6 +172,15 @@ class BasicParticipant:
         demand_at_each_day = np.hstack(demand_at_each_day)
         self._data.loc[self.time_range, "demand"] = demand_at_each_day
 
+        for day in self.date_range:
+            time_range = pd.date_range(start=day, periods=self.T, freq=self.resolution)
+            temperature = self.weather.loc[time_range, 'temp_air'].values - 273.15
+            result = self._demand_q.run_model(temperature)
+            self._data.loc[time_range, "heat_hot_water"] = result['hot_water']
+            self._data.loc[time_range, "COP_hot_water"] = result['cop_hot_water']
+            self._data.loc[time_range, "heat_space"] = result['space_heating']
+            self._data.loc[time_range, "COP_space"] = result['cop_space_heating']
+
         # -> calculate generation at each day
         generation_at_each_day = np.zeros(self._steps)
         for system, rad in zip(self._pv_systems["systems"], self._pv_systems["radiation"]):
@@ -210,7 +227,8 @@ class BasicParticipant:
         return result
 
     def get_result(self, time_range: pd.DatetimeIndex = None) -> pd.DataFrame:
-        time_range = time_range or self.time_range
+        if time_range is None:
+            time_range = self.time_range
         return self._data.loc[time_range]
 
     def save_ev_data(self, d_time: datetime):
