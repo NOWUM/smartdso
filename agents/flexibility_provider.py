@@ -155,7 +155,7 @@ class FlexibilityProvider:
                 car_counter += 1
                 result["availability"].loc[time_range] += 1 - car.get(CarData.usage, time_range)
 
-            result[time_range, 'sub_grid'] = client.sub_grid
+            result.loc[time_range, 'sub_grid'] = client.sub_grid
 
         result["availability"] /= car_counter
         result["grid_fee"] /= total_demand
