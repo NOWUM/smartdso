@@ -39,22 +39,21 @@ class PVConverter:
             power = pv_system["kw_17"].values[0]
             # peak power in kW with 17% wirkleistung
             surface_tilt = pv_system["neigung"].values[0]
+            surface_azimuth = 180
             if pv_system["richtung"].values[0] != -1:
                 surface_azimuth = pv_system["richtung"].values[0]
-            else:
-                surface_azimuth = 180
 
             total_demand = consumers.loc[consumer_ids, "demand_power"].sum()
 
             for consumer_id in consumer_ids:
                 demand = consumers.loc[consumer_ids, "demand_power"].values[0]
                 pdc0 = (power / total_demand) * demand
-                system = {"pdc0": round(pdc0, 1),
+                pv_sys = {"pdc0": round(pdc0, 1),
                           "surface_tilt": surface_tilt,
                           "surface_azimuth": surface_azimuth}
-                systems[consumer_id].append(system)
+                systems[consumer_id].append(pv_sys)
 
-            for consumer_id, systems in systems.items():
-                consumers.at[consumer_id, "pv"] = str(systems)
+        for consumer_id, systems in systems.items():
+            consumers.at[consumer_id, "pv"] = str(systems)
 
-        return consumers["pv"].values
+        return consumers["pv"]
