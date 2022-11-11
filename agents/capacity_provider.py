@@ -65,9 +65,6 @@ class CapacityProvider:
 
         self.demand = pd.DataFrame()
 
-        self._rq_l_util = pd.DataFrame()
-        self._rq_t_util = pd.DataFrame()
-
         self._database = create_engine(database_uri)
 
         self._geo_info = dict(edges=[], nodes=[], transformers=[])
@@ -110,12 +107,11 @@ class CapacityProvider:
         return transformer
 
     def get_price(self, util):
-        def price_func(util):
-            if util >= 100:
-                return 100
-            else:
-                price = ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
-                return min(price, 100)
+        if util >= 100:
+            return 100
+        else:
+            price = ((-np.log(1 - np.power(util / 100, 1.5)) + 0.175) * 0.15) * 100
+            return min(price, 100)
 
     def run_power_flow(self, data: pd.DataFrame, sub_id: int, end_of_day: bool = False, d_time: datetime = None):
         if end_of_day:
@@ -189,10 +185,9 @@ class CapacityProvider:
         tu_prev = self.transformer_utilization[sub_id].loc[request.index].max(axis=1)
         tu_max = pd.concat([tu, tu_prev], axis=1).fillna(0).max(axis=1)
         # -> maximal grid utilization
-        util_max = np.vstack((tu_max, lu_max)).max(axis=1, initial=0)
+        util_max = pd.concat([lu_max, tu_max], axis=1).fillna(0).max(axis=1)
         # -> calculate grid fee
-        prices = [self.get_price(u) for u in util_max]
-
+        prices = [self.get_price(u) for u in util_max.values]
         response = pd.Series(index=request.index, data=prices)
 
         return response
@@ -272,9 +267,7 @@ class CapacityProvider:
 
     def _save_grid_asset(self, d_time: datetime) -> None:
 
-        time_range = pd.date_range(
-            start=d_time, freq=RESOLUTION[self.T], periods=self.T
-        )
+        time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
 
         for sub_id in self.sub_ids:
             dataframe = self.line_utilization[sub_id]
@@ -283,8 +276,8 @@ class CapacityProvider:
                 result.columns = ["utilization"]
                 result["id_"] = line
                 result["asset"] = "line"
-                result["scenario"] = self.scenario
-                result["iteration"] = self.iteration
+                result["scenario"] = self.name
+                result["iteration"] = self.sim
                 result["sub_id"] = int(sub_id)
                 result.index.name = "time"
                 result = result.reset_index()
@@ -300,12 +293,10 @@ class CapacityProvider:
             result = self.transformer_utilization[sub_id].loc[
                 time_range, ["utilization"]
             ]
-            result["id_"] = self.grid.get_components(
-                "transformers", sub_id
-            ).name.values[0]
+            result["id_"] = self.grid.get_components(type_="transformers", grid=sub_id).name.values[0]
             result["asset"] = "transformer"
-            result["scenario"] = self.scenario
-            result["iteration"] = self.iteration
+            result["scenario"] = self.name
+            result["iteration"] = self.sim
             result["sub_id"] = int(sub_id)
             result.index.name = "time"
             result = result.reset_index()
@@ -319,36 +310,31 @@ class CapacityProvider:
 
     def _run_end_of_day(self, d_time: datetime):
         for sub_id in self.sub_ids:
-            self.run_power_flow(
-                data=self.demand.copy(), sub_id=sub_id, end_of_day=True, d_time=d_time
-            )
-            self._rq_l_util = self._line_utilization(sub_id=sub_id)
-            self._rq_t_util = self._transformer_utilization(sub_id=sub_id)
+            self.run_power_flow(data=self.demand.reset_index(), sub_id=sub_id,
+                                end_of_day=True, d_time=d_time)
+            lu = self.get_line_utilization(sub_id=sub_id)
+            tu = self.get_transformer_utilization(sub_id=sub_id)
             time_range = pd.date_range(
-                start=d_time, periods=self.T, freq=RESOLUTION[self.T]
+                start=d_time, periods=self.T, freq=self.resolution
             )
             self.line_utilization[sub_id].loc[
-                time_range, self._rq_l_util.columns
-            ] = self._rq_l_util.values
+                time_range, lu.columns
+            ] = lu.values
             self.transformer_utilization[sub_id].loc[
                 time_range, "utilization"
-            ] = self._rq_t_util.values.flatten()
+            ] = tu.values.flatten()
 
     def save_results(self, d_time: datetime) -> None:
         self._run_end_of_day(d_time)
-        self._save_summary(d_time)
-        if self.iteration == 0:
-            self._save_grid_asset(d_time)
+        self._save_grid_asset(d_time)
+        #self._save_summary(d_time)
+        #if self.iteration == 0:
+        #    self._save_grid_asset(d_time)
 
 
 if __name__ == "__main__":
-    cp = CapacityProvider(
-        **dict(
-            start_date=datetime(2022, 1, 1),
-            end_date=datetime(2022, 1, 2),
-            scenario=None,
-            iteration=None,
-            T=96,
-        ),
-        write_geo=True,
-    )
+    from config import SimulationConfig as Config
+
+    config_dict = Config().get_config_dict()
+
+    cp = CapacityProvider(**config_dict)
