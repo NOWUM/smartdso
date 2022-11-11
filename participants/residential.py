@@ -7,7 +7,8 @@ import pandas as pd
 from pvlib.pvsystem import PVSystem
 
 from carLib.car import CarData, Car
-from demLib.electric_profile import StandardLoadProfile
+from demLib.electric_profile import StandardLoadProfile as PowerProfile
+from demLib.heat_profile import StandardLoadProfile as HeatProfile
 from participants.strategy.system_dispatch import EnergySystemDispatch
 from participants.basic import BasicParticipant, DataType
 from participants.resident import Resident
@@ -70,8 +71,9 @@ class HouseholdModel(BasicParticipant):
     ):
 
         # -> initialize profile generator
-        p_gen = StandardLoadProfile(demandP=demand_power, london_data=london_data,
-                                    l_id=london_id, resolution=steps)
+        p_gen = PowerProfile(demandP=demand_power, london_data=london_data, l_id=london_id, resolution=steps)
+        q_gen = HeatProfile(demandQ=demand_heat)
+
         # -> initialize pv systems
         pv_systems = [PVSystem(module_parameters=system) for system in pv_systems]
 
@@ -88,7 +90,7 @@ class HouseholdModel(BasicParticipant):
             consumer_type="household",
             strategy=strategy,
             random=random,
-            profile_generator=p_gen,
+            profile_generator={'power': p_gen, 'heat': q_gen},
             pv_systems=pv_systems,
             weather=weather,
             tariff=tariff,
@@ -156,7 +158,7 @@ class HouseholdModel(BasicParticipant):
                 generation=self.get(DataType.residual_generation),
                 tariff=tariff,
                 grid_fee=grid_fee,
-                electric_vehicles=list(self.cars.values())
+                electric_vehicles=self.cars
             )
 
     def get_request(self, d_time: datetime):
