@@ -7,7 +7,7 @@ import plotly.graph_objs as go
 from shapely.geometry import Point, Polygon
 from tqdm import tqdm
 
-BUILDINGS = pd.read_csv(r"./gridLib/converter/buildings.csv", index_col=0)
+BUILDINGS = pd.read_csv(r"./gridLib/converter/buildings.csv", index_col=0, sep=';')
 
 
 class HeatConverter:
