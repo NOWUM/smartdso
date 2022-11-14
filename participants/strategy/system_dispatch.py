@@ -61,7 +61,7 @@ class EnergySystemDispatch:
         self.m = ConcreteModel()
         self.s = SolverFactory(solver)
 
-        maximal_capacity = sum([car.capacity for car in self.ev])
+        maximal_capacity = sum([car.capacity for car in self.ev.values()])
         self.soc_s = list(benefit_function.index / 100 * maximal_capacity)
         self.benefits = list(np.cumsum(benefit_function.values * maximal_capacity * 0.05))
 
@@ -79,13 +79,13 @@ class EnergySystemDispatch:
             self.price_limit = benefit_function.values[0]
 
         self.request = None
-        self.pv_charge = None
+        self.pv_usage = None
         self.benefit = 0
 
     def get_actual_ev_capacity(self, ev: Car = None):
         capacity = 0
         if ev is None:
-            for car in self.ev:
+            for car in self.ev.values():
                 capacity += car.get_current_capacity()
             return capacity
         else:
@@ -103,7 +103,7 @@ class EnergySystemDispatch:
     def get_maximal_ev_power(self, ev: Car = None):
         power = 0
         if ev is None:
-            for car in self.ev:
+            for car in self.ev.values():
                 power += car.maximal_charging_power
             return power
         else:
@@ -112,7 +112,7 @@ class EnergySystemDispatch:
     def get_maximal_ev_capacity(self, ev: Car = None):
         capacity = 0
         if ev is None:
-            for car in self.ev:
+            for car in self.ev.values():
                 capacity += car.capacity
             return capacity
         else:
@@ -122,7 +122,7 @@ class EnergySystemDispatch:
         s1, s2 = d_time, d_time + td(days=1)
         if ev is None:
             demand = np.zeros(self.T)
-            for car in self.ev:
+            for car in self.ev.values():
                 demand += car.get(CarData.demand, slice(s1, s2)).values
             return demand
         else:
@@ -138,6 +138,16 @@ class EnergySystemDispatch:
 
         generation = self.generation.loc[slice(s1, s2)].values
 
+        heat_demand = {}
+        heat_cop = {}
+        for key in self.heat_demand.columns:
+            if 'heat' in key:
+                k = key.replace('heat_', '')
+                heat_demand[k] = self.heat_demand[key].loc[slice(s1, s2)].values
+            elif 'COP' in key:
+                k = key.replace('COP_', '')
+                heat_cop[k] = self.heat_demand[key].loc[slice(s1, s2)].values
+
         tariff = self.tariff.loc[slice(s1, s2)].values.flatten()
         grid_fee = self.grid_fee.loc[slice(s1, s2)].values.flatten()
         total_price = tariff + grid_fee
@@ -150,17 +160,16 @@ class EnergySystemDispatch:
         self.m.benefit = Var(within=Reals, bounds=(0, None))
         self.m.ev_volume = Var(self.ev.keys(), self.t)
 
-        self.m.hp_power = Var(self.t,  within=Reals, bounds=(0, None))
+        self.m.hp_heat = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
         self.m.hs_volume = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
-        self.m.hs_power = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
+        self.m.hs_in = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
+        self.m.hs_out = Var(self.heat_storages.keys(), self.t, within=Reals, bounds=(0, None))
 
-        self.m.grid = Var(self.t, within=Reals, bounds=(0, None))
-        self.m.power_grid_in = Var(self.t, within=Reals, bounds=(0, None))
-        self.m.power_grid_out = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.grid_power = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.grid_in = Var(self.t, within=Reals, bounds=(0, None))
+        self.m.grid_out = Var(self.t, within=Reals, bounds=(0, None))
 
-        self.m.pv = Var(self.t, within=Reals, bounds=(0, None))
-
-        self.m.capacity_eq = ConstraintList()
+        self.m.ev_capacity_eq = ConstraintList()
         if 'soc' in self.strategy:
             s = range(len(self.segments["low"]))
             self.m.z = Var(s, within=Binary)
@@ -180,16 +189,16 @@ class EnergySystemDispatch:
                                                                            * (self.m.q[k] - self.segments["low"][k] *
                                                                               self.m.z[k])
                                                                            for k in s))
-            self.m.capacity_eq.add(self.m.capacity == quicksum(self.m.q[k] for k in s))
+            self.m.ev_capacity_eq.add(self.m.ev_capacity == quicksum(self.m.q[k] for k in s))
 
         else:
-            self.m.benefit_eq = Constraint(expr=self.m.benefit == self.price_limit * self.m.capacity)
+            self.m.benefit_eq = Constraint(expr=self.m.benefit == self.price_limit * self.m.ev_capacity)
 
         # -> limit maximal charging power
-        self.m.power_limit = ConstraintList()
+        self.m.ev_power_limit = ConstraintList()
         # -> limit volume to range
-        self.m.capacity_limit = ConstraintList()
-        # -> max value for grid supply
+        self.m.ev_capacity_limit = ConstraintList()
+        # -> max value for grid supply for evs
         total_grid_power = 0
         for i, car in self.ev.items():
             usage = self.get_ev_usage(d_time, car)
@@ -206,34 +215,52 @@ class EnergySystemDispatch:
             # -> set power and volume limits
             for t in self.t:
                 # -> set power limit
-                self.m.power_limit.add(self.m.power[i, t] <= (1 - usage[t]) * power)
+                self.m.ev_power_limit.add(self.m.ev_power[i, t] <= (1 - usage[t]) * power)
                 # -> set volume limit
-                self.m.capacity_limit.add(self.m.volume[i, t] >= 0)
-                self.m.capacity_limit.add(self.m.volume[i, t] <= self.get_maximal_ev_capacity(car))
-                in_out = self.m.power[i, t] * self.dt - demand[t]
+                self.m.ev_capacity_limit.add(self.m.ev_volume[i, t] >= 0)
+                self.m.ev_capacity_limit.add(self.m.ev_volume[i, t] <= self.get_maximal_ev_capacity(car))
+                in_out = self.m.ev_power[i, t] * self.dt - demand[t]
                 if t > 0:
-                    volume = self.m.volume[i, t - 1]
-                self.m.capacity_limit.add(self.m.volume[i, t] == in_out + volume)
+                    volume = self.m.ev_volume[i, t - 1]
+                self.m.ev_capacity_limit.add(self.m.ev_volume[i, t] == in_out + volume)
 
-        self.m.grid_power_limit = ConstraintList()
+        self.m.ev_capacity_eq.add(self.m.ev_capacity == quicksum(self.m.ev_volume[:, self.T - 1]))
+
+        hp_power = [quicksum(self.m.hp_heat[key, t] / heat_cop[key, t] for key in heat_cop.keys())
+                    for t in self.t]
+
+        self.m.heat_balance_eq = ConstraintList()
+        self.m.heat_capacity_eq = ConstraintList()
         for t in self.t:
-            self.m.grid_power_limit.add(self.m.grid[t] <= total_grid_power)
+            for key in heat_demand.keys():
+                loss = (self.heat_storages[key].loss / self.T)
+                self.m.heat_balance_eq.add(heat_demand[key][t] + loss + self.m.hs_in[key, t] == self.m.hs_out[key, t]
+                                           + self.m.hp_heat[key, t])
+                if t > 0:
+                    self.m.heat_capacity_eq.add(self.m.hs_volume[key, t] == self.m.hs_volume[key, t - 1]
+                                                + (self.m.hs_in[key, t] - self.m.hs_out[key, t]) * self.dt)
+                                                # - (self.heat_storages[key].loss / self.T))
+                else:
+                    self.m.heat_capacity_eq.add(self.m.hs_volume[key, t] == self.heat_storages[key].V0
+                                                + (self.m.hs_in[key, t] - self.m.hs_out[key, t]) * self.dt)
+                                                # - (self.heat_storages[key].loss / self.T))
 
-        self.m.capacity_eq.add(self.m.capacity == quicksum(self.m.volume[:, self.T - 1]))
+                self.m.heat_capacity_eq.add(self.m.hs_volume[key, t] >= 0)
+                self.m.heat_capacity_eq.add(self.m.hs_volume[key, t] <= self.heat_storages[key].volume)
 
-        # -> set grid consumption
-        self.m.grid_limit = ConstraintList()
+        self.m.power_balance_eq = ConstraintList()
         for t in self.t:
-            self.m.grid_limit.add(self.m.grid[t] == - self.m.pv[t] + quicksum(self.m.power[:, t]))
+            self.m.power_balance_eq.add(0 == self.m.grid_power[t] + generation[t] -
+                                        (hp_power[t] + quicksum(self.m.ev_power[:, t])))
+            self.m.power_balance_eq.add(self.m.grid_power[t] == self.m.grid_out[t] - self.m.grid_in[t])
+            self.m.power_balance_eq.add(self.m.grid_out[t] <= total_grid_power + hp_power[t])
 
-        # -> limit pv range
-        self.m.pv_limit = ConstraintList()
-        for t in self.t:
-            self.m.pv_limit.add(self.m.pv[t] <= generation[t])
+        costs = quicksum(total_price[t] * self.m.grid_out[t] * self.dt for t in self.t)
+        revenue = quicksum(5 * self.m.grid_in[t] * self.dt for t in self.t)
+        heat_benefit = np.mean(total_price) * quicksum(self.m.hs_volume[key, self.T]/np.mean(heat_cop[key])
+                                                       for key in heat_cop.keys())
 
-        costs = quicksum(total_price[t] * self.m.grid[t] * self.dt for t in self.t)
-
-        self.m.obj = Objective(expr=self.m.benefit - costs, sense=maximize)
+        self.m.obj = Objective(expr=self.m.benefit - costs + revenue + heat_benefit, sense=maximize)
 
         try:
             results = self.s.solve(self.m)
@@ -242,11 +269,11 @@ class EnergySystemDispatch:
             if (status == SolverStatus.ok) and (termination == TerminationCondition.optimal):
                 logger.info(f" -> found optimal solution")
 
-                grid_consumption = np.array([self.m.grid[t].value for t in self.t])
-                pv_charge = np.array([self.m.pv[t].value for t in self.t])
+                grid_consumption = np.array([self.m.grid_out[t].value for t in self.t])
+                pv_usage = np.array([generation[t] - self.m.grid_in[t].value for t in self.t])
 
                 for i, car in self.ev.items():
-                    car_charging = np.array([self.m.power[i, t].value for t in self.t])
+                    car_charging = np.array([self.m.ev_power[i, t].value for t in self.t])
                     car_charging = pd.Series(data=car_charging, index=time_range)
                     car.set_planned_charging(car_charging)
 
@@ -260,8 +287,8 @@ class EnergySystemDispatch:
                 self.request = pd.Series(data=grid_consumption, index=time_range)
                 self.request = self.request.round(2)
                 # -> set pv charging time series
-                self.pv_charge = pd.Series(data=pv_charge, index=time_range)
-                self.pv_charge = self.pv_charge.round(2)
+                self.pv_usage = pd.Series(data=pv_usage, index=time_range)
+                self.pv_usage = self.pv_usage.round(2)
 
             elif termination == TerminationCondition.infeasible:
                 raise Exception(' -> model infeasible')
