@@ -111,27 +111,39 @@ class EnergyProvider:
 if __name__ == "__main__":
 
     from matplotlib import pyplot as plt
+    from matplotlib.ticker import PercentFormatter
 
+    fig, ax = plt.subplots(5, 1, tight_layout=True)
+    kwargs = dict(histtype='stepfilled', alpha=1.0, bins=100, range=(0, 8))
     ep = EnergyProvider()
-    ep.set_portfolio(50, 150)
-
-    r1 = ep.optimize(price_fixed=False)
-
-    plt.hist(ep.results['losses'], bins=30)
-    plt.show()
-
-    r2 = ep.optimize()
-
-    plt.hist(ep.results['losses'], bins=30)
-    plt.show()
-
-    tariff = value(r2.obj)
-    plt.plot(np.repeat([tariff], ep.ts))
-
-    tariff = value(r2.obj)
-    plt.plot(np.repeat([tariff], ep.ts))
+    for k, row in zip([10, 100, 200, 500, 1000], range(5)):
+        print(k)
+        ep.set_portfolio(k, 200)
+        x = np.asarray(ep._portfolios)
+        n, bins, patches = ax[row].hist(x.flatten(), **kwargs)
+        ax[row].yaxis.set_major_formatter(PercentFormatter(xmax=len(x.flatten() / n.max())))
+        ax[row].legend([k])
+        ax[row].grid(True)
+        ax[row].set_ylim([0, len(x.flatten()) * 0.20])
 
     plt.show()
+    # r1 = ep.optimize(price_fixed=False)
+    #
+    # plt.hist(ep.results['losses'], bins=30)
+    # plt.show()
+    #
+    # r2 = ep.optimize()
+    #
+    # plt.hist(ep.results['losses'], bins=30)
+    # plt.show()
+    #
+    # tariff = value(r2.obj)
+    # plt.plot(np.repeat([tariff], ep.ts))
+    #
+    # tariff = value(r2.obj)
+    # plt.plot(np.repeat([tariff], ep.ts))
+    #
+    # plt.show()
 
     # for k in range(10):
     #     ep.set_portfolio(50, 150)
