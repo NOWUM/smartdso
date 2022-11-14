@@ -12,6 +12,7 @@ from demLib.heat_profile import StandardLoadProfile as HeatProfile
 from participants.strategy.system_dispatch import EnergySystemDispatch
 from participants.basic import BasicParticipant, DataType
 from participants.resident import Resident
+from participants.utils import HeatStorage
 
 # example to Piecewise:
 # http://yetanothermathprogrammingconsultant.blogspot.com/2019/02/piecewise-linear-functions-and.html
@@ -148,6 +149,9 @@ class HouseholdModel(BasicParticipant):
         logger.info(f" -> set maximal iteration to {max_request}")
         self._max_requests = [max_request, max_request]
 
+        self.heat_storages = {'space': HeatStorage(volume=500, d_theta=15),
+                              'hot_water': HeatStorage(volume=500, d_theta=25)}
+
         self.dispatcher = None
         if self._total_capacity > 0:
             self.dispatcher = EnergySystemDispatch(
@@ -158,7 +162,10 @@ class HouseholdModel(BasicParticipant):
                 generation=self.get(DataType.residual_generation),
                 tariff=tariff,
                 grid_fee=grid_fee,
-                electric_vehicles=self.cars
+                electric_vehicles=self.cars,
+                heat_demand=self._data.loc[:, ['heat_hot_water', 'COP_hot_water',
+                                               'heat_space', 'COP_space']],
+                heat_storages=self.heat_storages
             )
 
     def get_request(self, d_time: datetime):
@@ -276,4 +283,3 @@ class HouseholdModel(BasicParticipant):
                 )
             except Exception as e:
                 logger.warning(f"server closed the connection {repr(e)}")
-
