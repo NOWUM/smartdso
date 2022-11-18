@@ -221,7 +221,8 @@ class BasicParticipant:
         return pd.Series(dtype=float, index=[d_time], data=[0])
 
     def get(self, data_type: DataType, time_range=None, build_dataframe: bool = False):
-        time_range = time_range or self.time_range
+        if time_range is None:
+            time_range = self.time_range
         result = self._data.loc[time_range, data_type.name]
         if build_dataframe:
             dataframe = pd.DataFrame({"power": result.values})

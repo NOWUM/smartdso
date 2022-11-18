@@ -141,7 +141,7 @@ class HouseholdModel(BasicParticipant):
             self.b_fnc = pd.Series(data=[self.price_limit] * 20, index=[*range(5, 105, 5)])
             logger.info(f" -> no price limit is set")
         else:
-            col = np.argwhere(np.random.uniform() * 100 > CUM_PROB).flatten()
+            col = np.argwhere(self.random.uniform() * 100 > CUM_PROB).flatten()
             col = col[-1] if len(col) > 0 else 0
             self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
             logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
@@ -212,6 +212,9 @@ class HouseholdModel(BasicParticipant):
         # -> get benefit value
         benefit = self.dispatcher.ev_benefit + self.dispatcher.hp_benefit + self.dispatcher.pv_benefit
         # -> compare benefit and costs
+        #print('price:', total_price)
+        #print('benefit:', benefit)
+        #print('ev_benefit', self.dispatcher.ev_benefit)
         if benefit > total_price or self._max_requests[0] == 0:
             # -> calculate final tariff time series
             final_tariff = self._data.loc[price.index, "tariff"] + price
@@ -228,11 +231,11 @@ class HouseholdModel(BasicParticipant):
             # -> set next request time
             self.next_request = price.index.max()
             # -> set final grid consumption
-            final_grid = self.dispatcher.grid_out.loc[price.index]
-            self._data.loc[price.index, "final_grid_consumption"] = final_grid.copy()
+            final_grid_out = self.dispatcher.grid_out.loc[price.index]
+            self._data.loc[price.index, "final_grid_consumption"] = final_grid_out.copy()
             # -> set final grid feed in
-            final_grid = self.dispatcher.grid_in.loc[price.index]
-            self._data.loc[price.index, "final_grid_feed_in"] = final_grid.copy()
+            final_grid_in = self.dispatcher.grid_in.loc[price.index]
+            self._data.loc[price.index, "final_grid_feed_in"] = final_grid_in.copy()
             # -> set final pv consumption
             final_pv = self.dispatcher.pv_usage.loc[price.index]
             self._data.loc[:, "final_pv_consumption"] = final_pv.copy()
@@ -361,6 +364,25 @@ if __name__ == "__main__":
             grid_fee=grid_fee,
             **config_dict
         )
+
+    request1 = r.get_request(date_range[0])
+    prices = np.zeros(96)
+    prices[:50] = 250
+    r.commit(price=pd.Series(index=request1.index, data=prices))
+    request2 = r.get_request(date_range[0])
+
+    r.commit(price=pd.Series(index=request1.index, data=np.zeros(96)))
+
+    ax = request1.plot()
+    request2.plot(ax=ax)
+    plt.show()
+
+    time_range = pd.date_range(start=date_range[0], periods=96, freq='15min')
+    ax2 = r.get(data_type=DataType.planned_grid_consumption, time_range=time_range).plot()
+    r.get(data_type=DataType.final_grid_consumption, time_range=time_range).plot(ax=ax2)
+
+
+    plt.show()
 
     # r.dispatcher.get_optimal_solution(date_range[0])
     # ax = r.dispatcher.request.plot()
