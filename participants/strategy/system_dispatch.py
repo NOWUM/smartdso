@@ -287,7 +287,7 @@ class EnergySystemDispatch:
             power = quicksum(self.m.hs_volume[key, self.T - 1] / np.mean(heat_cop[key])
                              for key in heat_cop.keys())
 
-            hp_benefit = power * np.mean(tariff)
+            hp_benefit = power * np.mean(total_price)
 
         else:
             hp_power = np.zeros(self.T)
@@ -346,7 +346,8 @@ class EnergySystemDispatch:
                         storage.set_planned_usage(storage_volume)
 
                     # -> set benefit value to compare it later with total heating costs
-                    self.hp_benefit = value(hp_benefit)
+                    self.hp_benefit = value(hp_benefit) + value(self.dt * quicksum(hp_power[t] * total_price[t]
+                                                                                   for t in self.t))
 
                 self.pv_benefit = value(revenue)
 
