@@ -102,6 +102,7 @@ class BasicParticipant:
         self._steps = len(self.time_range)
 
         self.strategy = strategy
+        self.dispatcher = None
 
         self.finished, self.initial_plan = False, True
         self.next_request = self.time_range[0] - td(minutes=1)
@@ -124,6 +125,8 @@ class BasicParticipant:
                 "car_demand",
                 "planned_grid_consumption",
                 "final_grid_consumption",
+                "planned_grid_feed_in",
+                "final_grid_feed_in",
                 "planned_pv_consumption",
                 "final_pv_consumption",
             ],
@@ -144,7 +147,7 @@ class BasicParticipant:
         # -> set grid fee data
         if grid_fee is None:
             grid_fee = pd.Series(data=5 * np.ones(self._steps), index=self.time_range)
-        self._data.loc[grid_fee.index, "tariff"] = grid_fee.values.flatten()
+        self._data.loc[grid_fee.index, "grid_fee"] = grid_fee.values.flatten()
         self.grid_fee = grid_fee.copy()
 
         # -> set weather data
@@ -205,13 +208,16 @@ class BasicParticipant:
 
     def simulate(self, d_time):
         for driver in self.drivers:
-            if driver.car == "ev":
+            if driver.car.type == "ev":
                 # -> do charging
                 driver.car.charge(d_time)
                 # -> do driving
                 driver.car.drive(d_time)
 
     def get_request(self, d_time: datetime) -> pd.Series:
+        if self.dispatcher is None:
+            self.finished = True
+            self.next_request = d_time + td(days=1) - td(minutes=1)
         return pd.Series(dtype=float, index=[d_time], data=[0])
 
     def get(self, data_type: DataType, time_range=None, build_dataframe: bool = False):
