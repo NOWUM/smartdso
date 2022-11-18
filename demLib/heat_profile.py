@@ -20,8 +20,8 @@ SINK_TEMPERATURE = {'radiator': lambda x: 40 - 1.0 * x,
                     'hot_water': lambda x: np.array([50 for _ in x])}
 
 
-def get_hourly_factors(mean_temp: float, class_: str = 'Klasse 4', resident_type: str = 'EFH'):
-    if resident_type == 'EFH':
+def get_hourly_factors(mean_temp: float, class_: str = 'Klasse 4', resident_type: str = 'SFH'):
+    if resident_type == 'SFH':
         factors = HOURLY_FACTORS_EFH
     else:
         factors = HOURLY_FACTORS_MFH
@@ -75,7 +75,7 @@ class StandardLoadProfile:
             self.building_parameters = (1.2328655, -34.7213605, 5.8164304, 0.0873352)
             self.mh = -0.0409284
             self.bh = 0.7672920
-            self.mw = 0.0022320
+            self.mw = -0.0022320
             self.bw = 0.1199207
 
         self.day_values = REFERENCE_TEMPERATURE.groupby(REFERENCE_TEMPERATURE.index.day_of_year).mean().values.flatten()
@@ -86,7 +86,15 @@ class StandardLoadProfile:
 
         self.kw = self.demandQ / sum(self.get_h_value())
 
-        self.temperature = deque([10, 10, 10], maxlen=3)
+        self.temperature = deque([-15, 15, -15], maxlen=3)
+
+        max_h_values = self.get_h_value(-20)
+        max_factors = get_hourly_factors(mean_temp=-20, resident_type=self.resident_type)
+
+        def round_to_base(value, base=5):
+            return base * round(value / base)
+
+        self.max_demand = round_to_base(max_h_values * self.kw * max(max_factors))
 
     def get_h_value(self, mean_temperature: float = None):
         if mean_temperature is None:
@@ -146,11 +154,19 @@ if __name__ == '__main__':
 
     weather = pd.read_csv(r'weather.csv', index_col=0, parse_dates=True)
     heatGen = StandardLoadProfile(demandQ=40000)
-    day_range = pd.date_range(start=weather.index[0], end=weather.index[-1], freq='d')
+    x, y = 0, 0
+    for temperature in heatGen.day_values:
+        r_dict = heatGen.run_model(np.repeat(temperature, 24))
+        x += r_dict['space_heating'].sum()
+        y += r_dict['hot_water'].sum()
 
-    for day in day_range[1:]:
-        r_dict = heatGen.run_model(temperature=weather.loc[weather.index.date == day, 'temp_air'].values)
-        break
+    print((x + y) / 4)
+    #day_range = pd.date_range(start=weather.index[0], end=weather.index[-1], freq='d')
+    #x, y = 0, 0
+    #for day in day_range[1:]:
+    #    r_dict = heatGen.run_model(temperature=weather.loc[weather.index.date == day, 'temp_air'].values)
+    #    x += r_dict['space_heating'].sum()
+    #    y += r_dict['hot_water'].sum()
     # demand = np.asarray(demand, dtype=float).flatten()
     # water_ = np.asarray(water_, dtype=float).flatten()
     # plt.plot(demand)
