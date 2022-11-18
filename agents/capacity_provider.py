@@ -94,14 +94,14 @@ class CapacityProvider:
         return sub_id
 
     def get_line_utilization(self, sub_id: int) -> pd.DataFrame:
-        lines = self.grid.sub_networks[sub_id]["model"].lines_t.p0
+        lines = self.grid.sub_networks[sub_id]["model"].lines_t.p0.copy()
         s_max = self.grid.sub_networks[sub_id]["model"].lines.loc[:, "s_nom"]
         for column in lines.columns:
             lines[column] = np.abs(lines[column]) / s_max.loc[column] * 100
         return lines
 
     def get_transformer_utilization(self, sub_id: int) -> pd.DataFrame:
-        transformer = self.grid.sub_networks[sub_id]["model"].generators_t.p
+        transformer = self.grid.sub_networks[sub_id]["model"].generators_t.p.copy()
         s_max = self.grid.sub_networks[sub_id]["s_max"]
         transformer = transformer / s_max * 100
         return transformer
@@ -204,67 +204,6 @@ class CapacityProvider:
         steps = self.grid.sub_networks[sub_id]["model"].snapshots
         self.set_utilization(steps=steps, sub_id=sub_id)
 
-    def _save_summary(self, d_time: datetime) -> None:
-
-        time_range = pd.date_range(
-            start=d_time, freq=RESOLUTION[self.T], periods=self.T
-        )
-
-        aggregate_functions = {
-            "mean": lambda x: pd.DataFrame.mean(x, axis=1),
-            "max": lambda x: pd.DataFrame.max(x, axis=1),
-            "median": lambda x: pd.DataFrame.median(x, axis=1),
-        }
-
-        def build_data(
-            d: pd.DataFrame, asset: str = "line", s_id: int = 0, tp: str = "mean"
-        ):
-            d.columns = ["value"]
-            d["type"] = tp
-            d["sub_id"] = s_id
-            d["asset"] = asset
-            d["scenario"] = self.scenario
-            d["iteration"] = self.iteration
-            d.index.name = "time"
-
-            d = d.reset_index()
-            d = d.set_index(
-                ["time", "scenario", "iteration", "type", "asset", "sub_id"]
-            )
-
-            return d
-
-        for sub_id in self.sub_ids:
-            dataframe = self.line_utilization[sub_id]
-            for key, function in aggregate_functions.items():
-                data = pd.DataFrame(function(dataframe.loc[time_range, :]))
-                data = build_data(data, asset="line", s_id=int(sub_id), tp=key)
-                try:
-                    data.to_sql(
-                        "grid_summary",
-                        self._database,
-                        if_exists="append",
-                        method="multi",
-                    )
-                except Exception as e:
-                    logger.warning(f"server closed the connection {repr(e)}")
-
-        for sub_id in self.sub_ids:
-            dataframe = self.transformer_utilization[sub_id]
-            for key, function in aggregate_functions.items():
-                data = pd.DataFrame(function(dataframe.loc[time_range, :]))
-                data = build_data(data, asset="transformer", s_id=int(sub_id), tp=key)
-
-                try:
-                    data.to_sql(
-                        "grid_summary",
-                        self._database,
-                        if_exists="append",
-                        method="multi",
-                    )
-                except Exception as e:
-                    logger.warning(f"server closed the connection {repr(e)}")
-
     def _save_grid_asset(self, d_time: datetime) -> None:
 
         time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
@@ -338,3 +277,68 @@ if __name__ == "__main__":
     config_dict = Config().get_config_dict()
 
     cp = CapacityProvider(**config_dict)
+
+
+
+
+    #
+    # def _save_summary(self, d_time: datetime) -> None:
+    #
+    #     time_range = pd.date_range(
+    #         start=d_time, freq=RESOLUTION[self.T], periods=self.T
+    #     )
+    #
+    #     aggregate_functions = {
+    #         "mean": lambda x: pd.DataFrame.mean(x, axis=1),
+    #         "max": lambda x: pd.DataFrame.max(x, axis=1),
+    #         "median": lambda x: pd.DataFrame.median(x, axis=1),
+    #     }
+    #
+    #     def build_data(
+    #         d: pd.DataFrame, asset: str = "line", s_id: int = 0, tp: str = "mean"
+    #     ):
+    #         d.columns = ["value"]
+    #         d["type"] = tp
+    #         d["sub_id"] = s_id
+    #         d["asset"] = asset
+    #         d["scenario"] = self.scenario
+    #         d["iteration"] = self.iteration
+    #         d.index.name = "time"
+    #
+    #         d = d.reset_index()
+    #         d = d.set_index(
+    #             ["time", "scenario", "iteration", "type", "asset", "sub_id"]
+    #         )
+    #
+    #         return d
+    #
+    #     for sub_id in self.sub_ids:
+    #         dataframe = self.line_utilization[sub_id]
+    #         for key, function in aggregate_functions.items():
+    #             data = pd.DataFrame(function(dataframe.loc[time_range, :]))
+    #             data = build_data(data, asset="line", s_id=int(sub_id), tp=key)
+    #             try:
+    #                 data.to_sql(
+    #                     "grid_summary",
+    #                     self._database,
+    #                     if_exists="append",
+    #                     method="multi",
+    #                 )
+    #             except Exception as e:
+    #                 logger.warning(f"server closed the connection {repr(e)}")
+    #
+    #     for sub_id in self.sub_ids:
+    #         dataframe = self.transformer_utilization[sub_id]
+    #         for key, function in aggregate_functions.items():
+    #             data = pd.DataFrame(function(dataframe.loc[time_range, :]))
+    #             data = build_data(data, asset="transformer", s_id=int(sub_id), tp=key)
+    #
+    #             try:
+    #                 data.to_sql(
+    #                     "grid_summary",
+    #                     self._database,
+    #                     if_exists="append",
+    #                     method="multi",
+    #                 )
+    #             except Exception as e:
+    #                 logger.warning(f"server closed the connection {repr(e)}")
