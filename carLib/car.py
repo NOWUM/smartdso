@@ -16,7 +16,8 @@ electric_vehicles["maximal_charging_power"] = electric_vehicles["charge ac"]
 class CarData(Enum):
     usage = 1
     demand = 2
-    soc = 4
+    soc = 3
+    planned_charge = 4
 
 
 class Car:
@@ -120,6 +121,7 @@ class Car:
         # -> initialize time series
         for column in self._data.columns:
             self._data[column] = np.zeros(len(time_range))
+        self._data['soc'] = self.soc
         self._data.index = time_range
 
         # -> for each day get car usage
@@ -206,6 +208,8 @@ class Car:
         )
         self.soc = capacity / self.capacity
         self.soc = min(self.soc, 1)
+
+        self._data.at[d_time, "soc"] = self.soc
 
         return self._data.loc[d_time, "final_charge"]
 
