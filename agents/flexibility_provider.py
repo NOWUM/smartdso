@@ -68,9 +68,8 @@ class FlexibilityProvider:
 
     def register(self, id_: str, client: BasicParticipant):
         self.clients[id_] = client
-        if client.consumer_type == "household":
-            self.keys.append(id_)
-            self._commits[id_] = False
+        self.keys.append(id_)
+        self._commits[id_] = False
 
     def get_tariff(self, time_range: pd.DatetimeIndex = None):
         if time_range is None:
@@ -84,14 +83,13 @@ class FlexibilityProvider:
         self.random.shuffle(self.keys)
         for id_ in tqdm(self.keys):
             self.consumer_handler = self.clients[id_]
-            has_commit = self.consumer_handler.has_commit(d_time)
-            if not has_commit:
-                self._commits[id_] = has_commit
-                request = self.clients[id_].get_request(d_time)
-                if sum(request.values) > 0:
-                    yield request, self.clients[id_].grid_node
+            commit = self.consumer_handler.has_commit(d_time)
+            if not commit:
+                request = self.consumer_handler.get_request(d_time)
+                if sum(request.values) != 0:
+                    yield request, self.consumer_handler.grid_node
                 else:
-                    self._commits[id_] = True
+                    self._commits[id_] = self.consumer_handler.finished
 
     def commit(self, price: pd.Series) -> bool:
         commit = self.consumer_handler.commit(price=price)
@@ -155,7 +153,7 @@ class FlexibilityProvider:
                 car_counter += 1
                 result["availability"].loc[time_range] += 1 - car.get(CarData.usage, time_range)
 
-            result.loc[time_range, 'sub_grid'] = client.sub_grid
+            result.loc[time_range, 'sub_id'] = client.sub_grid
 
         result["availability"] /= car_counter
         result["grid_fee"] /= total_demand
