@@ -27,14 +27,14 @@ from carLib.car import Car, CarData
 from participants.utils import HeatStorage
 
 logger = logging.getLogger("samrtdso.energy_system_dispatch")
-logger.setLevel('ERROR')
+logger.setLevel('INFO')
 
 
 class EnergySystemDispatch:
     def __init__(self, steps: int = 96,
                  resolution: str = '15min',
                  strategy: str = 'soc',
-                 benefit_function: pd.Series = None,
+                 benefit_functions: pd.DataFrame = None,
                  electric_vehicles: dict[str, Car] = None,
                  heat_storages: dict[str, HeatStorage] = None,
                  heat_pump: float = 25,
@@ -42,7 +42,7 @@ class EnergySystemDispatch:
                  heat_demand: pd.DataFrame = None,
                  tariff: pd.Series = None,
                  grid_fee: pd.Series = None,
-                 solver: str = 'glpk',
+                 solver: str = 'gurobi',
                  analyse_ev: bool = True,
                  analyse_hp: bool = True):
 
@@ -67,23 +67,25 @@ class EnergySystemDispatch:
         self._analyse_ev = analyse_ev
         self._analyse_hp = analyse_hp
 
-        maximal_capacity = sum([car.capacity for car in self.ev.values()])
+        self.soc_s = {}
+        self.benefits = {}
+        self.segments = {}
 
-        if maximal_capacity > 0:
-            self.soc_s = list(benefit_function.index / 100 * maximal_capacity)
-            self.benefits = list(np.cumsum(benefit_function.values * maximal_capacity * 0.05))
+        for key, car in self.ev.items():
             self.strategy = strategy
+            self.soc_s[key] = list(benefit_functions.index / 100 * car.capacity)
+            self.benefits[key] = list(np.cumsum(benefit_functions[key].values * car.capacity * 0.05))
             if "soc" in self.strategy:
-                self.segments = dict(low=[], up=[], coeff=[], low_=[])
-                for i in range(0, len(self.benefits) - 1):
-                    self.segments["low"].append(self.soc_s[i])
-                    self.segments["up"].append(self.soc_s[i + 1])
-                    dy = self.benefits[i + 1] - self.benefits[i]
-                    dx = self.soc_s[i + 1] - self.soc_s[i]
-                    self.segments["coeff"].append(dy / dx)
-                    self.segments["low_"].append(self.benefits[i])
+                self.segments[key] = dict(low=[], up=[], coeff=[], low_=[])
+                for i in range(0, len(self.benefits[key]) - 1):
+                    self.segments[key]["low"].append(self.soc_s[key][i])
+                    self.segments[key]["up"].append(self.soc_s[key][i + 1])
+                    dy = self.benefits[key][i + 1] - self.benefits[key][i]
+                    dx = self.soc_s[key][i + 1] - self.soc_s[key][i]
+                    self.segments[key]["coeff"].append(dy / dx)
+                    self.segments[key]["low_"].append(self.benefits[key][i])
             else:
-                self.price_limit = benefit_function.values[0]
+                self.price_limit = benefit_functions.values[0]
 
         self.request = None
         self.pv_usage = None
@@ -102,9 +104,9 @@ class EnergySystemDispatch:
         else:
             return ev.get_current_capacity()
 
-    def get_actual_ev_benefit(self):
-        c = self.get_actual_ev_capacity()
-        b = np.interp(c, self.soc_s, self.benefits)
+    def get_actual_ev_benefit(self, ev: str):
+        c = self.get_actual_ev_capacity(self.ev[ev])
+        b = np.interp(c, self.soc_s[ev], self.benefits[ev])
         return b
 
     def get_ev_soc_limit(self, d_time: datetime, ev: Car):
@@ -152,34 +154,65 @@ class EnergySystemDispatch:
 
         # -> declare variables
         self.m.ev_power = Var(self.ev.keys(), self.t, within=Reals, bounds=(0, None))
-        self.m.ev_capacity = Var(within=Reals, bounds=(0, self.get_maximal_ev_capacity()))
-        self.m.benefit = Var(within=Reals, bounds=(0, None))
+        self.m.ev_benefit = Var(self.ev.keys(), self.t, within=Reals, bounds=(None, None))
+
         self.m.ev_volume = Var(self.ev.keys(), self.t)
         self.m.ev_capacity_eq = ConstraintList()
+        self.m.benefit_eq = ConstraintList()
+
         # -> build soc dependent benefit function
         if 'soc' in self.strategy:
-            s = range(len(self.segments["low"]))
-            self.m.z = Var(s, within=Binary)
-            self.m.q = Var(s, within=Reals)
+            s = range(len(self.segments[list(self.ev.keys())[0]]["low"]))
 
-            # -> segment selection
-            self.m.choose_segment = Constraint(expr=quicksum(self.m.z[k] for k in s) == 1)
+            self.m.z = Var(self.ev.keys(), self.t, s, within=Binary)
+            self.m.q = Var(self.ev.keys(), self.t, s, within=Reals)
 
+            self.m.choose_segment_eq = ConstraintList()
             self.m.s_segment_low = ConstraintList()
             self.m.s_segment_up = ConstraintList()
-            for k in s:
-                self.m.s_segment_low.add(self.m.q[k] >= self.segments["low"][k] * self.m.z[k])
-                self.m.s_segment_up.add(self.m.q[k] <= self.segments["up"][k] * self.m.z[k])
 
-            self.m.benefit_eq = Constraint(expr=self.m.benefit == quicksum(self.segments["low_"][k] * self.m.z[k]
-                                                                           + self.segments["coeff"][k]
-                                                                           * (self.m.q[k] - self.segments["low"][k] *
-                                                                              self.m.z[k])
-                                                                           for k in s))
-            self.m.ev_capacity_eq.add(self.m.ev_capacity == quicksum(self.m.q[k] for k in s))
+            for car in self.ev.keys():
+
+                # -> segment selection
+                for t in self.t:
+                    self.m.choose_segment_eq.add(quicksum(self.m.z[car, t, k] for k in s) == 1)
+                    for k in s:
+                        self.m.s_segment_low.add(self.m.q[car, t, k] >=
+                                                 self.segments[car]["low"][k] * self.m.z[car, t, k])
+                        self.m.s_segment_up.add(self.m.q[car, t, k] <=
+                                                self.segments[car]["up"][k] * self.m.z[car, t, k])
+
+                    self.m.benefit_eq.add(self.m.ev_benefit[car, t] ==
+                                          quicksum(self.segments[car]["low_"][k] * self.m.z[car, t, k]
+                                                   + self.segments[car]["coeff"][k]
+                                                   * (self.m.q[car, t, k] - self.segments[car]["low"][k] *
+                                                      self.m.z[car, t, k])
+                                                   for k in s))
+                    self.m.ev_capacity_eq.add(self.m.ev_volume[car, t] == quicksum(self.m.q[car, t, k] for k in s))
+
         # -> build simple benefit function
         else:
-            self.m.benefit_eq = Constraint(expr=self.m.benefit == self.price_limit * self.m.ev_capacity)
+            for car in self.ev.keys():
+                for t in self.t:
+                    self.m.benefit_eq.add(self.m.ev_benefit[car, t] == self.price_limit * self.m.ev_volume[car, t])
+
+        self.m.ev_dbenefit_eq = ConstraintList()
+
+        self.m.ev_p_dbenefit = Var(self.ev.keys(), self.t, within=Reals, bounds=(0, None))
+        self.m.ev_m_dbenefit = Var(self.ev.keys(), self.t, within=Reals, bounds=(0, None))
+
+        self.m.ev_dbenefit = Var(self.ev.keys(), self.t, within=Reals, bounds=(None, None))
+
+        for car, val in self.ev.items():
+             for t in self.t:
+                if t == 0:
+                    d_benefit = self.m.ev_benefit[car, t] - self.get_actual_ev_benefit(car)
+                else:
+                    d_benefit = self.m.ev_benefit[car, t] - self.m.ev_benefit[car, t - 1]
+                self.m.ev_dbenefit_eq.add(self.m.ev_dbenefit[car, t] == d_benefit)
+
+                self.m.ev_dbenefit_eq.add(self.m.ev_dbenefit[car, t] == self.m.ev_p_dbenefit[car, t] -
+                                          self.m.ev_m_dbenefit[car, t])
 
         # -> limit maximal charging power
         self.m.ev_power_limit = ConstraintList()
@@ -210,8 +243,6 @@ class EnergySystemDispatch:
                 if t > 0:
                     volume = self.m.ev_volume[i, t - 1]
                 self.m.ev_capacity_limit.add(self.m.ev_volume[i, t] == in_out + volume)
-
-        self.m.ev_capacity_eq.add(self.m.ev_capacity == quicksum(self.m.ev_volume[:, self.T - 1]))
 
         return total_grid_power
 
@@ -266,12 +297,12 @@ class EnergySystemDispatch:
         total_price = tariff + grid_fee
         # -> get generation time series
         generation = self.generation.loc[sl].values
-
         # -> build model for ev
         if self._analyse_ev:
             total_grid_power = self._create_ev_model(d_time)
             ev_power = self.m.find_component('ev_power')
-            ev_benefit = self.m.find_component('benefit')
+            ev_benefit = quicksum(self.m.ev_dbenefit[car, t] for car in self.ev.keys() for t in self.t)
+            # ev_benefit = self.m.benefit
         else:
             total_grid_power = 0
             ev_power = np.zeros((1, self.T))
@@ -287,11 +318,15 @@ class EnergySystemDispatch:
             power = quicksum(self.m.hs_volume[key, self.T - 1] / np.mean(heat_cop[key])
                              for key in heat_cop.keys())
 
-            hp_benefit = power * np.mean(total_price)
+            ben_ = self.dt * quicksum((heat_demand[key][t] / heat_cop[key][t]) * total_price[t]
+                                      for key in heat_cop.keys()
+                                      for t in self.t)
+
+            hs_benefit = power * np.mean(total_price)  # + ben_
 
         else:
             hp_power = np.zeros(self.T)
-            hp_benefit = 0
+            hs_benefit = 0
 
         # -> declare grid variables
         self.m.grid_power = Var(self.t, within=Reals, bounds=(0, None))
@@ -312,7 +347,7 @@ class EnergySystemDispatch:
         costs = quicksum(total_price[t] * self.m.grid_out[t] * self.dt for t in self.t)
         revenue = quicksum(5 * self.m.grid_in[t] * self.dt for t in self.t)
 
-        self.m.obj = Objective(expr=ev_benefit + hp_benefit - costs + revenue, sense=maximize)
+        self.m.obj = Objective(expr=ev_benefit + hs_benefit - costs + revenue, sense=maximize)
 
         try:
 
@@ -332,13 +367,11 @@ class EnergySystemDispatch:
                         car_charging = pd.Series(data=car_charging, index=time_range)
                         car.set_planned_charging(car_charging)
 
-                    if "soc" in self.strategy:
-                        benefit = value(self.m.benefit) - self.get_actual_ev_benefit()
-                    else:
-                        benefit = value(self.m.benefit) - self.price_limit * self.get_actual_ev_capacity()
-
+                    benefit = [value(self.m.ev_dbenefit[car, t]) for car in self.ev.keys() for t in self.t]
+                    benefit = np.array(benefit)
+                    benefit[benefit < 0] = 0
                     # -> set benefit value to compare it later with total charging costs
-                    self.ev_benefit = benefit
+                    self.ev_benefit = np.round(benefit.sum(), 2)
 
                 if self._analyse_hp:
                     for i, storage in self.heat_storages.items():
@@ -346,8 +379,7 @@ class EnergySystemDispatch:
                         storage.set_planned_usage(storage_volume)
 
                     # -> set benefit value to compare it later with total heating costs
-                    self.hp_benefit = value(hp_benefit) + value(self.dt * quicksum(hp_power[t] * total_price[t]
-                                                                                   for t in self.t))
+                    self.hp_benefit = value(hs_benefit)
 
                 self.pv_benefit = value(revenue)
 
