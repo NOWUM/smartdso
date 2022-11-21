@@ -134,33 +134,40 @@ class HouseholdModel(BasicParticipant):
         logger.info(" -> setting strategy options")
         if "Cap" in strategy:
             self.price_limit = 45
-            self.b_fnc = pd.Series(data=[self.price_limit] * 20, index=[*range(5, 105, 5)])
+            data = {car: [self.price_limit] * 20 for car in self.cars.keys()}
+            self.b_fnc = pd.DataFrame(data=data, index=[*range(5, 105, 5)])
             logger.info(f" -> set price limit to {self.price_limit} ct/kWh")
         elif "Inf" in strategy:
             self.price_limit = 9_999
-            self.b_fnc = pd.Series(data=[self.price_limit] * 20, index=[*range(5, 105, 5)])
+            data = {car: [self.price_limit] * 20 for car in self.cars.keys()}
+            self.b_fnc = pd.DataFrame(data=data, index=[*range(5, 105, 5)])
             logger.info(f" -> no price limit is set")
         else:
-            col = np.argwhere(self.random.uniform() * 100 > CUM_PROB).flatten()
-            col = col[-1] if len(col) > 0 else 0
-            self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, col]
-            logger.info(f" -> set benefit function {col} with mean price limit of {self.b_fnc.values.mean()} ct/kWh")
+            cols = {}
+            for car in self.cars.keys():
+                col = np.argwhere(self.random.uniform() * 100 > CUM_PROB).flatten()
+                col = col[-1] if len(col) > 0 else 0
+                cols[car] = col
+            self.b_fnc = BENEFIT_FUNCTIONS.iloc[:, list(cols.values())]
+            self.b_fnc.columns = self.cars.keys()
+            logger.info(f" -> set benefit functions")
 
         logger.info(f" -> set maximal iteration to {max_request}")
         self._max_requests = [max_request, max_request]
 
-        self.heat_storages = {'space': HeatStorage(volume=400, d_theta=35),
+        self.heat_storages = {'space': HeatStorage(volume=25 * self._demand_q.max_demand, d_theta=35),
                               'hot_water': HeatStorage(volume=50 * residents, d_theta=50)}
 
         self.dispatcher = EnergySystemDispatch(
             steps=self.T,
             resolution=self.resolution,
             strategy=strategy,
-            benefit_function=self.b_fnc,
+            benefit_functions=self.b_fnc,
             generation=self.get(DataType.residual_generation),
             tariff=tariff,
             grid_fee=grid_fee,
             electric_vehicles=self.cars,
+            analyse_hp=True,
             analyse_ev=True if self._total_capacity > 0 else False,
             heat_demand=self._data.loc[:, ['heat_hot_water', 'COP_hot_water',
                                            'heat_space', 'COP_space']],
@@ -304,7 +311,7 @@ class HouseholdModel(BasicParticipant):
 if __name__ == "__main__":
 
     from matplotlib import pyplot as plt
-
+    from pyomo.environ import value
     import numpy as np
     import pandas as pd
     from datetime import timedelta as td
@@ -359,16 +366,29 @@ if __name__ == "__main__":
             london_id=consumer["london_data"],
             pv_systems=eval(consumer["pv"]),
             consumer_type="household",
-            random=np.random.default_rng(2022),
+            random=np.random.default_rng(5),
             weather=weather_at_each_day,
             grid_fee=grid_fee,
             **config_dict
         )
+    r.tariff = pd.Series(data=-10 * np.ones(len(r.tariff)), index=r.tariff.index)
 
     request1 = r.get_request(date_range[0])
     prices = np.zeros(96)
     prices[:50] = 250
-    r.commit(price=pd.Series(index=request1.index, data=prices))
+
+    # for car in r.cars.keys():
+    #     for t in r.t:
+    #         x = sum([r.dispatcher.segments[car]["low_"][k] * value(r.dispatcher.m.z[car, t, k]) +
+    #                  r.dispatcher.segments[car]["coeff"][k] * (value(r.dispatcher.m.q[car, t, k]) -
+    #                                                            r.dispatcher.segments[car]["low"][k] *
+    #                                                            value(r.dispatcher.m.z[car, t, k]))
+    #                  for k in range(20)])
+    #         ben = value(r.dispatcher.m.ev_dbenefit[car, t])
+    #         print(car, t, x, ben)
+
+    x = r.commit(price=pd.Series(index=request1.index, data=prices))
+
     request2 = r.get_request(date_range[0])
 
     r.commit(price=pd.Series(index=request1.index, data=np.zeros(96)))
@@ -377,12 +397,11 @@ if __name__ == "__main__":
     request2.plot(ax=ax)
     plt.show()
 
-    time_range = pd.date_range(start=date_range[0], periods=96, freq='15min')
-    ax2 = r.get(data_type=DataType.planned_grid_consumption, time_range=time_range).plot()
-    r.get(data_type=DataType.final_grid_consumption, time_range=time_range).plot(ax=ax2)
+    #time_range = pd.date_range(start=date_range[0], periods=96, freq='15min')
+    #ax2 = r.get(data_type=DataType.planned_grid_consumption, time_range=time_range).plot()
+    #r.get(data_type=DataType.final_grid_consumption, time_range=time_range).plot(ax=ax2)
 
-
-    plt.show()
+    #plt.show()
 
     # r.dispatcher.get_optimal_solution(date_range[0])
     # ax = r.dispatcher.request.plot()
