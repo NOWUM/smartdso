@@ -12,9 +12,9 @@ class Resident:
         self,
         ev_ratio: float,
         start_date: datetime,
-        end_time: datetime,
+        end_date: datetime,
         random: np.random.default_rng,
-        T: int = 1440,
+        T: int = 96,
         charging_limit: str = "required",
         *args,
         **kwargs
@@ -45,6 +45,6 @@ class Resident:
                 charging_limit=charging_limit,
                 steps=self.T,
             )
-            self.car.initialize_time_series(self.mobility, start_date, end_time)
+            self.car.initialize_time_series(self.mobility, start_date, end_date)
         else:
             self.car = Car(self.random, car_type="no car")
