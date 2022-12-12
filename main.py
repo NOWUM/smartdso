@@ -5,8 +5,8 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import timedelta as td
 
-from agents.capacity_provider import CapacityProvider
 from agents.flexibility_provider import FlexibilityProvider
+from agents.capacity_provider import CapacityProvider
 from agents.utils import WeatherGenerator
 
 from participants.basic import BasicParticipant, DataType
@@ -91,6 +91,7 @@ try:
     clients: dict[str, BasicParticipant] = {}
     # -> all residential consumers
     residential_consumers = consumers.loc[consumers["profile"] == "H0"]
+    residential_consumers = residential_consumers.fillna('[]')
     logger.info(f" -> starting residential clients")
     num_ = len(residential_consumers)
     for _, consumer in tqdm(residential_consumers.iterrows(), total=num_):
@@ -179,7 +180,7 @@ if __name__ == "__main__":
         logger.error(f" -> error in power flow calculation: {repr(e)}")
 
     # -> start simulation for date range start_date till end_date
-    for day in date_range:
+    for day in date_range[:-1]:
         logger.info(f" -> running day {day.date()}")
         number_clients = len(FlexProvider.keys)
         for d_time in time_range[time_range.date == day]:
@@ -187,19 +188,31 @@ if __name__ == "__main__":
                 logger.info(f" -> consumers plan charging...")
                 logger.info(f" -> {d_time}")
                 number_commits = 0
+                number_rejects = 0
+                requested = {}
                 while number_commits < number_clients:
                     for request, node_id in FlexProvider.get_requests(d_time=d_time):
                         price = CapProvider.handle_request(request=request, node_id=node_id)
                         if FlexProvider.commit(price):
                             CapProvider.set_demand(request=request, node_id=node_id)
-
+                        else:
+                            id_ = FlexProvider.consumer_handler.id_
+                            if id_ in requested.keys():
+                                if all(requested[id_] == request.values):
+                                    print(f'same request of id:  {id_}')
+                                else:
+                                    print(f'get new request of id: {id_}')
+                            requested[id_] = request.values
+                            # print(f'reject: {id_}')
+                            number_rejects += 1
                     if 'optimize' in Config.STRATEGY:
                         number_commits = FlexProvider.get_commits()
                         logger.debug(f" -> {number_commits} consumers commit charging")
                     elif 'heuristic' in Config.STRATEGY:
                         logger.debug("set commit charging for clients")
                         number_commits = len(clients)
-
+                    print(number_rejects)
+                    number_rejects = 0
                 for client in clients.values():
                     client.simulate(d_time)
 
@@ -209,5 +222,8 @@ if __name__ == "__main__":
         if Config.WRITE_EV:
             for client in clients.values():
                 client.save_ev_data(day)
+                client.save_hp_data(day)
         if Config.WRITE_CONSUMER_SUMMARY:
             FlexProvider.save_consumer_summary(day)
+
+        CapProvider.save_results(day)
