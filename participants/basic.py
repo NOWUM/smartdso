@@ -178,7 +178,7 @@ class BasicParticipant:
         for day in self.date_range:
             time_range = pd.date_range(start=day, periods=self.T, freq=self.resolution)
             temperature = self.weather.loc[time_range, 'temp_air'].values - 273.15
-            result = self._demand_q.run_model(temperature)
+            result = self._demand_q.run_model(d_time=day, temperature=temperature)
             self._data.loc[time_range, "heat_hot_water"] = result['hot_water']
             self._data.loc[time_range, "COP_hot_water"] = result['cop_hot_water']
             self._data.loc[time_range, "heat_space"] = result['space_heating']
@@ -239,4 +239,7 @@ class BasicParticipant:
         return self._data.loc[time_range]
 
     def save_ev_data(self, d_time: datetime):
+        pass
+
+    def save_hp_data(self, d_time: datetime):
         pass
