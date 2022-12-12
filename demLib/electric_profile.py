@@ -115,3 +115,35 @@ class StandardLoadProfile:
             ).flatten()
         else:
             return demand
+
+
+if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+
+    s = StandardLoadProfile(demandP=6000)
+    x_s = []
+
+    for date in pd.date_range(start='2018-01-01', periods=7, freq='d'):
+        x = s.run_model(d=date)
+        x_s.append(x)
+
+    x_s = np.array(x_s).flatten()
+    df = pd.DataFrame(data={'power': x_s}, index=pd.date_range(start='2018-01-01',
+                                                               periods=len(x_s),
+                                                               freq='15min'))
+    df.to_excel('mein_slp.xlsx')
+
+    s = StandardLoadProfile(demandP=6000, london_data=True, l_id='MAC005555')
+    x_s = []
+
+    for date in pd.date_range(start='2018-01-01', periods=7, freq='d'):
+        x = s.run_model(d=date)
+        x_s.append(x)
+
+    x_s = np.array(x_s).flatten()
+    df = pd.DataFrame(data={'power': x_s}, index=pd.date_range(start='2018-01-01',
+                                                               periods=len(x_s),
+                                                               freq='15min'))
+
+    df.to_excel('mein_london_slp.xlsx')
+
