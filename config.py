@@ -16,15 +16,15 @@ class SimulationConfig:
         "DATABASE_URI", "postgresql://opendata:opendata@10.13.10.41:5432/smartdso"
     )
     # -> select grid data in ./gridLib/data/export/
-    GRID_DATA: str = os.getenv("GRID_DATA", "dem")
+    GRID_DATA: str = os.getenv("GRID_DATA", "alliander")
     # -> select sub grid: -1 correspond to total grid, an integer > 0 select the grid
-    SUB_GRID: int = int(os.getenv("SUB_GRID", 1))
+    SUB_GRID: int = int(os.getenv("SUB_GRID", 2))
     # -> default start date
-    START_DATE: pd.Timestamp = pd.to_datetime(os.getenv("START_DATE", "2022-05-01"))
+    START_DATE: pd.Timestamp = pd.to_datetime(os.getenv("START_DATE", "2022-01-01"))
     # -> default end date
-    END_DATE: pd.Timestamp = pd.to_datetime(os.getenv("END_DATE", "2022-05-10"))
+    END_DATE: pd.Timestamp = pd.to_datetime(os.getenv("END_DATE", "2022-04-30"))
     # -> set EV ratio
-    EV_RATIO: int = int(os.getenv("EV_RATIO", 100)) / 100
+    EV_RATIO: int = int(os.getenv("EV_RATIO", 5)) / 100
     # -> set PV ratio
     PV_RATIO: int = int(os.getenv("PV_RATIO", 100)) / 100
     # -> use historic london data or slp data
@@ -32,11 +32,11 @@ class SimulationConfig:
     # -> set consumer charging strategy
     STRATEGY: str = os.getenv("STRATEGY", "optimize_soc")
     # -> set tariff for flexibility provider
-    TARIFF: str = os.getenv("TARIFF", "flat")
+    TARIFF: str = os.getenv("TARIFF", "spot")
     # -> set seed to avoid monte carlo error
     SEED: int = int(os.getenv("RANDOM_SEED", 2022))
     # -> set name for simulation
-    NAME: str = os.getenv("NAME", "Test")
+    NAME: str = os.getenv("NAME", "AllianderSpot")
     # -> set simulation number
     SIM: int = 0
     # -> reset/initialize database
@@ -44,7 +44,7 @@ class SimulationConfig:
     # -> delete scenario
     DELETE_SCENARIO: bool = os.getenv("DELETE_SCENARIO", "False") == "True"
     # -> write GIS information for grid
-    WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "False") == "True"
+    WRITE_GRID_TO_GIS: bool = os.getenv("WRITE_GRID_TO_GIS", "True") == "True"
     # -> write electric vehicle data
     WRITE_EV: bool = os.getenv("WRITE_EV", "True") == "True"
     # -> write consumer summary
