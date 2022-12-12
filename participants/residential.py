@@ -66,7 +66,7 @@ class HouseholdModel(BasicParticipant):
             weather: pd.DataFrame = None,
             tariff: pd.Series = None,
             grid_fee: pd.Series = None,
-            max_request: int = 4,
+            max_request: int = 0,
             *args,
             **kwargs,
     ):
@@ -155,7 +155,7 @@ class HouseholdModel(BasicParticipant):
         logger.info(f" -> set maximal iteration to {max_request}")
         self._max_requests = [max_request, max_request]
 
-        self.heat_storages = {'space': HeatStorage(volume=25 * self._demand_q.max_demand, d_theta=35),
+        self.heat_storages = {'space': HeatStorage(volume=60 * self._demand_q.max_demand, d_theta=35),
                               'hot_water': HeatStorage(volume=50 * residents, d_theta=50)}
 
         self.dispatcher = EnergySystemDispatch(
@@ -168,7 +168,7 @@ class HouseholdModel(BasicParticipant):
             grid_fee=grid_fee,
             electric_vehicles=self.cars,
             analyse_hp=True,
-            analyse_ev=True if self._total_capacity > 0 else False,
+            analyse_ev=False,     # True if self._total_capacity > 0 else False,
             heat_demand=self._data.loc[:, ['heat_hot_water', 'COP_hot_water',
                                            'heat_space', 'COP_space']],
             heat_storages=self.heat_storages,
@@ -215,13 +215,26 @@ class HouseholdModel(BasicParticipant):
         power = self.dispatcher.request.values
         tariff = self._data.loc[price.index, "tariff"].values.flatten()
         grid_fee = price.values.flatten()
-        total_price = sum((tariff + grid_fee) * np.abs(power)) * self.dt
+        power = self.dispatcher.power_demand_heat_c + self.dispatcher.power_demand_mobility - \
+                self.dispatcher.power_generation_pv
+        power[power < 0] = 0
+        total_price = sum((tariff + grid_fee) * power) * self.dt
+
         # -> get benefit value
-        benefit = self.dispatcher.ev_benefit + self.dispatcher.hp_benefit + self.dispatcher.pv_benefit
+        benefit = self.dispatcher.ev_benefit + self.dispatcher.hp_benefit # + self.dispatcher.pv_benefit
         # -> compare benefit and costs
-        #print('price:', total_price)
-        #print('benefit:', benefit)
-        #print('ev_benefit', self.dispatcher.ev_benefit)
+        # print('price:', total_price)
+        # print('benefit:', benefit)
+        # print('ev_benefit', self.dispatcher.ev_benefit)
+
+        # power = r.dispatcher.power_demand_heat_s + r.dispatcher.power_demand_mobility - \
+        #         r.dispatcher.power_generation_pv
+        # power[power < 0] = 0
+        # total_price = sum((tariff + grid_fee) * power) * self.dt
+        # print('price:', total_price)
+        # print('benefit:', benefit)
+        # print('ev_benefit', self.dispatcher.ev_benefit)
+
         if benefit > total_price or self._max_requests[0] == 0:
             # -> calculate final tariff time series
             final_tariff = self._data.loc[price.index, "tariff"] + price
@@ -234,7 +247,7 @@ class HouseholdModel(BasicParticipant):
             # -> set volume for each storage type
             for key, storage in self.heat_storages.items():
                 usage = storage.get_planned_usage()
-                storage.set_planned_usage(usage)
+                storage.set_final_usage(usage)
             # -> set next request time
             self.next_request = price.index.max()
             # -> set final grid consumption
@@ -267,8 +280,47 @@ class HouseholdModel(BasicParticipant):
 
             return False
 
+    def save_hp_data(self, d_time: datetime):
+        time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
+        data = pd.DataFrame(index=time_range)
+
+        columns = {'heat_hot_water': 'demand_hot_water',
+                   'COP_hot_water': 'cop_hot_water',
+                   'heat_space': 'demand_space_heating',
+                   'COP_space': 'cop_space_heating',
+                   }
+        index_columns = ["time", "scenario", "iteration", "sub_id", "id_"]
+
+        for key, col in columns.items():
+            data[col] = self._data.loc[time_range, key]
+
+        data["scenario"] = self.name
+        data['iteration'] = self.sim
+        data["sub_id"] = self.sub_grid
+        data["id_"] = self.id_
+
+        data['volume_space_heating'] = self.heat_storages['space'].get_final_usage()
+        data['volume_hot_water'] = self.heat_storages['hot_water'].get_final_usage()
+
+        data['power_heat_pump'] = self.dispatcher.power_demand_heat_s
+
+        data.index.name = "time"
+        data = data.reset_index()
+        data = data.set_index(index_columns)
+
+        try:
+            data.to_sql(
+                name="heat_demand",
+                con=self._database,
+                if_exists="append",
+                method="multi",
+            )
+        except Exception as e:
+            logger.warning(f"server closed the connection {repr(e)}")
+
     def save_ev_data(self, d_time: datetime):
         time_range = pd.date_range(start=d_time, freq=self.resolution, periods=self.T)
+        index_columns = ["time", "scenario", "iteration", "sub_id", "id_"]
 
         columns = {
             "soc": "soc",
@@ -279,8 +331,6 @@ class HouseholdModel(BasicParticipant):
             "distance": "distance",
             "tariff": "tariff"
         }
-
-        index_columns = ["time", "scenario", "iteration", "sub_id", "id_"]
 
         for key, car in self.cars.items():
             data = car.get_result(time_range)
@@ -358,24 +408,27 @@ if __name__ == "__main__":
     consumer = residential_consumers.iloc[0, :]
 
     r = HouseholdModel(
-            demand_power=consumer['demand_power'],
-            demand_heat=consumer['demand_heat'],
-            consumer_id='test',
-            grid_node=consumer["bus0"],
-            residents=int(max(consumer["demand_power"] / 1500, 1)),
-            london_id=consumer["london_data"],
-            pv_systems=eval(consumer["pv"]),
-            consumer_type="household",
-            random=np.random.default_rng(5),
-            weather=weather_at_each_day,
-            grid_fee=grid_fee,
-            **config_dict
-        )
-    r.tariff = pd.Series(data=-10 * np.ones(len(r.tariff)), index=r.tariff.index)
+        demand_power=consumer['demand_power'],
+        demand_heat=consumer['demand_heat'],
+        consumer_id='test',
+        grid_node=consumer["bus0"],
+        residents=int(max(consumer["demand_power"] / 1500, 1)),
+        london_id=consumer["london_data"],
+        pv_systems=eval(consumer["pv"]),
+        consumer_type="household",
+        random=np.random.default_rng(5),
+        weather=weather_at_each_day,
+        grid_fee=grid_fee,
+        **config_dict
+    )
+    # r.tariff = pd.Series(data=-10 * np.ones(len(r.tariff)), index=r.tariff.index)
 
     request1 = r.get_request(date_range[0])
     prices = np.zeros(96)
-    prices[:50] = 250
+    # prices[:50] = 250
+    x = r.commit(price=pd.Series(index=request1.index, data=prices))
+
+    r.save_hp_data(request1.index[0])
 
     # for car in r.cars.keys():
     #     for t in r.t:
@@ -387,21 +440,21 @@ if __name__ == "__main__":
     #         ben = value(r.dispatcher.m.ev_dbenefit[car, t])
     #         print(car, t, x, ben)
 
-    x = r.commit(price=pd.Series(index=request1.index, data=prices))
+    # x = r.commit(price=pd.Series(index=request1.index, data=prices))
 
-    request2 = r.get_request(date_range[0])
+    # request2 = r.get_request(date_range[0])
 
-    r.commit(price=pd.Series(index=request1.index, data=np.zeros(96)))
+    # r.commit(price=pd.Series(index=request1.index, data=np.zeros(96)))
 
-    ax = request1.plot()
-    request2.plot(ax=ax)
-    plt.show()
+    # ax = request1.plot()
+    # request2.plot(ax=ax)
+    # plt.show()
 
-    #time_range = pd.date_range(start=date_range[0], periods=96, freq='15min')
-    #ax2 = r.get(data_type=DataType.planned_grid_consumption, time_range=time_range).plot()
-    #r.get(data_type=DataType.final_grid_consumption, time_range=time_range).plot(ax=ax2)
+    # time_range = pd.date_range(start=date_range[0], periods=96, freq='15min')
+    # ax2 = r.get(data_type=DataType.planned_grid_consumption, time_range=time_range).plot()
+    # r.get(data_type=DataType.final_grid_consumption, time_range=time_range).plot(ax=ax2)
 
-    #plt.show()
+    # plt.show()
 
     # r.dispatcher.get_optimal_solution(date_range[0])
     # ax = r.dispatcher.request.plot()
@@ -420,7 +473,4 @@ if __name__ == "__main__":
     # ax.plot(r.dispatcher.request.index, r.heat_storages['space'].get_planned_usage())
     # plt.show()
 
-
     # model = r.dispatcher.m
-
-
