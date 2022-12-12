@@ -18,6 +18,7 @@ class CarData(Enum):
     demand = 2
     soc = 3
     planned_charge = 4
+    final_charge = 5
 
 
 class Car:
