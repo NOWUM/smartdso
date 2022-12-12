@@ -92,6 +92,27 @@ class TableCreator:
             with connection.begin():
                 connection.execute(query_create_hypertable)
 
+        # -> create heat demand table
+        self.engine.execute("CREATE TABLE IF NOT EXISTS heat_demand( "
+                            "time timestamp without time zone NOT NULL, "
+                            "iteration integer, "
+                            "scenario text, "
+                            "id_ text, "
+                            "sub_id integer, "
+                            "demand_hot_water double precision, "
+                            "cop_hot_water double precision, "
+                            "demand_space_heating double precision, "
+                            "cop_space_heating double precision, "
+                            "volume_space_heating double precision, "
+                            "volume_hot_water double precision, "
+                            "power_heat_pump double precision, "
+                            "PRIMARY KEY (time , scenario, iteration, sub_id, id_));")
+
+        query_create_hypertable = "SELECT create_hypertable('heat_demand', 'time', if_not_exists => TRUE, migrate_data => TRUE);"
+        with self.engine.connect() as connection:
+            with connection.begin():
+                connection.execute(query_create_hypertable)
+
         # -> grid asset table
         self.engine.execute("CREATE TABLE IF NOT EXISTS grid_asset( "
                             "time timestamp without time zone NOT NULL, "
@@ -185,7 +206,9 @@ class TableCreator:
 
 
 if __name__ == "__main__":
-    tb = TableCreator(create_tables=True)
+    tb = TableCreator(create_tables=False, database_uri='postgresql://opendata:opendata@10.13.10.41:5432/smartdso')
+    for scenario in ['Alliander_HPEV_Test', 'Alliander_HP1_Test']:
+        tb.delete_scenario(scenario)
     # prefix = 'A-'
     # scenarios = [
     #     f'{prefix}MaxPvCap-PV25-PriceFlat',
