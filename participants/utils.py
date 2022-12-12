@@ -24,3 +24,6 @@ class HeatStorage:
     def set_final_usage(self, usage: np.array):
         self._final_usage = usage
         self.V0 = self._final_usage[-1]
+
+    def get_final_usage(self):
+        return self._final_usage
