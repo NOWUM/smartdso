@@ -27,7 +27,7 @@ from carLib.car import Car, CarData
 from participants.utils import HeatStorage
 
 logger = logging.getLogger("samrtdso.energy_system_dispatch")
-logger.setLevel('INFO')
+logger.setLevel('ERROR')
 
 
 class EnergySystemDispatch:
@@ -91,6 +91,11 @@ class EnergySystemDispatch:
         self.pv_usage = None
         self.ev_benefit = 0
         self.hp_benefit = 0
+        self.power_demand_heat_s = np.zeros(self.T)
+        self.power_demand_heat_c = np.zeros(self.T)
+        self.power_demand_mobility = np.zeros(self.T)
+        self.power_generation_pv = np.zeros(self.T)
+        self.heat_cost_with_storage = 0
         self.pv_benefit = 0
         self.grid_out = pd.Series(dtype=float)
         self.grid_in = pd.Series(dtype=float)
@@ -146,7 +151,7 @@ class EnergySystemDispatch:
         return ev.get(CarData.usage, slice(s1, s2)).values
 
     def _get_time_slice(self, d_time: datetime):
-        s1, s2 = d_time, d_time + td(days=1)
+        s1, s2 = d_time, d_time + td(hours=23, minutes=59, seconds=59)
         time_range = pd.date_range(start=s1, periods=self.T, freq=self.resolution)
         return slice(s1, s2), time_range
 
@@ -204,7 +209,7 @@ class EnergySystemDispatch:
         self.m.ev_dbenefit = Var(self.ev.keys(), self.t, within=Reals, bounds=(None, None))
 
         for car, val in self.ev.items():
-             for t in self.t:
+            for t in self.t:
                 if t == 0:
                     d_benefit = self.m.ev_benefit[car, t] - self.get_actual_ev_benefit(car)
                 else:
@@ -285,6 +290,9 @@ class EnergySystemDispatch:
             self.m.heat_balance_eq.add(quicksum(self.m.hp_heat[key, t] for key in heat_demand.keys())
                                        <= self.heat_pump)
 
+        for key in heat_demand.keys():
+            self.m.heat_capacity_eq.add(self.m.hs_volume[key, self.T - 1] == self.heat_storages[key].volume / 2)
+
         return heat_demand, heat_cop
 
     def get_optimal_solution(self, d_time: datetime):
@@ -302,7 +310,6 @@ class EnergySystemDispatch:
             total_grid_power = self._create_ev_model(d_time)
             ev_power = self.m.find_component('ev_power')
             ev_benefit = quicksum(self.m.ev_dbenefit[car, t] for car in self.ev.keys() for t in self.t)
-            # ev_benefit = self.m.benefit
         else:
             total_grid_power = 0
             ev_power = np.zeros((1, self.T))
@@ -315,18 +322,13 @@ class EnergySystemDispatch:
             hp_power = [quicksum(self.m.hp_heat[key, t] / heat_cop[key][t] for key in heat_cop.keys())
                         for t in self.t]
 
-            power = quicksum(self.m.hs_volume[key, self.T - 1] / np.mean(heat_cop[key])
-                             for key in heat_cop.keys())
-
-            ben_ = self.dt * quicksum((heat_demand[key][t] / heat_cop[key][t]) * total_price[t]
-                                      for key in heat_cop.keys()
-                                      for t in self.t)
-
-            hs_benefit = power * np.mean(total_price)  # + ben_
-
+            # power = quicksum(self.m.hs_volume[key, self.T - 1] / np.mean(heat_cop[key])
+            #                  for key in heat_cop.keys())
+            # heat_demand_s = [quicksum((heat_demand[key][t] / heat_cop[key][t]) for key in heat_cop.keys())
+            #                  for t in self.t]
         else:
             hp_power = np.zeros(self.T)
-            hs_benefit = 0
+            heat_demand_s = np.zeros(self.T)
 
         # -> declare grid variables
         self.m.grid_power = Var(self.t, within=Reals, bounds=(0, None))
@@ -347,7 +349,7 @@ class EnergySystemDispatch:
         costs = quicksum(total_price[t] * self.m.grid_out[t] * self.dt for t in self.t)
         revenue = quicksum(5 * self.m.grid_in[t] * self.dt for t in self.t)
 
-        self.m.obj = Objective(expr=ev_benefit + hs_benefit - costs + revenue, sense=maximize)
+        self.m.obj = Objective(expr=ev_benefit - costs + revenue, sense=maximize)
 
         try:
 
@@ -379,12 +381,20 @@ class EnergySystemDispatch:
                         storage.set_planned_usage(storage_volume)
 
                     # -> set benefit value to compare it later with total heating costs
-                    self.hp_benefit = value(hs_benefit)
+                    # self.hp_benefit = value(hs_benefit)
+                    self.power_demand_heat_s = np.array([value(hp_power[t]) for t in self.t])
+                    # self.power_demand_heat_c = np.array([value(heat_demand_s[t]) for t in self.t])
 
                 self.pv_benefit = value(revenue)
 
+                # max_hp = np.vstack([self.power_demand_heat_s, self.power_demand_heat_c]).max(axis=0, initial=0)
+                # self.power_demand_mobility = np.array([value(quicksum(ev_power[:, t])) for t in self.t])
+                # self.power_generation_pv = generation
+
+                request_power = self.power_demand_heat_s + self.power_demand_mobility - self.power_generation_pv
+
                 # -> set request series which is send to the Capacity Provider
-                self.request = pd.Series(data=grid_consumption - grid_feed_in, index=time_range)
+                self.request = pd.Series(data=request_power, index=time_range)
                 self.request = self.request.round(2)
                 # -> set pv charging time series
                 self.pv_usage = pd.Series(data=pv_usage, index=time_range)
@@ -410,95 +420,100 @@ class EnergySystemDispatch:
             self.pv_usage = pd.Series(data=np.zeros(self.T), index=time_range)
             self.grid_out = pd.Series(data=np.zeros(self.T), index=time_range)
             self.grid_in = pd.Series(data=np.zeros(self.T), index=time_range)
+            self.power_demand_heat_c = np.zeros(self.T)
+            self.power_demand_heat_s = np.zeros(self.T)
+            self.power_demand_mobility = np.zeros(self.T)
+            self.power_generation_pv = np.zeros(self.T)
 
     def get_heuristic_solution(self, d_time: datetime):
         pass
-
-# def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = "required"):
-#     remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
-#     generation = self._data.loc[
-#                  d_time: d_time + td(hours=(remaining_steps - 1) * self.dt),
-#                  "residual_generation",
-#                  ]
-#     self._request = pd.Series(
-#         data=np.zeros(remaining_steps),
-#         index=pd.date_range(
-#             start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps
-#         ),
-#     )
-#
-#     for key, car in self.cars.items():
-#         self._car_power[key] = pd.Series(
-#             data=np.zeros(remaining_steps),
-#             index=pd.date_range(
-#                 start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps
-#             ),
-#         )
-#         usage = car.get(CarData.usage, slice(d_time, None))
-#         if car.soc < car.get_limit(d_time, strategy) and usage.at[d_time] == 0:
-#             chargeable = usage.loc[usage == 0]
-#             # -> get first time stamp of next charging block
-#             if chargeable.empty:
-#                 t1 = self.time_range[-1]
-#             else:
-#                 t1 = chargeable.index[0]
-#             # -> get first time stamp of next using block
-#             car_in_use = usage.loc[usage == 1]
-#             if car_in_use.empty:
-#                 t2 = self.time_range[-1]
-#             else:
-#                 t2 = car_in_use.index[0]
-#
-#             if t2 > t1:
-#                 limit_by_capacity = (
-#                         (car.capacity * (1 - car.soc))
-#                         / car.maximal_charging_power
-#                         / self.dt
-#                 )
-#                 limit_by_slot = len(
-#                     self.time_range[
-#                         (self.time_range >= t1) & (self.time_range < t2)
-#                         ]
-#                 )
-#                 duration = int(min(limit_by_slot, limit_by_capacity))
-#                 self._car_power[key] = pd.Series(
-#                     data=car.maximal_charging_power * np.ones(duration),
-#                     index=pd.date_range(
-#                         start=d_time, freq=RESOLUTION[self.T], periods=duration
-#                     ),
-#                 )
-#
-#                 self._request.loc[self._car_power[key].index] += self._car_power[
-#                     key
-#                 ].values
-#
-#     if self._request.sum() > 0:
-#         pv_usage = pd.Series(
+#         remaining_steps = min(len(self.time_range[self.time_range >= d_time]), self.T)
+#         generation = self._data.loc[
+#                      d_time: d_time + td(hours=(remaining_steps - 1) * self.dt),
+#                      "residual_generation",
+#                      ]
+#         self._request = pd.Series(
 #             data=np.zeros(remaining_steps),
 #             index=pd.date_range(
 #                 start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps
 #             ),
 #         )
 #
-#         generation.loc[generation.values > max(self._request.values)] = max(
-#             self._request.values
-#         )
-#         pv_usage.loc[self._request > 0] = generation.loc[self._request > 0].values
+#         for key, car in self.cars.items():
+#             self._car_power[key] = pd.Series(
+#                 data=np.zeros(remaining_steps),
+#                 index=pd.date_range(
+#                     start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps
+#                 ),
+#             )
+#             usage = car.get(CarData.usage, slice(d_time, None))
+#             if car.soc < car.get_limit(d_time, strategy) and usage.at[d_time] == 0:
+#                 chargeable = usage.loc[usage == 0]
+#                 # -> get first time stamp of next charging block
+#                 if chargeable.empty:
+#                     t1 = self.time_range[-1]
+#                 else:
+#                     t1 = chargeable.index[0]
+#                 # -> get first time stamp of next using block
+#                 car_in_use = usage.loc[usage == 1]
+#                 if car_in_use.empty:
+#                     t2 = self.time_range[-1]
+#                 else:
+#                     t2 = car_in_use.index[0]
 #
-#         self._request.loc[self._request > 0] -= generation.loc[self._request > 0]
+#                 if t2 > t1:
+#                     limit_by_capacity = (
+#                             (car.capacity * (1 - car.soc))
+#                             / car.maximal_charging_power
+#                             / self.dt
+#                     )
+#                     limit_by_slot = len(
+#                         self.time_range[
+#                             (self.time_range >= t1) & (self.time_range < t2)
+#                             ]
+#                     )
+#                     duration = int(min(limit_by_slot, limit_by_capacity))
+#                     self._car_power[key] = pd.Series(
+#                         data=car.maximal_charging_power * np.ones(duration),
+#                         index=pd.date_range(
+#                             start=d_time, freq=RESOLUTION[self.T], periods=duration
+#                         ),
+#                     )
 #
-#         if self._initial_plan:
-#             self._initial_plan = False
-#             self._data.loc[
-#                 self._request.index, "planned_grid_consumption"
-#             ] = self._request.values.copy()
-#             self._data.loc[
-#                 pv_usage.index, "planned_pv_consumption"
-#             ] = pv_usage.copy()
-#             for key, car in self.cars.items():
-#                 car.set_planned_charging(self._car_power[key].copy())
+#                     self._request.loc[self._car_power[key].index] += self._car_power[
+#                         key
+#                     ].values
 #
-#         self._benefit_value = (
-#                 self.price_limit * self._request.values.sum() * self.dt
-#         )
-#         self._request = self._request.loc[self._request.values > 0]
+#         if self._request.sum() > 0:
+#             pv_usage = pd.Series(
+#                 data=np.zeros(remaining_steps),
+#                 index=pd.date_range(
+#                     start=d_time, freq=RESOLUTION[self.T], periods=remaining_steps
+#                 ),
+#             )
+#
+#             generation.loc[generation.values > max(self._request.values)] = max(
+#                 self._request.values
+#             )
+#             pv_usage.loc[self._request > 0] = generation.loc[self._request > 0].values
+#
+#             self._request.loc[self._request > 0] -= generation.loc[self._request > 0]
+#
+#             if self._initial_plan:
+#                 self._initial_plan = False
+#                 self._data.loc[
+#                     self._request.index, "planned_grid_consumption"
+#                 ] = self._request.values.copy()
+#                 self._data.loc[
+#                     pv_usage.index, "planned_pv_consumption"
+#                 ] = pv_usage.copy()
+#                 for key, car in self.cars.items():
+#                     car.set_planned_charging(self._car_power[key].copy())
+#
+#             self._benefit_value = (
+#                     self.price_limit * self._request.values.sum() * self.dt
+#             )
+#             self._request = self._request.loc[self._request.values > 0]
+#
+# # def _plan_without_photovoltaic(self, d_time: datetime, strategy: str = "required"):
+#
