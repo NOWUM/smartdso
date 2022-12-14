@@ -101,6 +101,10 @@ try:
         pv_systems = []
         if random.choice(a=[True, False], p=[Config.PV_RATIO, 1 - Config.PV_RATIO]):
             pv_systems = eval(consumer["pv"])
+        if random.choice(a=[True, False], p=[Config.HP_RATIO, 1 - Config.HP_RATIO]):
+            hp_analyse = True
+        else:
+            hp_analyse = False
 
         clients[id_] = HouseholdModel(
             demand_power=consumer['demand_power'],
@@ -111,6 +115,7 @@ try:
             london_id=consumer["london_data"],
             pv_systems=pv_systems,
             consumer_type="household",
+            hp_analyse=hp_analyse,
             random=random,
             weather=weather_at_each_day,
             grid_fee=grid_fee,
@@ -211,7 +216,7 @@ if __name__ == "__main__":
                     elif 'heuristic' in Config.STRATEGY:
                         logger.debug("set commit charging for clients")
                         number_commits = len(clients)
-                    print(number_rejects)
+                    # print(number_rejects)
                     number_rejects = 0
                 for client in clients.values():
                     client.simulate(d_time)
