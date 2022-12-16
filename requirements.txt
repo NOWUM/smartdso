@@ -20,3 +20,4 @@ streamlit
 geopandas
 matplotlib
 glpk
+gurobipy
