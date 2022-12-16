@@ -53,9 +53,10 @@ class FlexibilityProvider:
         self.weather_generator = WeatherGenerator()
         # -> database connection
         self._database = create_engine(database_uri)
-        # -> set dynamic or flat enerhy price
+        # -> set dynamic or flat energy price
         if tariff == 'flat':  # -> use median
-            self.tariff = TARIFF.loc[:, 'price']
+            median = TARIFF.loc[:, 'price'].median()
+            self.tariff = pd.Series(data=[median]*len(self.time_range), index=self.time_range, name='price')
         else:
             self.tariff = TARIFF
         self.tariff = self.tariff.resample(resolution).ffill()
