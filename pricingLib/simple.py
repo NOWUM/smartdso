@@ -8,22 +8,20 @@ from carLib.car import CarData
 
 def sim_one_car(rnd: int = 5):
 
-    start_date = pd.Timestamp(2022, 1, 1)
-    end_date = pd.Timestamp(2023, 1, 1)
+    start_date = pd.Timestamp(2023, 1, 1)
+    end_date = pd.Timestamp(2024, 1, 1)
+    time_range = pd.date_range(start=start_date, end=end_date, freq='15min')
 
     resident = Resident(ev_ratio=1, start_date=start_date, end_date=end_date,
                         random=np.random.default_rng(rnd))
 
     car = resident.car
 
-    time_range = pd.date_range(start=start_date, end=end_date, freq='15min')
     if car.model == 'Nowum Car':
         return np.zeros(len(time_range))
 
-    T = 96
-
     last_charge = time_range[0] - td(minutes=-1)
-    print(f'starting {rnd}')
+
     try:
         for t in time_range:
             usage = car.get(CarData.usage, slice(t, None))

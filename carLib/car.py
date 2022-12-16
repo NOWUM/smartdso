@@ -57,7 +57,7 @@ class Car:
             "maximal_charging_power"
         ]  # -> rated power [kW]
         self.soc = (
-            self.random.integers(low=10, high=90) / 100
+            self.random.integers(low=80, high=90) / 100
         )  # -> state of charge [0,..., 1]
         self.odometer = 0  # -> distance counter
         # -> charging parameters

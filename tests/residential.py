@@ -35,7 +35,6 @@ def run_household_model(strategy: str = 'PlugInCap', test_commit: bool = True, T
                 request = house.get_request(d_time=t, strategy=strategy)
                 if request.sum() > 0:
                     print(f'send request at {t}')
-                    print(request)
                     if test_commit:
                         house.commit(pd.Series(data=np.zeros(len(request)), index=request.index))
                     else:
