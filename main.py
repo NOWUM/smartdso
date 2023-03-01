@@ -19,9 +19,10 @@ from utils import TableCreator
 # -> timescaledb connection to store the simulation results
 from config import SimulationConfig as Config
 logging.basicConfig()
-logging.getLogger("smartdso.residential").setLevel("WARNING")
+
 logger = logging.getLogger("smartdso")
-logger.setLevel("INFO")
+logger.setLevel(logging.DEBUG)
+logging.getLogger("smartdso.residential").setLevel(logging.WARNING)
 
 config_dict = Config().get_config_dict()
 
@@ -70,14 +71,12 @@ try:
     CapProvider = CapacityProvider(**config_dict)
     grid_fee = CapProvider.get_grid_fee(time_range=time_range)
     logger.info(" -> started Capacity Provider")
-    logging.getLogger("smartdso.capacity_provider").setLevel("DEBUG")
 
     # -> start flexibility provider
     logger.info(" -> starting Flexibility Provider")
     FlexProvider = FlexibilityProvider(random=random, **config_dict)
     tariff = FlexProvider.get_tariff(time_range=time_range)
     logger.info(" -> started Flexibility Provider")
-    logging.getLogger("smartdso.flexibility_provider").setLevel("DEBUG")
     config_dict['tariff'] = tariff
     # -> start consumer agents
     consumer_path = rf"./gridLib/data/export/{Config.GRID_DATA}/consumers.csv"
